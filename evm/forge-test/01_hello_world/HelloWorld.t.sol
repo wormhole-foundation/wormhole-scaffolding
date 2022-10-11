@@ -3,7 +3,7 @@ pragma solidity ^0.8.13;
 
 import "forge-std/Test.sol";
 import "../../src/01_hello_world/HelloWorld.sol";
-import {WormholeModifier} from "wormhole-solidity/WormholeModifier.sol";
+import {WormholeSimulator} from "wormhole-solidity/WormholeSimulator.sol";
 
 import "forge-std/console.sol";
 
@@ -11,6 +11,7 @@ contract HelloWorldTest is Test {
     IWormhole wormhole;
     uint256 guardianSigner;
 
+    WormholeSimulator public wormholeSimulator;
     HelloWorld public helloWorld;
 
     function setUp() public {
@@ -21,11 +22,10 @@ contract HelloWorldTest is Test {
         guardianSigner = uint256(vm.envBytes32("TESTING_DEVNET_GUARDIAN"));
 
         // Set up Wormhole using Wormhole existing on AVAX mainnet
-        WormholeModifier wormholeModifier =
-            new WormholeModifier(vm.envAddress("TESTING_WORMHOLE_ADDRESS"), vm.addr(guardianSigner));
+        wormholeSimulator = new WormholeSimulator(vm.envAddress("TESTING_WORMHOLE_ADDRESS"), guardianSigner);
 
         // We may need to interact with Wormhole throughout the test
-        wormhole = wormholeModifier.wormhole();
+        wormhole = wormholeSimulator.wormhole();
 
         // Verify Wormhole state from fork
         require(wormhole.chainId() == uint16(vm.envUint("TESTING_WORMHOLE_CHAINID")), "wrong chainId");
@@ -39,8 +39,21 @@ contract HelloWorldTest is Test {
         helloWorld = new HelloWorld(address(wormhole));
     }
 
-    function testSomething(uint256 something) public {
-        // TODO: put a real test here
-        require(something == something, "something != something");
+    function testSomething() public {
+        // start listening to events
+        vm.recordLogs();
+
+        // publish a message
+        wormhole.publishMessage(69, hex"12", 15);
+
+        // record the emitted wormhole message
+        Vm.Log[] memory entries = vm.getRecordedLogs();
+
+        // simulate signing the wormhole message
+        IWormhole.VM memory vm = wormholeSimulator.fetchSignedVAAFromLogs(entries[0]);
+
+        // try to verify the vm
+        (bool valid, string memory reason) = wormhole.verifyVM(vm);
+        require(valid, reason);
     }
 }
