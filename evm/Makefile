@@ -1,4 +1,6 @@
-.PHONY: dependencies unit-test integration-test clean all
+include testing.env
+
+.PHONY: dependencies unit-test forge-test integration-test clean all
 
 all: build
 
@@ -13,18 +15,21 @@ node_modules:
 	yarn
 
 lib/forge-std:
-	forge install foundry-rs/forge-std@2c7cbfc6fbede6d7c9e6b17afe997e3fdfe22fef --no-git --no-commit
+	forge install foundry-rs/forge-std --no-git --no-commit
 
 build: dependencies
 	forge build
 
 .PHONY: unit-test
-forge-test: dependencies build
-	forge test --fork-url https://api.avax.network/ext/bc/C/rpc -vv
+unit-test: forge-test
 
-#.PHONY: integration-test
-#integration-test: dependencies build
-#	npm run integration-test
+.PHONY: forge-test
+forge-test: dependencies
+	forge test --fork-url ${TESTING_FORK_RPC} -vv
+
+.PHONY: integration-test
+integration-test: dependencies build
+	bash shell-scripts/run_integration_tests.sh
 
 .PHONY: test
 test: forge-test integration-test

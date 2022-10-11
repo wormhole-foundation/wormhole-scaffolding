@@ -4,6 +4,7 @@
   "main": "index.js",
   "license": "ISC",
   "devDependencies": {
+    "@types/node": "^18.8.4",
     "chai": "^4.3.6",
     "ethers": "^5.7.1"
   },
