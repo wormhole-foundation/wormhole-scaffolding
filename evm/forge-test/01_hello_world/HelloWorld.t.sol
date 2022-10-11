@@ -50,7 +50,8 @@ contract HelloWorldTest is Test {
         Vm.Log[] memory entries = vm.getRecordedLogs();
 
         // simulate signing the wormhole message
-        IWormhole.VM memory vm = wormholeSimulator.fetchSignedVAAFromLogs(entries[0]);
+        // NOTE: in the wormhole-sdk, signed wormhole messages are referred to as signed VAAs
+        IWormhole.VM memory vm = wormholeSimulator.fetchSignedMessageFromLogs(entries[0]);
 
         // try to verify the vm
         (bool valid, string memory reason) = wormhole.verifyVM(vm);

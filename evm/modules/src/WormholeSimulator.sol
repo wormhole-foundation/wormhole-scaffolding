@@ -119,7 +119,7 @@ contract WormholeSimulator {
         );
     }
 
-    function fetchSignedVAAFromLogs(Vm.Log memory log) public returns (IWormhole.VM memory vm_) {
+    function fetchSignedMessageFromLogs(Vm.Log memory log) public returns (IWormhole.VM memory vm_) {
         // Parse wormhole message from ethereum logs
         vm_ = parseVMFromLogs(log);
 
