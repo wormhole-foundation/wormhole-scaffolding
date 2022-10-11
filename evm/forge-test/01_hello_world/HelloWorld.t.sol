@@ -51,10 +51,10 @@ contract HelloWorldTest is Test {
 
         // simulate signing the wormhole message
         // NOTE: in the wormhole-sdk, signed wormhole messages are referred to as signed VAAs
-        IWormhole.VM memory vm = wormholeSimulator.fetchSignedMessageFromLogs(entries[0]);
+        bytes memory encodedMessage = wormholeSimulator.fetchSignedMessageFromLogs(entries[0]);
 
         // try to verify the vm
-        (bool valid, string memory reason) = wormhole.verifyVM(vm);
+        (IWormhole.VM memory vm, bool valid, string memory reason) = wormhole.parseAndVerifyVM(encodedMessage);
         require(valid, reason);
     }
 }

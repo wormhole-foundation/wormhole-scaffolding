@@ -119,7 +119,10 @@ contract WormholeSimulator {
         );
     }
 
-    function fetchSignedMessageFromLogs(Vm.Log memory log) public returns (IWormhole.VM memory vm_) {
+    function fetchSignedMessageFromLogs(Vm.Log memory log) public returns (bytes memory) {
+        // Create message instance
+        IWormhole.VM memory vm_;
+
         // Parse wormhole message from ethereum logs
         vm_ = parseVMFromLogs(log);
 
@@ -127,16 +130,25 @@ contract WormholeSimulator {
         vm_.version = uint8(1);
         vm_.timestamp = uint32(block.timestamp);
         vm_.emitterChainId = wormhole.chainId();
-        vm_.guardianSetIndex = wormhole.getCurrentGuardianSetIndex();
 
         // Compute the hash of the body
-        vm_.hash = doubleKeccak256(encodeObservation(vm_));
+        bytes memory body = encodeObservation(vm_);
+        vm_.hash = doubleKeccak256(body);
 
         // Sign the hash with the devnet guardian private key
         IWormhole.Signature[] memory sigs = new IWormhole.Signature[](1);
         (sigs[0].v, sigs[0].r, sigs[0].s) = vm.sign(devnetGuardianPK, vm_.hash);
         sigs[0].guardianIndex = 0;
 
-        vm_.signatures = sigs;
+        return abi.encodePacked(
+            vm_.version,
+            wormhole.getCurrentGuardianSetIndex(),
+            uint8(sigs.length),
+            sigs[0].guardianIndex,
+            sigs[0].r,
+            sigs[0].s,
+            sigs[0].v,
+            body
+        );
     }
 }
