@@ -1,5 +1,6 @@
 import { expect } from "chai";
 import { ethers } from "ethers";
+import { tryNativeToHexString } from "@certusone/wormhole-sdk";
 import {
   FORK_CHAIN_ID,
   GUARDIAN_PRIVATE_KEY,
@@ -98,6 +99,15 @@ describe("Fork Test", () => {
       );
       expect(guardians.length).to.equal(1);
       expect(guardians[0]).to.equal(devnetGuardian);
+    });
+  });
+
+  describe("Check wormhole-sdk", () => {
+    it("tryNativeToHexString", async () => {
+      const accounts = await provider.listAccounts();
+      expect(tryNativeToHexString(accounts[0], "ethereum")).to.equal(
+        "00000000000000000000000090f8bf6a479f320ead074411a4b0e7944ea8c9c1"
+      );
     });
   });
 });
