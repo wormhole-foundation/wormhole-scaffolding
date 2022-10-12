@@ -28,6 +28,8 @@ unit-test:
 
 .PHONY: integration-test
 integration-test: dependencies
+	RELEASE_WORMHOLE_ADDRESS=${TESTING_WORMHOLE_ADDRESS} \
+	RELEASE_TOKEN_BRIDGE_ADDRESS=${TESTING_TOKEN_BRIDGE_ADDRESS} \
 	anchor test
 
 .PHONY: test

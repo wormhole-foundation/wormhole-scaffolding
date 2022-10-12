@@ -1,6 +1,7 @@
 use anchor_lang::prelude::*;
+use std::str::FromStr;
 
-use crate::state::Config;
+use crate::{env::WORMHOLE_ADDRESS, state::Config};
 
 #[derive(Accounts)]
 pub struct Initialize<'info> {
@@ -18,9 +19,10 @@ pub struct Initialize<'info> {
     )]
     pub config: Account<'info, Config>,
 
-    #[account()]
+    #[account(
+        constraint = wormhole_program.key() == Pubkey::from_str(WORMHOLE_ADDRESS).unwrap()
+    )]
     /// CHECK: Wormhole Program
-    /// TODO:
     pub wormhole_program: AccountInfo<'info>,
 
     #[account(

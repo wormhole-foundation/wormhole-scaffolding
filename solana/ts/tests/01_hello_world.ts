@@ -39,8 +39,108 @@ describe(" 1: Hello World", () => {
         web3.PublicKey.default // dummy for message
       );
 
+      it("Invalid Account: config", async () => {
+        for (let i = 0; i < FUZZ_TEST_ITERATIONS; ++i) {
+          const config = deriveAddress(
+            [Buffer.from(`Bogus ${i}`)],
+            program.programId
+          );
+
+          const initializeTx = await program.methods
+            .initialize()
+            .accounts({
+              owner: payer.publicKey,
+              config,
+              wormholeProgram: WORMHOLE_ADDRESS,
+              wormholeConfig: wormholeCpi.wormholeConfig,
+              wormholeFeeCollector: wormholeCpi.wormholeFeeCollector,
+              wormholeEmitter: wormholeCpi.wormholeEmitter,
+              wormholeSequence: wormholeCpi.wormholeSequence,
+            })
+            .instruction()
+            .then((ix) =>
+              web3.sendAndConfirmTransaction(
+                connection,
+                new web3.Transaction().add(ix),
+                [payer]
+              )
+            )
+            .catch((reason) => null);
+          expect(initializeTx).is.null;
+        }
+      });
+
+      it("Invalid Account: wormhole_program", async () => {
+        // First create invalid wormhole program and derive CPI PDAs
+        // from this bogus address.
+        for (let i = 0; i < FUZZ_TEST_ITERATIONS; ++i) {
+          const wormholeProgram = web3.Keypair.generate().publicKey;
+          const cpi = getPostMessageCpiAccounts(
+            program.programId,
+            wormholeProgram,
+            payer.publicKey,
+            web3.PublicKey.default // dummy for message
+          );
+
+          const initializeTx = await program.methods
+            .initialize()
+            .accounts({
+              owner: payer.publicKey,
+              config: deriveAddress(
+                [Buffer.from("hello_world.config")],
+                program.programId
+              ),
+              wormholeProgram,
+              wormholeConfig: cpi.wormholeConfig,
+              wormholeFeeCollector: cpi.wormholeFeeCollector,
+              wormholeEmitter: cpi.wormholeEmitter,
+              wormholeSequence: cpi.wormholeSequence,
+            })
+            .instruction()
+            .then((ix) =>
+              web3.sendAndConfirmTransaction(
+                connection,
+                new web3.Transaction().add(ix),
+                [payer]
+              )
+            )
+            .catch((reason) => null);
+          expect(initializeTx).is.null;
+        }
+
+        // Now just pass an invalid Wormhole program address
+        // while passing in the correct PDAs.
+        for (let i = 0; i < FUZZ_TEST_ITERATIONS; ++i) {
+          const wormholeProgram = web3.Keypair.generate().publicKey;
+
+          const initializeTx = await program.methods
+            .initialize()
+            .accounts({
+              owner: payer.publicKey,
+              config: deriveAddress(
+                [Buffer.from("hello_world.config")],
+                program.programId
+              ),
+              wormholeProgram,
+              wormholeConfig: wormholeCpi.wormholeConfig,
+              wormholeFeeCollector: wormholeCpi.wormholeFeeCollector,
+              wormholeEmitter: wormholeCpi.wormholeEmitter,
+              wormholeSequence: wormholeCpi.wormholeSequence,
+            })
+            .instruction()
+            .then((ix) =>
+              web3.sendAndConfirmTransaction(
+                connection,
+                new web3.Transaction().add(ix),
+                [payer]
+              )
+            )
+            .catch((reason) => null);
+          expect(initializeTx).is.null;
+        }
+      });
+
       it("Invalid Account: wormhole_config", async () => {
-        // TODO
         for (let i = 0; i < FUZZ_TEST_ITERATIONS; ++i) {
           const wormholeConfig = deriveAddress(
             [Buffer.from(`Bogus ${i}`)],
@@ -75,7 +175,6 @@ describe(" 1: Hello World", () => {
       });
 
       it("Invalid Account: wormhole_fee_collector", async () => {
-        // TODO
         for (let i = 0; i < FUZZ_TEST_ITERATIONS; ++i) {
           const wormholeFeeCollector = deriveAddress(
             [Buffer.from(`Bogus ${i}`)],
@@ -110,7 +209,6 @@ describe(" 1: Hello World", () => {
       });
 
       it("Invalid Account: wormhole_emitter", async () => {
-        // TODO
         for (let i = 0; i < FUZZ_TEST_ITERATIONS; ++i) {
           const wormholeEmitter = deriveAddress(
             [Buffer.from(`Bogus ${i}`)],
@@ -145,7 +243,6 @@ describe(" 1: Hello World", () => {
       });
 
       it("Invalid Account: wormhole_sequence", async () => {
-        // TODO
         for (let i = 0; i < FUZZ_TEST_ITERATIONS; ++i) {
           const wormholeSequence = deriveAddress(
             [Buffer.from(`Bogus ${i}`)],
@@ -187,14 +284,34 @@ describe(" 1: Hello World", () => {
           HELLO_WORLD_ADDRESS,
           payer.publicKey,
           WORMHOLE_ADDRESS
-        ).then((ix) =>
-          web3.sendAndConfirmTransaction(
-            connection,
-            new web3.Transaction().add(ix),
-            [payer]
+        )
+          .then((ix) =>
+            web3.sendAndConfirmTransaction(
+              connection,
+              new web3.Transaction().add(ix),
+              [payer]
+            )
           )
-        );
-        // console.log("initializeTx", initializeTx);
+          .catch((reason) => null);
+        expect(initializeTx).is.not.null;
+      });
+
+      it("Cannot Call Instruction Again: initialize", async () => {
+        const initializeTx = await createInitializeInstruction(
+          connection,
+          HELLO_WORLD_ADDRESS,
+          payer.publicKey,
+          WORMHOLE_ADDRESS
+        )
+          .then((ix) =>
+            web3.sendAndConfirmTransaction(
+              connection,
+              new web3.Transaction().add(ix),
+              [payer]
+            )
+          )
+          .catch((reason) => null);
+        expect(initializeTx).is.null;
       });
     });
   });
