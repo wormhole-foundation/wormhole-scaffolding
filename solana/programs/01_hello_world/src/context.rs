@@ -53,7 +53,8 @@ pub struct Initialize<'info> {
             b"Sequence",
             wormhole_emitter.key().as_ref()
         ],
-        bump
+        bump,
+        seeds::program = wormhole_program
     )]
     /// CHECK: Wormhole Emitter Sequence
     pub wormhole_sequence: AccountInfo<'info>,

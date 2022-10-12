@@ -1,7 +1,6 @@
 use anchor_lang::prelude::*;
 
-#[account]
-#[derive(Default)]
+#[derive(Default, AnchorSerialize, AnchorDeserialize, Copy, Clone, PartialEq, Eq)]
 pub struct WormholeAddresses {
     pub program: Pubkey,
     // program pdas
