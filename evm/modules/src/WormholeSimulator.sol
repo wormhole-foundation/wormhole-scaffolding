@@ -5,6 +5,7 @@ import {IWormhole} from "../../src/interfaces/IWormhole.sol";
 import "../../src/libraries/BytesLib.sol";
 
 import "forge-std/Vm.sol";
+import "forge-std/console.sol";
 
 contract WormholeSimulator {
     using BytesLib for bytes;
@@ -147,7 +148,7 @@ contract WormholeSimulator {
             sigs[0].guardianIndex,
             sigs[0].r,
             sigs[0].s,
-            sigs[0].v,
+            sigs[0].v - 27,
             body
         );
     }
