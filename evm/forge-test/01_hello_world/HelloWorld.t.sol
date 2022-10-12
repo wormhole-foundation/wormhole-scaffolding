@@ -36,7 +36,8 @@ contract HelloWorldTest is Test {
         );
 
         // init
-        helloWorld = new HelloWorld(address(wormhole));
+        uint8 wormholeFinality = 15;
+        helloWorld = new HelloWorld(address(wormhole), wormhole.chainId(), wormholeFinality);
     }
 
     function testSomething() public {
