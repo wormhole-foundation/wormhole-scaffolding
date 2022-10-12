@@ -26,16 +26,17 @@ contract HelloWorld is HelloWorldGetters, HelloWorldMessages {
         // message fee.
         require(msg.value == wormholeFee, "insufficient value");
 
-        // create the HelloWorld message struct
+        // create the HelloWorldMessage struct
         HelloWorldMessage memory parsedMessage = HelloWorldMessage({
             payloadID: uint8(1),
             message: "HelloSolana"
         });
 
-        // encode the HelloWorld message
+        // encode the message
         bytes memory encodedMessage = encodeMessage(parsedMessage);
 
-        // send the Hello Solana wormhole message
+        // Send the HelloWorld message by calling publishMessage on the
+        // wormhole core contract.
         messageSequence = wormhole.publishMessage{value: wormholeFee}(
             42000, // user specified message ID
             encodedMessage,
