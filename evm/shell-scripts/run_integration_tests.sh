@@ -20,11 +20,11 @@ RPC="http://localhost:8545"
 ## first key from mnemonic above
 PRIVATE_KEY="0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d"
 
-#echo "deploy contracts"
-#forge script forge-scripts/deploy_contracts.sol \
-#    --rpc-url $RPC \
-#    --private-key $PRIVATE_KEY \
-#    --broadcast --slow > /dev/null 2>&1
+echo "deploy contracts"
+forge script forge-scripts/deploy_contracts.sol \
+    --rpc-url $RPC \
+    --private-key $PRIVATE_KEY \
+    --broadcast --slow > forge-scripts/deploy.out 2>&1
 
 ## run tests here
 npx ts-mocha -t 1000000 ts-test/*.ts
