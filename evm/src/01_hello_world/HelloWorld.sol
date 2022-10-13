@@ -11,6 +11,12 @@ contract HelloWorld is HelloWorldGetters, HelloWorldMessages {
     using BytesLib for bytes;
 
     constructor(address wormhole_, uint16 chainId_, uint8 wormholeFinality_) {
+        // sanity check input values
+        require(wormhole_ != address(0), "invalid wormhole address");
+        require(chainId_ > 0, "invalid chainId");
+        require(wormholeFinality_ > 0, "invalid wormholeFinality");
+
+        // set constructor state values
         setOwner(msg.sender);
         setWormhole(wormhole_);
         setChainId(chainId_);
@@ -83,7 +89,7 @@ contract HelloWorld is HelloWorldGetters, HelloWorldMessages {
         );
         require(
             getRegisteredEmitter(emitterChainId) == bytes32(0),
-            "emitterAddress already registered"
+            "emitterChainId already registered"
         );
 
         // update the registeredEmitters state variable
@@ -101,7 +107,7 @@ contract HelloWorld is HelloWorldGetters, HelloWorldMessages {
     }
 
     modifier onlyOwner() {
-        require(owner() == msg.sender, "only the owner can invoke this method");
+        require(owner() == msg.sender, "caller not the owner");
         _;
     }
 }

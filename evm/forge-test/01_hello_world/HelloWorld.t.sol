@@ -110,13 +110,50 @@ contract HelloWorldTest is Test {
         helloWorldSource.decodeMessage(encodedMessage);
     }
 
-    // This test confirms that the `sendMessage` method correclty sends the
+    // This test confirms that the owner can correctly register a trusted emitter
+    // with the HelloWorld contracts. It also tests that an emitter chainId can
+    // only be registered once.
+    function testRegisterEmitter() public {
+        // cache the new emitter info
+        uint16 newEmitterChainId = helloWorldTarget.chainId();
+        bytes32 newEmitterAddress = bytes32(uint256(uint160(address(helloWorldTarget))));
+
+        // register the emitter with the owners wallet
+        helloWorldSource.registerEmitter(newEmitterChainId, newEmitterAddress);
+
+        // verify that the contract state was updated correctly
+        bytes32 emitterInContractState = helloWorldSource.getRegisteredEmitter(
+            helloWorldTarget.chainId()
+        );
+        assertEq(emitterInContractState, newEmitterAddress);
+
+        // confirm that the target chain emitter can only be registered once
+        vm.expectRevert("emitterChainId already registered");
+        helloWorldSource.registerEmitter(newEmitterChainId, newEmitterAddress);
+    }
+
+    // This test confirms that only the owner can register a trusted emitter
+    // with the HelloWorld contracts.
+    function testRegisterEmitterNotOwner() public {
+        // cache the new emitter info
+        uint16 newEmitterChainId = helloWorldTarget.chainId();
+        bytes32 newEmitterAddress = bytes32(uint256(uint160(address(helloWorldTarget))));
+
+        // prank the caller address to something different than the owner address
+        vm.prank(address(wormholeSimulator));
+
+        // expect the registerEmitter call to revert
+        vm.expectRevert("caller not the owner");
+        helloWorldSource.registerEmitter(newEmitterChainId, newEmitterAddress);
+    }
+
+    // This test confirms that the `sendMessage` method correctly sends the
     // HelloWorld message.
     function testSendMessage() public {
         // start listening to events
         vm.recordLogs();
 
-        // call the HelloWorld contract and emit the HelloWorld message
+        // call the source HelloWorld contract and emit the HelloWorld message
         uint64 sequence = helloWorldSource.sendMessage();
 
         // record the emitted wormhole message
@@ -143,5 +180,84 @@ contract HelloWorldTest is Test {
         assertEq(wormholeMessage.sequence, sequence);
         assertEq(wormholeMessage.nonce, 42000); // message ID
         assertEq(wormholeMessage.consistencyLevel, helloWorldSource.wormholeFinality());
+    }
+
+    // This test confirms that the `receiveMessage` method correctly consumes
+    // a HelloWorld messsage from the registered HelloWorld emitter. It also confirms
+    // that message replay protection works.
+    function testReceiveMessage() public {
+        // start listening to events
+        vm.recordLogs();
+
+        // call the target HelloWorld contract and emit the HelloWorld message
+        helloWorldTarget.sendMessage();
+
+        // record the emitted wormhole message
+        Vm.Log[] memory entries = vm.getRecordedLogs();
+
+        // simulate signing the wormhole message
+        // NOTE: in the wormhole-sdk, signed wormhole messages are referred to as signed VAAs
+        bytes memory encodedMessage = wormholeSimulator.fetchSignedMessageFromLogs(entries[0]);
+
+        // register the emitter on the source contract
+        helloWorldSource.registerEmitter(
+            helloWorldTarget.chainId(),
+            bytes32(uint256(uint160(address(helloWorldTarget))))
+        );
+
+        // invoke the source HelloWorld contract and pass the encoded wormhole message
+        helloWorldSource.receiveMessage(encodedMessage);
+
+        // Parse the encodedMessage to retrieve the hash. This is a safe operation
+        // since the source HelloWorld contract already verfied the message in the
+        // previous call.
+        IWormhole.VM memory parsedMessage = wormhole.parseVM(encodedMessage);
+
+        // Verify that the message was consumed and the payload was saved
+        // in the contract state.
+        bool messageWasConsumed = helloWorldSource.isMessageConsumed(parsedMessage.hash);
+        string memory savedMessage = helloWorldSource.getReceivedMessage(parsedMessage.hash);
+
+        assertTrue(messageWasConsumed);
+        assertEq(savedMessage, "HelloSolana");
+
+        // Confirm that message replay protection works by trying to call receiveMessage
+        // with the same wormhole message again.
+        vm.expectRevert("message already consumed");
+        helloWorldSource.receiveMessage(encodedMessage);
+    }
+
+    // This test confirms that the `receiveMessage` method correclty verifies the wormhole
+    // message emitter.
+    function testReceiveMessageEmitterVerification() public {
+        // start listening to events
+        vm.recordLogs();
+
+        // publish the HelloWorld message from an untrusted emitter
+        bytes memory helloWorldMessage = helloWorldSource.encodeMessage(
+            HelloWorldStructs.HelloWorldMessage({
+                payloadID: uint8(1),
+                message: "HelloSolana"
+            })
+        );
+        wormhole.publishMessage(42000, helloWorldMessage, helloWorldSource.wormholeFinality());
+
+        // record the emitted wormhole message
+        Vm.Log[] memory entries = vm.getRecordedLogs();
+
+        // simulate signing the wormhole message
+        // NOTE: in the wormhole-sdk, signed wormhole messages are referred to as signed VAAs
+        bytes memory encodedMessage = wormholeSimulator.fetchSignedMessageFromLogs(entries[0]);
+
+        // register the emitter on the source contract
+        helloWorldSource.registerEmitter(
+            helloWorldTarget.chainId(),
+            bytes32(uint256(uint160(address(helloWorldTarget))))
+        );
+
+        // Expect the receiveMessage call to revert, since the message was generated
+        // by an untrusted emitter.
+        vm.expectRevert("unknown emitter");
+        helloWorldSource.receiveMessage(encodedMessage);
     }
 }
