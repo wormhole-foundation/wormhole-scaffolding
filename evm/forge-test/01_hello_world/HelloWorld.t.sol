@@ -47,7 +47,7 @@ contract HelloWorldTest is Test {
         // a different blockchain.
         helloWorldTarget = new HelloWorld(address(wormhole), wormhole.chainId(), wormholeFinality);
 
-        // confirm that the source and target contract address are different
+        // confirm that the source and target contract addresses are different
         assertTrue(address(helloWorldSource) != address(helloWorldTarget));
     }
 
