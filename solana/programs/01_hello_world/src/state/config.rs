@@ -25,9 +25,23 @@ impl WormholeAddresses {
 pub struct Config {
     pub owner: Pubkey,
     pub wormhole: WormholeAddresses,
+
+    // Saving once account is created
+    pub bump: u8,
+
+    // Message counter
+    pub message_count: u64,
 }
 
 impl Config {
-    pub const MAXIMUM_SIZE: usize = 32 // owner
-     + WormholeAddresses::LEN;
+    pub const MAXIMUM_SIZE: usize = 8 // discriminator
+        + 32 // owner
+        + WormholeAddresses::LEN
+        + 1 // bump
+        + 8 // mesasge_count
+    ;
+
+    pub fn uptick_message_count(&mut self) {
+        self.message_count += 1;
+    }
 }
