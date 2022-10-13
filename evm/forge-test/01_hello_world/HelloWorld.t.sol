@@ -3,6 +3,7 @@ pragma solidity ^0.8.13;
 
 import "forge-std/Test.sol";
 import "../../src/01_hello_world/HelloWorld.sol";
+import "../../src/01_hello_world/HelloWorldStructs.sol";
 import {WormholeSimulator} from "wormhole-solidity/WormholeSimulator.sol";
 
 import "forge-std/console.sol";
@@ -11,23 +12,25 @@ contract HelloWorldTest is Test {
     IWormhole wormhole;
     uint256 guardianSigner;
 
+    // contract instances
     WormholeSimulator public wormholeSimulator;
-    HelloWorld public helloWorld;
+    HelloWorld public helloWorldSource;
+    HelloWorld public helloWorldTarget;
 
     function setUp() public {
-        // Verify that we're using the correct fork (AVAX mainnet in this case)
+        // verify that we're using the correct fork (AVAX mainnet in this case)
         require(block.chainid == vm.envUint("TESTING_FORK_CHAINID"), "wrong evm");
 
-        // This will be used to sign wormhole messages
+        // this will be used to sign wormhole messages
         guardianSigner = uint256(vm.envBytes32("TESTING_DEVNET_GUARDIAN"));
 
-        // Set up Wormhole using Wormhole existing on AVAX mainnet
+        // set up Wormhole using Wormhole existing on AVAX mainnet
         wormholeSimulator = new WormholeSimulator(vm.envAddress("TESTING_WORMHOLE_ADDRESS"), guardianSigner);
 
-        // We may need to interact with Wormhole throughout the test
+        // we may need to interact with Wormhole throughout the test
         wormhole = wormholeSimulator.wormhole();
 
-        // Verify Wormhole state from fork
+        // verify Wormhole state from fork
         require(wormhole.chainId() == uint16(vm.envUint("TESTING_WORMHOLE_CHAINID")), "wrong chainId");
         require(wormhole.messageFee() == vm.envUint("TESTING_WORMHOLE_MESSAGE_FEE"), "wrong messageFee");
         require(
@@ -35,17 +38,86 @@ contract HelloWorldTest is Test {
             "wrong guardian set index"
         );
 
-        // init
+        // initialize "source chain" HelloWorld contract
         uint8 wormholeFinality = 15;
-        helloWorld = new HelloWorld(address(wormhole), wormhole.chainId(), wormholeFinality);
+        helloWorldSource = new HelloWorld(address(wormhole), wormhole.chainId(), wormholeFinality);
+
+        // Initialize "target chain" HelloWorld contract. This contract will share the same
+        // chainID as the source contract, but (for testing purposes) will be treated like a contract living on
+        // a different blockchain.
+        helloWorldTarget = new HelloWorld(address(wormhole), wormhole.chainId(), wormholeFinality);
+
+        // confirm that the source and target contract address are different
+        assertTrue(address(helloWorldSource) != address(helloWorldTarget));
     }
 
-    function testSomething() public {
+    // This test confirms that the contracts are able to serialize and deserialize
+    // the HelloWorld message correctly.
+    function testMessageDeserialization(
+        string memory messageToSend
+    ) public {
+        // encode the message by calling the encodeMessage method
+        bytes memory encodedMessage = helloWorldSource.encodeMessage(
+            HelloWorldStructs.HelloWorldMessage({
+                payloadID: uint8(1),
+                message: messageToSend
+            })
+        );
+
+        // decode the message by calling the decodeMessage method
+        HelloWorldStructs.HelloWorldMessage memory results = helloWorldSource.decodeMessage(encodedMessage);
+
+        // verify the parsed output
+        assertEq(results.payloadID, 1);
+        assertEq(results.message, messageToSend);
+    }
+
+    // This test confirms that decodeMessage reverts when a message
+    // has an unexpected payloadID.
+    function testIncorrectMessagePayload() public {
+        // encode the message by calling the encodeMessage method
+        bytes memory encodedMessage = helloWorldSource.encodeMessage(
+            HelloWorldStructs.HelloWorldMessage({
+                payloadID: uint8(2),
+                message: "HelloSolana"
+            })
+        );
+
+        // expect a revert when trying to decode a message with payloadID 2
+        vm.expectRevert("invalid payloadID");
+        helloWorldSource.decodeMessage(encodedMessage);
+    }
+
+    // This test confirms that decodeMessage reverts when a message
+    // is an unexpected length.
+    function testIncorrectMessageLength() public {
+        // encode the message by calling the encodeMessage method
+        bytes memory encodedMessage = helloWorldSource.encodeMessage(
+            HelloWorldStructs.HelloWorldMessage({
+                payloadID: uint8(1),
+                message: "HelloSolana"
+            })
+        );
+
+        // add some bytes to the encodedMessage
+        encodedMessage = abi.encodePacked(
+            encodedMessage,
+            uint256(42000)
+        );
+
+        // expect a revert when trying to decode a message with payloadID 2
+        vm.expectRevert("invalid message length");
+        helloWorldSource.decodeMessage(encodedMessage);
+    }
+
+    // This test confirms that the `sendMessage` method correclty sends the
+    // HelloWorld message.
+    function testSendMessage() public {
         // start listening to events
         vm.recordLogs();
 
-        // publish a message
-        wormhole.publishMessage(69, hex"12", 15);
+        // call the HelloWorld contract and emit the HelloWorld message
+        uint64 sequence = helloWorldSource.sendMessage();
 
         // record the emitted wormhole message
         Vm.Log[] memory entries = vm.getRecordedLogs();
@@ -54,8 +126,22 @@ contract HelloWorldTest is Test {
         // NOTE: in the wormhole-sdk, signed wormhole messages are referred to as signed VAAs
         bytes memory encodedMessage = wormholeSimulator.fetchSignedMessageFromLogs(entries[0]);
 
-        // try to verify the vm
-        (IWormhole.VM memory vm, bool valid, string memory reason) = wormhole.parseAndVerifyVM(encodedMessage);
+        // parse and verify the message
+        (
+            IWormhole.VM memory wormholeMessage,
+            bool valid,
+            string memory reason
+        ) = wormhole.parseAndVerifyVM(encodedMessage);
         require(valid, reason);
+
+        // verify the message payload
+        HelloWorldStructs.HelloWorldMessage memory results = helloWorldSource.decodeMessage(wormholeMessage.payload);
+
+        // verify the parsed output
+        assertEq(results.payloadID, 1);
+        assertEq(results.message, "HelloSolana");
+        assertEq(wormholeMessage.sequence, sequence);
+        assertEq(wormholeMessage.nonce, 42000); // message ID
+        assertEq(wormholeMessage.consistencyLevel, helloWorldSource.wormholeFinality());
     }
 }

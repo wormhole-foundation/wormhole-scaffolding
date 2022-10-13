@@ -43,6 +43,6 @@ contract HelloWorldMessages is HelloWorldStructs {
         index += messageLength;
 
         // confirm that the message was the expected length
-        require(index == encodedMessage.length, "invalid message");
+        require(index == encodedMessage.length, "invalid message length");
     }
 }
