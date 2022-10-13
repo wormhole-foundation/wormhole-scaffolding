@@ -9,6 +9,8 @@ pub struct WormholeAddresses {
     // emitter related pdas
     pub emitter: Pubkey,
     pub sequence: Pubkey,
+    // bumps
+    pub emitter_bump: u8,
 }
 
 impl WormholeAddresses {
@@ -17,6 +19,7 @@ impl WormholeAddresses {
         + 32 // fee_collector
         + 32 // emitter
         + 32 // sequence
+        + 1 // emitter_bump
     ;
 }
 
@@ -40,8 +43,4 @@ impl Config {
         + 1 // bump
         + 8 // mesasge_count
     ;
-
-    pub fn uptick_message_count(&mut self) {
-        self.message_count += 1;
-    }
 }

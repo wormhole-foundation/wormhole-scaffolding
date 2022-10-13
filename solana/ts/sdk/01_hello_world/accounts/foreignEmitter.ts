@@ -6,8 +6,6 @@ export function deriveForeignEmitterKey(
   programId: PublicKeyInitData,
   chain: number
 ) {
-  const chainBytes = Buffer.alloc(2);
-  chainBytes.writeUInt16LE(chain);
   return deriveAddress(
     [
       Buffer.from("hello_world.foreign_emitter"),

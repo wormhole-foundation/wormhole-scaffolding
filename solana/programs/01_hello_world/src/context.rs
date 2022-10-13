@@ -35,10 +35,9 @@ pub struct Initialize<'info> {
     #[account(
         seeds = [b"Bridge"],
         bump,
-        seeds::program = wormhole_program
+        seeds::program = wormhole_program,
     )]
     /// CHECK: Wormhole Config
-    /// TODO: add wormhole config deserializer?
     pub wormhole_config: AccountInfo<'info>,
 
     #[account(
@@ -106,7 +105,7 @@ pub struct RegisterForeignEmitter<'info> {
 pub struct SendMessage<'info> {
     #[account(mut)]
     /// Payer will initialize an account that tracks his own message IDs
-    pub message_sender: Signer<'info>,
+    pub payer: Signer<'info>,
 
     #[account(
         mut,
@@ -122,6 +121,7 @@ pub struct SendMessage<'info> {
     pub wormhole_program: AccountInfo<'info>,
 
     #[account(
+        mut,
         constraint = wormhole_config.key() == config.wormhole.config @ HelloWorldError::InvalidWormholeConfig
     )]
     /// CHECK: Wormhole Config
@@ -129,6 +129,7 @@ pub struct SendMessage<'info> {
     pub wormhole_config: AccountInfo<'info>,
 
     #[account(
+        mut,
         constraint = wormhole_fee_collector.key() == config.wormhole.fee_collector @ HelloWorldError::InvalidWormholeFeeCollector
     )]
     /// CHECK: Wormhole Config
@@ -152,7 +153,7 @@ pub struct SendMessage<'info> {
         mut,
         seeds = [
             b"hello_world.wormhole_message",
-            config.message_count.to_le_bytes().as_ref(),
+            config.message_count.to_le_bytes().as_ref()
         ],
         bump,
     )]

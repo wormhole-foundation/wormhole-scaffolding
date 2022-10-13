@@ -1,4 +1,5 @@
 import {
+  Commitment,
   Connection,
   PublicKey,
   PublicKeyInitData,
@@ -9,25 +10,35 @@ import {
   getPostMessageCpiAccounts,
 } from "@certusone/wormhole-sdk/solana";
 import { createHelloWorldProgramInterface } from "../program";
-import { deriveConfigKey } from "../accounts";
+import {
+  deriveConfigKey,
+  deriveWormholeMessageKey,
+  getConfigData,
+} from "../accounts";
 
-export async function createInitializeInstruction(
+export async function createSendMessageInstruction(
   connection: Connection,
   programId: PublicKeyInitData,
   payer: PublicKeyInitData,
-  wormholeProgramId: PublicKeyInitData
+  wormholeProgramId: PublicKeyInitData,
+  batchId: number,
+  payload: Buffer,
+  commitment?: Commitment
 ): Promise<TransactionInstruction> {
   const program = createHelloWorldProgramInterface(connection, programId);
+
+  // get message count
+  const config = await getConfigData(connection, programId, commitment);
+  const message = deriveWormholeMessageKey(programId, config.messageCount);
   const wormholeAccounts = getPostMessageCpiAccounts(
     program.programId,
     wormholeProgramId,
     payer,
-    PublicKey.default // dummy for message
+    message
   );
   return program.methods
-    .initialize()
+    .sendMessage(batchId, payload)
     .accounts({
-      owner: wormholeAccounts.payer,
       config: deriveConfigKey(programId),
       wormholeProgram: new PublicKey(wormholeProgramId),
       ...wormholeAccounts,

@@ -8,8 +8,10 @@ import {
   createHelloWorldProgramInterface,
   createInitializeInstruction,
   createRegisterForeignEmitterInstruction,
+  createSendMessageInstruction,
   deriveConfigKey,
   deriveForeignEmitterKey,
+  deriveWormholeMessageKey,
   getConfigData,
   getForeignEmitterData,
 } from "../sdk/01_hello_world";
@@ -21,6 +23,7 @@ import {
   WORMHOLE_ADDRESS,
 } from "./helpers/consts";
 import { errorExistsInLog } from "./helpers/error";
+import { getPostedMessage } from "@certusone/wormhole-sdk/solana/wormhole";
 
 describe(" 1: Hello World", () => {
   const connection = new web3.Connection(LOCALHOST, "confirmed");
@@ -673,6 +676,51 @@ describe(" 1: Hello World", () => {
         expect(
           Buffer.compare(emitterAddress, foreignEmitterData.address)
         ).to.equal(0);
+      });
+    });
+  });
+
+  describe("Send Message", () => {
+    describe("Finally Send Message", () => {
+      const batchId = 42069;
+      const payload = Buffer.from("All your base are belong to us");
+
+      it("Instruction: send_message", async () => {
+        // save message count to grab posted message later
+        const messageCount = await getConfigData(
+          connection,
+          program.programId
+        ).then((config) => config.messageCount);
+
+        const sendMessageTx = await createSendMessageInstruction(
+          connection,
+          program.programId,
+          payer.publicKey,
+          WORMHOLE_ADDRESS,
+          batchId,
+          payload
+        )
+          .then((ix) =>
+            web3.sendAndConfirmTransaction(
+              connection,
+              new web3.Transaction().add(ix),
+              [payer]
+            )
+          )
+          .catch((reason) => {
+            // should not happen
+            console.log(reason);
+            return null;
+          });
+        expect(sendMessageTx).is.not.null;
+
+        // verify account data
+        const messageData = await getPostedMessage(
+          connection,
+          deriveWormholeMessageKey(program.programId, messageCount)
+        ).then((posted) => posted.message);
+        expect(messageData.nonce).to.equal(batchId);
+        expect(Buffer.compare(messageData.payload, payload)).to.equal(0);
       });
     });
   });

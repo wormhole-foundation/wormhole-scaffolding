@@ -12,9 +12,4 @@ impl ForeignEmitter {
         + 2 // chain
         + 32 // address
     ;
-
-    pub fn register(&mut self, chain: u16, address: &[u8; 32]) {
-        self.chain = chain;
-        self.address = *address;
-    }
 }

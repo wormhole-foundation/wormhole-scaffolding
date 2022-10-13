@@ -28,4 +28,7 @@ pub enum HelloWorldError {
 
     #[msg("InvalidForeignEmitter")]
     InvalidForeignEmitter,
+
+    #[msg("BumpNotFound")]
+    BumpNotFound,
 }
