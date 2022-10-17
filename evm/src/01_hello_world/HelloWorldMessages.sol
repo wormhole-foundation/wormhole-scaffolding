@@ -8,23 +8,15 @@ import "./HelloWorldStructs.sol";
 contract HelloWorldMessages is HelloWorldStructs {
     using BytesLib for bytes;
 
-    function encodeMessage(
-        HelloWorldMessage memory parsedMessage
-    ) public pure returns (bytes memory) {
+    function encodeMessage(HelloWorldMessage memory parsedMessage) public pure returns (bytes memory) {
         // convert message string to bytes so that we can use the .length attribute
         bytes memory encodedMessagePayload = abi.encodePacked(parsedMessage.message);
 
         // return the encoded message
-        return abi.encodePacked(
-           parsedMessage.payloadID,
-           encodedMessagePayload.length,
-           encodedMessagePayload
-        );
+        return abi.encodePacked(parsedMessage.payloadID, uint16(encodedMessagePayload.length), encodedMessagePayload);
     }
 
-    function decodeMessage(
-        bytes memory encodedMessage
-    ) public pure returns (HelloWorldMessage memory parsedMessage) {
+    function decodeMessage(bytes memory encodedMessage) public pure returns (HelloWorldMessage memory parsedMessage) {
         // starting index for byte parsing
         uint256 index = 0;
 
@@ -34,8 +26,8 @@ contract HelloWorldMessages is HelloWorldStructs {
         index += 1;
 
         // parse the message string length
-        uint256 messageLength = encodedMessage.toUint256(index);
-        index += 32;
+        uint256 messageLength = encodedMessage.toUint16(index);
+        index += 2;
 
         // parse the message string
         bytes memory messageBytes = encodedMessage.slice(index, messageLength);
