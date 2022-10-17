@@ -22,7 +22,7 @@ export async function createSendMessageInstruction(
   payer: PublicKeyInitData,
   wormholeProgramId: PublicKeyInitData,
   batchId: number,
-  payload: Buffer,
+  helloMessage: Buffer,
   commitment?: Commitment
 ): Promise<TransactionInstruction> {
   const program = createHelloWorldProgramInterface(connection, programId);
@@ -37,7 +37,7 @@ export async function createSendMessageInstruction(
     message
   );
   return program.methods
-    .sendMessage(batchId, payload)
+    .sendMessage(batchId, helloMessage)
     .accounts({
       config: deriveConfigKey(programId),
       wormholeProgram: new PublicKey(wormholeProgramId),

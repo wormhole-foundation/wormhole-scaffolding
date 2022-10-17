@@ -80,7 +80,7 @@ describe(" 1: Hello World", () => {
                   reason,
                   "Cross-program invocation with unauthorized signer or writable account"
                 )
-              ).to.be.true;
+              ).is.true;
               return null;
             });
           expect(initializeTx).is.null;
@@ -90,8 +90,8 @@ describe(" 1: Hello World", () => {
       it("Invalid Account: wormhole_program", async () => {
         // First create invalid wormhole program and derive CPI PDAs
         // from this bogus address.
-        for (let i = 0; i < FUZZ_TEST_ITERATIONS; ++i) {
-          const wormholeProgram = web3.Keypair.generate().publicKey;
+        {
+          const wormholeProgram = web3.BPF_LOADER_PROGRAM_ID;
           const cpi = getPostMessageCpiAccounts(
             program.programId,
             wormholeProgram,
@@ -111,15 +111,15 @@ describe(" 1: Hello World", () => {
               wormholeSequence: cpi.wormholeSequence,
             })
             .instruction()
-            .then((ix) =>
-              web3.sendAndConfirmTransaction(
+            .then((ix) => {
+              return web3.sendAndConfirmTransaction(
                 connection,
                 new web3.Transaction().add(ix),
                 [payer]
-              )
-            )
+              );
+            })
             .catch((reason) => {
-              expect(errorExistsInLog(reason, "InvalidWormholeProgram")).to.be
+              expect(errorExistsInLog(reason, "InvalidWormholeProgram")).is
                 .true;
               return null;
             });
@@ -128,8 +128,8 @@ describe(" 1: Hello World", () => {
 
         // Now just pass an invalid Wormhole program address
         // while passing in the correct PDAs.
-        for (let i = 0; i < FUZZ_TEST_ITERATIONS; ++i) {
-          const wormholeProgram = web3.Keypair.generate().publicKey;
+        {
+          const wormholeProgram = web3.Ed25519Program.programId;
 
           const initializeTx = await program.methods
             .initialize()
@@ -188,7 +188,7 @@ describe(" 1: Hello World", () => {
             .catch((reason) => {
               expect(
                 errorExistsInLog(reason, "A seeds constraint was violated")
-              ).to.be.true;
+              ).is.true;
               return null;
             });
           expect(initializeTx).is.null;
@@ -224,7 +224,7 @@ describe(" 1: Hello World", () => {
             .catch((reason) => {
               expect(
                 errorExistsInLog(reason, "A seeds constraint was violated")
-              ).to.be.true;
+              ).is.true;
               return null;
             });
           expect(initializeTx).is.null;
@@ -260,7 +260,7 @@ describe(" 1: Hello World", () => {
             .catch((reason) => {
               expect(
                 errorExistsInLog(reason, "A seeds constraint was violated")
-              ).to.be.true;
+              ).is.true;
               return null;
             });
           expect(initializeTx).is.null;
@@ -296,7 +296,7 @@ describe(" 1: Hello World", () => {
             .catch((reason) => {
               expect(
                 errorExistsInLog(reason, "A seeds constraint was violated")
-              ).to.be.true;
+              ).is.true;
               return null;
             });
           expect(initializeTx).is.null;
@@ -328,7 +328,7 @@ describe(" 1: Hello World", () => {
 
         // verify account data
         const configData = await getConfigData(connection, program.programId);
-        expect(configData.owner.equals(payer.publicKey)).to.be.true;
+        expect(configData.owner.equals(payer.publicKey)).is.true;
 
         const wormholeCpi = getPostMessageCpiAccounts(
           program.programId,
@@ -336,19 +336,19 @@ describe(" 1: Hello World", () => {
           payer.publicKey,
           web3.PublicKey.default // dummy for message
         );
-        expect(configData.wormhole.program.equals(WORMHOLE_ADDRESS)).to.be.true;
+        expect(configData.wormhole.program.equals(WORMHOLE_ADDRESS)).is.true;
         expect(configData.wormhole.config.equals(wormholeCpi.wormholeConfig)).to
           .be.true;
         expect(
           configData.wormhole.feeCollector.equals(
             wormholeCpi.wormholeFeeCollector
           )
-        ).to.be.true;
+        ).is.true;
         expect(configData.wormhole.emitter.equals(wormholeCpi.wormholeEmitter))
-          .to.be.true;
+          .is.true;
         expect(
           configData.wormhole.sequence.equals(wormholeCpi.wormholeSequence)
-        ).to.be.true;
+        ).is.true;
 
         expect(configData.bump).is.greaterThanOrEqual(0);
         expect(configData.bump).is.lessThanOrEqual(255);
@@ -370,7 +370,7 @@ describe(" 1: Hello World", () => {
             )
           )
           .catch((reason) => {
-            expect(errorExistsInLog(reason, "already in use")).to.be.true;
+            expect(errorExistsInLog(reason, "already in use")).is.true;
             return null;
           });
         expect(initializeTx).is.null;
@@ -421,7 +421,7 @@ describe(" 1: Hello World", () => {
               )
             )
             .catch((reason) => {
-              expect(errorExistsInLog(reason, "PermissionDenied")).to.be.true;
+              expect(errorExistsInLog(reason, "PermissionDenied")).is.true;
               return null;
             });
           expect(registerForeignEmitterTx).is.null;
@@ -459,7 +459,7 @@ describe(" 1: Hello World", () => {
                   reason,
                   "The program expected this account to be already initialized"
                 )
-              ).to.be.true;
+              ).is.true;
               return null;
             });
           expect(registerForeignEmitterTx).is.null;
@@ -495,7 +495,7 @@ describe(" 1: Hello World", () => {
                   reason,
                   "Cross-program invocation with unauthorized signer or writable account"
                 )
-              ).to.be.true;
+              ).is.true;
               return null;
             });
           expect(registerForeignEmitterTx).is.null;
@@ -531,7 +531,7 @@ describe(" 1: Hello World", () => {
                   reason,
                   "Cross-program invocation with unauthorized signer or writable account"
                 )
-              ).to.be.true;
+              ).is.true;
               return null;
             });
           expect(registerForeignEmitterTx).is.null;
@@ -564,7 +564,7 @@ describe(" 1: Hello World", () => {
                   reason,
                   "The program could not deserialize the given instruction"
                 )
-              ).to.be.true;
+              ).is.true;
               return null;
             });
           expect(registerForeignEmitterTx).is.null;
@@ -683,7 +683,7 @@ describe(" 1: Hello World", () => {
   describe("Send Message", () => {
     describe("Finally Send Message", () => {
       const batchId = 42069;
-      const payload = Buffer.from("All your base are belong to us");
+      const helloMessage = Buffer.from("All your base are belong to us");
 
       it("Instruction: send_message", async () => {
         // save message count to grab posted message later
@@ -698,7 +698,7 @@ describe(" 1: Hello World", () => {
           payer.publicKey,
           WORMHOLE_ADDRESS,
           batchId,
-          payload
+          helloMessage
         )
           .then((ix) =>
             web3.sendAndConfirmTransaction(
@@ -720,7 +720,11 @@ describe(" 1: Hello World", () => {
           deriveWormholeMessageKey(program.programId, messageCount)
         ).then((posted) => posted.message);
         expect(messageData.nonce).to.equal(batchId);
-        expect(Buffer.compare(messageData.payload, payload)).to.equal(0);
+
+        const payload = messageData.payload;
+        expect(payload.readUint8(0)).to.equal(1); // payload ID
+        expect(payload.readUint16BE(1)).to.equal(helloMessage.length);
+        expect(Buffer.compare(payload.subarray(3), helloMessage)).to.equal(0);
       });
     });
   });

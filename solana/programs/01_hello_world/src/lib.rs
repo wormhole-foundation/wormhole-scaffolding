@@ -1,12 +1,14 @@
-use anchor_lang::{prelude::*, solana_program};
+use anchor_lang::prelude::*;
 
 pub use context::*;
 pub use error::*;
+pub use message::*;
 pub use state::*;
 
 pub mod context;
 pub mod env;
 pub mod error;
+pub mod message;
 pub mod state;
 pub mod wormhole_program;
 
@@ -16,10 +18,7 @@ declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 #[program]
 pub mod hello_world {
     use super::*;
-    use solana_program::{
-        program::{invoke, invoke_signed},
-        system_instruction,
-    };
+    use anchor_lang::solana_program;
 
     /// This instruction can be used to generate your program's config.
     /// And for convenience, we will store Wormhole-related PDAs in the
@@ -79,7 +78,11 @@ pub mod hello_world {
         Ok(())
     }
 
-    pub fn send_message(ctx: Context<SendMessage>, batch_id: u32, payload: Vec<u8>) -> Result<()> {
+    pub fn send_message(
+        ctx: Context<SendMessage>,
+        batch_id: u32,
+        hello_message: Vec<u8>,
+    ) -> Result<()> {
         // Pay Wormhole fee
         {
             let mut buf: &[u8] = &ctx.accounts.wormhole_config.try_borrow_data()?;
@@ -88,8 +91,8 @@ pub mod hello_world {
             let fee = wormhole_program_data.config.fee;
 
             if fee > 0 {
-                invoke(
-                    &system_instruction::transfer(
+                solana_program::program::invoke(
+                    &solana_program::system_instruction::transfer(
                         &ctx.accounts.payer.key(),
                         &ctx.accounts.wormhole_fee_collector.key(),
                         fee,
@@ -101,8 +104,19 @@ pub mod hello_world {
 
         // Send Wormhole message
         {
+            // format Wormhole payload
+            let msg_size = hello_message.len() as u16;
+            let mut payload = Vec::with_capacity(
+                1 // payload id (u8)
+                + 2 // message length (u16)
+                + msg_size as usize,
+            );
+            payload.push(1u8); // payload ID
+            payload.extend(msg_size.to_be_bytes());
+            payload.extend(&hello_message);
+
             let config = &ctx.accounts.config;
-            invoke_signed(
+            solana_program::program::invoke_signed(
                 &solana_program::instruction::Instruction {
                     program_id: ctx.accounts.wormhole_program.key(),
                     accounts: vec![

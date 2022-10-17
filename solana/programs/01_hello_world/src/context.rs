@@ -27,7 +27,8 @@ pub struct Initialize<'info> {
     pub config: Account<'info, Config>,
 
     #[account(
-        constraint = wormhole_program.key() == Pubkey::from_str(WORMHOLE_ADDRESS).unwrap() @ HelloWorldError::InvalidWormholeProgram
+        executable,
+        address = Pubkey::from_str(WORMHOLE_ADDRESS).unwrap() @ HelloWorldError::InvalidWormholeProgram
     )]
     /// CHECK: Wormhole Program
     pub wormhole_program: AccountInfo<'info>,
@@ -71,16 +72,14 @@ pub struct Initialize<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(chain: u16, emitter: [u8; 32])]
+#[instruction(chain: u16)]
 pub struct RegisterForeignEmitter<'info> {
     /// Owner of the program.
-    #[account(
-        mut,
-        constraint = owner.key() == config.owner @ HelloWorldError::PermissionDenied
-    )]
+    #[account(mut)]
     pub owner: Signer<'info>,
 
     #[account(
+        has_one = owner @ HelloWorldError::PermissionDenied,
         seeds = [b"hello_world.config"],
         bump = config.bump
     )]
@@ -115,14 +114,15 @@ pub struct SendMessage<'info> {
     pub config: Account<'info, Config>,
 
     #[account(
-        constraint = wormhole_program.key() == Pubkey::from_str(WORMHOLE_ADDRESS).unwrap() @ HelloWorldError::InvalidWormholeProgram
+        executable,
+        address = config.wormhole.program @ HelloWorldError::InvalidWormholeProgram
     )]
     /// CHECK: Wormhole Program
     pub wormhole_program: AccountInfo<'info>,
 
     #[account(
         mut,
-        constraint = wormhole_config.key() == config.wormhole.config @ HelloWorldError::InvalidWormholeConfig
+        address = config.wormhole.config @ HelloWorldError::InvalidWormholeConfig
     )]
     /// CHECK: Wormhole Config
     /// TODO: add wormhole config deserializer?
@@ -130,21 +130,21 @@ pub struct SendMessage<'info> {
 
     #[account(
         mut,
-        constraint = wormhole_fee_collector.key() == config.wormhole.fee_collector @ HelloWorldError::InvalidWormholeFeeCollector
+        address = config.wormhole.fee_collector @ HelloWorldError::InvalidWormholeFeeCollector
     )]
     /// CHECK: Wormhole Config
     /// TODO: add fee collector deserializer?
     pub wormhole_fee_collector: AccountInfo<'info>,
 
     #[account(
-        constraint = wormhole_emitter.key() == config.wormhole.emitter @ HelloWorldError::InvalidWormholeEmitter
+        address = config.wormhole.emitter @ HelloWorldError::InvalidWormholeEmitter
     )]
     /// CHECK: Wormhole Emitter
     pub wormhole_emitter: AccountInfo<'info>,
 
     #[account(
         mut,
-        constraint = wormhole_sequence.key() == config.wormhole.sequence @ HelloWorldError::InvalidWormholeSequence
+        address = config.wormhole.sequence @ HelloWorldError::InvalidWormholeSequence
     )]
     /// CHECK: Wormhole Emitter Sequence
     pub wormhole_sequence: AccountInfo<'info>,
@@ -163,13 +163,13 @@ pub struct SendMessage<'info> {
     pub system_program: Program<'info, System>,
 
     #[account(
-        constraint = clock.key() == clock::id() @ HelloWorldError::InvalidSystemProgram
+        address = clock::id() @ HelloWorldError::InvalidSystemProgram
     )]
     /// CHECK: Clock
     pub clock: AccountInfo<'info>,
 
     #[account(
-        constraint = rent.key() == rent::id() @ HelloWorldError::InvalidSystemProgram
+        address = rent::id() @ HelloWorldError::InvalidSystemProgram
     )]
     /// CHECK: Rent
     pub rent: AccountInfo<'info>,
