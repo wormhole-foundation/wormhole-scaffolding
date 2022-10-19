@@ -39,6 +39,54 @@ describe(" 1: Hello World", () => {
   const foreignEmitterChain = 2;
   const foreignEmitterAddress = Buffer.alloc(32, "deadbeef", "hex");
 
+  // create real pdas and array of invalid ones (generated from other bumps)
+  const realConfig = deriveConfigKey(program.programId);
+  const invalidConfigs: web3.PublicKey[] = [];
+  for (let i = 255; i >= 0; --i) {
+    const bumpBytes = Buffer.alloc(1);
+    bumpBytes.writeUint8(i);
+    try {
+      const pda = web3.PublicKey.createProgramAddressSync(
+        [Buffer.from("hello_world.config"), bumpBytes],
+        program.programId
+      );
+      if (!pda.equals(realConfig)) {
+        invalidConfigs.push(pda);
+      }
+    } catch (reason) {
+      // do nothing
+    }
+  }
+
+  const realForeignEmitter = deriveForeignEmitterKey(
+    program.programId,
+    foreignEmitterChain
+  );
+  const invalidForeignEmitters: web3.PublicKey[] = [];
+  for (let i = 255; i >= 0; --i) {
+    const bumpBytes = Buffer.alloc(1);
+    bumpBytes.writeUint8(i);
+    try {
+      const pda = web3.PublicKey.createProgramAddressSync(
+        [
+          Buffer.from("hello_world.foreign_emitter"),
+          (() => {
+            const buf = Buffer.alloc(2);
+            buf.writeUInt16LE(foreignEmitterChain);
+            return buf;
+          })(),
+          bumpBytes,
+        ],
+        program.programId
+      );
+      if (!pda.equals(realForeignEmitter)) {
+        invalidForeignEmitters.push(pda);
+      }
+    } catch (reason) {
+      // do nothing
+    }
+  }
+
   describe("Initialize Program", () => {
     describe("Fuzz Test Invalid Accounts for Instruction: initialize", () => {
       const wormholeCpi = getPostMessageCpiAccounts(
@@ -48,13 +96,11 @@ describe(" 1: Hello World", () => {
         web3.PublicKey.default // dummy for message
       );
 
+      // TODO: use createProgramAddressSync to try different bumps for config
+      // Also add for other config account injections
       it("Invalid Account: config", async () => {
-        for (let i = 0; i < FUZZ_TEST_ITERATIONS; ++i) {
-          const config = deriveAddress(
-            [Buffer.from(`Bogus ${i}`)],
-            program.programId
-          );
-
+        //for (let i = 0; i < FUZZ_TEST_ITERATIONS; ++i) {
+        for (const config of invalidConfigs) {
           const initializeTx = await program.methods
             .initialize()
             .accounts({
@@ -103,7 +149,7 @@ describe(" 1: Hello World", () => {
             .initialize()
             .accounts({
               owner: payer.publicKey,
-              config: deriveConfigKey(program.programId),
+              config: realConfig,
               wormholeProgram,
               wormholeConfig: cpi.wormholeConfig,
               wormholeFeeCollector: cpi.wormholeFeeCollector,
@@ -135,7 +181,7 @@ describe(" 1: Hello World", () => {
             .initialize()
             .accounts({
               owner: payer.publicKey,
-              config: deriveConfigKey(program.programId),
+              config: realConfig,
               wormholeProgram,
               wormholeConfig: wormholeCpi.wormholeConfig,
               wormholeFeeCollector: wormholeCpi.wormholeFeeCollector,
@@ -170,7 +216,7 @@ describe(" 1: Hello World", () => {
             .initialize()
             .accounts({
               owner: payer.publicKey,
-              config: deriveConfigKey(program.programId),
+              config: realConfig,
               wormholeProgram: WORMHOLE_ADDRESS,
               wormholeConfig,
               wormholeFeeCollector: wormholeCpi.wormholeFeeCollector,
@@ -206,7 +252,7 @@ describe(" 1: Hello World", () => {
             .initialize()
             .accounts({
               owner: payer.publicKey,
-              config: deriveConfigKey(program.programId),
+              config: realConfig,
               wormholeProgram: WORMHOLE_ADDRESS,
               wormholeConfig: wormholeCpi.wormholeConfig,
               wormholeFeeCollector,
@@ -242,7 +288,7 @@ describe(" 1: Hello World", () => {
             .initialize()
             .accounts({
               owner: payer.publicKey,
-              config: deriveConfigKey(program.programId),
+              config: realConfig,
               wormholeProgram: WORMHOLE_ADDRESS,
               wormholeConfig: wormholeCpi.wormholeConfig,
               wormholeFeeCollector: wormholeCpi.wormholeFeeCollector,
@@ -278,7 +324,7 @@ describe(" 1: Hello World", () => {
             .initialize()
             .accounts({
               owner: payer.publicKey,
-              config: deriveConfigKey(program.programId),
+              config: realConfig,
               wormholeProgram: WORMHOLE_ADDRESS,
               wormholeConfig: wormholeCpi.wormholeConfig,
               wormholeFeeCollector: wormholeCpi.wormholeFeeCollector,
@@ -406,11 +452,8 @@ describe(" 1: Hello World", () => {
             .registerForeignEmitter(emitterChain, [...emitterAddress])
             .accounts({
               owner: nonOwner.publicKey,
-              config: deriveConfigKey(program.programId),
-              foreignEmitter: deriveForeignEmitterKey(
-                program.programId,
-                emitterChain
-              ),
+              config: realConfig,
+              foreignEmitter: realForeignEmitter,
             })
             .instruction()
             .then((ix) =>
@@ -429,21 +472,13 @@ describe(" 1: Hello World", () => {
       });
 
       it("Invalid Account: config", async () => {
-        for (let i = 0; i < FUZZ_TEST_ITERATIONS; ++i) {
-          const config = deriveAddress(
-            [Buffer.from(`Bogus ${i}`)],
-            program.programId
-          );
-
+        for (const config of invalidConfigs) {
           const registerForeignEmitterTx = await program.methods
             .registerForeignEmitter(emitterChain, [...emitterAddress])
             .accounts({
               owner: payer.publicKey,
               config,
-              foreignEmitter: deriveForeignEmitterKey(
-                program.programId,
-                emitterChain
-              ),
+              foreignEmitter: realForeignEmitter,
             })
             .instruction()
             .then((ix) =>
@@ -468,17 +503,12 @@ describe(" 1: Hello World", () => {
 
       it("Invalid Account: foreign_emitter", async () => {
         // First pass completely bogus PDAs
-        for (let i = 0; i < FUZZ_TEST_ITERATIONS; ++i) {
-          const foreignEmitter = deriveAddress(
-            [Buffer.from(`Bogus ${i}`)],
-            program.programId
-          );
-
+        for (const foreignEmitter of invalidForeignEmitters) {
           const registerForeignEmitterTx = await program.methods
             .registerForeignEmitter(emitterChain, [...emitterAddress])
             .accounts({
               owner: payer.publicKey,
-              config: deriveConfigKey(program.programId),
+              config: realConfig,
               foreignEmitter,
             })
             .instruction()
@@ -502,20 +532,15 @@ describe(" 1: Hello World", () => {
         }
 
         // Now try to pass PDAs that do not agree with chain from instruction data
-        for (let i = 0; i < FUZZ_TEST_ITERATIONS; ++i) {
-          // we'll use "i" as the chain id
-          const intendedEmitterChain = i;
-          const bogusEmitterChain = intendedEmitterChain + 1;
+        {
+          const bogusEmitterChain = emitterChain + 1;
 
           const registerForeignEmitterTx = await program.methods
-            .registerForeignEmitter(intendedEmitterChain, [...emitterAddress])
+            .registerForeignEmitter(bogusEmitterChain, [...emitterAddress])
             .accounts({
               owner: payer.publicKey,
-              config: deriveConfigKey(program.programId),
-              foreignEmitter: deriveForeignEmitterKey(
-                program.programId,
-                bogusEmitterChain
-              ),
+              config: realConfig,
+              foreignEmitter: realForeignEmitter,
             })
             .instruction()
             .then((ix) =>
@@ -544,11 +569,8 @@ describe(" 1: Hello World", () => {
             .registerForeignEmitter(emitterChain, [...bogusEmitterAddress])
             .accounts({
               owner: payer.publicKey,
-              config: deriveConfigKey(program.programId),
-              foreignEmitter: deriveForeignEmitterKey(
-                program.programId,
-                emitterChain
-              ),
+              config: realConfig,
+              foreignEmitter: realForeignEmitter,
             })
             .instruction()
             .then((ix) =>
@@ -577,11 +599,8 @@ describe(" 1: Hello World", () => {
             .registerForeignEmitter(emitterChain, [...bogusEmitterAddress])
             .accounts({
               owner: payer.publicKey,
-              config: deriveConfigKey(program.programId),
-              foreignEmitter: deriveForeignEmitterKey(
-                program.programId,
-                emitterChain
-              ),
+              config: realConfig,
+              foreignEmitter: realForeignEmitter,
             })
             .instruction()
             .then((ix) =>
