@@ -114,7 +114,6 @@ pub struct SendMessage<'info> {
     pub config: Account<'info, Config>,
 
     #[account(
-        executable,
         address = config.wormhole.program @ HelloWorldError::InvalidWormholeProgram
     )]
     /// CHECK: Wormhole Program
