@@ -1,4 +1,5 @@
 use anchor_lang::prelude::*;
+use wormhole_solana_anchor::wormhole_program;
 
 #[account]
 #[derive(Default)]
@@ -12,4 +13,8 @@ impl ForeignEmitter {
         + 2 // chain
         + 32 // address
     ;
+
+    pub fn verify(&self, wormhole_message: &AccountInfo) -> Result<bool> {
+        Ok(wormhole_program::get_emitter_address(&wormhole_message)? == self.address)
+    }
 }

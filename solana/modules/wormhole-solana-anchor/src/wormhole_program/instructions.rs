@@ -1,6 +1,6 @@
 use anchor_lang::{prelude::*, solana_program};
 
-use crate::wormhole_program::Finality;
+use super::Finality;
 
 #[derive(AnchorDeserialize, AnchorSerialize)]
 pub enum Instruction {

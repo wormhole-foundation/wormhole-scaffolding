@@ -5,6 +5,7 @@ pub use error::*;
 pub use message::*;
 pub use state::*;
 
+pub mod constants;
 pub mod context;
 pub mod env;
 pub mod error;
@@ -85,11 +86,7 @@ pub mod hello_world {
     ) -> Result<()> {
         // Pay Wormhole fee
         {
-            let mut buf: &[u8] = &ctx.accounts.wormhole_config.try_borrow_data()?;
-            let wormhole_program_data =
-                wormhole_program::WormholeProgramData::deserialize(&mut buf)?;
-            let fee = wormhole_program_data.config.fee;
-
+            let fee = wormhole_program::get_message_fee(&ctx.accounts.wormhole_config)?;
             if fee > 0 {
                 solana_program::program::invoke(
                     &solana_program::system_instruction::transfer(
@@ -153,6 +150,10 @@ pub mod hello_world {
         ctx.accounts.config.message_count += 1;
 
         // Done
+        Ok(())
+    }
+
+    pub fn receive_message(ctx: Context<ReceiveMessage>) -> Result<()> {
         Ok(())
     }
 }

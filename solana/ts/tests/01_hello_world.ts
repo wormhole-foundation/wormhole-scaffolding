@@ -3,10 +3,16 @@ import * as web3 from "@solana/web3.js";
 import {
   deriveAddress,
   getPostMessageCpiAccounts,
+  NodeWallet,
+  postVaaSolana,
 } from "@certusone/wormhole-sdk/solana";
+import { getPostedMessage } from "@certusone/wormhole-sdk/solana/wormhole";
+import { MockEmitter, MockGuardians } from "@certusone/wormhole-sdk/mock";
+import { parseVaa } from "@certusone/wormhole-sdk";
 import {
   createHelloWorldProgramInterface,
   createInitializeInstruction,
+  createReceiveMessageInstruction,
   createRegisterForeignEmitterInstruction,
   createSendMessageInstruction,
   deriveConfigKey,
@@ -14,16 +20,17 @@ import {
   deriveWormholeMessageKey,
   getConfigData,
   getForeignEmitterData,
+  getReceivedData,
 } from "../sdk/01_hello_world";
 import {
   FUZZ_TEST_ITERATIONS,
+  GUARDIAN_PRIVATE_KEY,
   HELLO_WORLD_ADDRESS,
   LOCALHOST,
   PAYER_PRIVATE_KEY,
   WORMHOLE_ADDRESS,
 } from "./helpers/consts";
 import { errorExistsInLog } from "./helpers/error";
-import { getPostedMessage } from "@certusone/wormhole-sdk/solana/wormhole";
 
 describe(" 1: Hello World", () => {
   const connection = new web3.Connection(LOCALHOST, "confirmed");
@@ -744,6 +751,72 @@ describe(" 1: Hello World", () => {
         expect(payload.readUint8(0)).to.equal(1); // payload ID
         expect(payload.readUint16BE(1)).to.equal(helloMessage.length);
         expect(Buffer.compare(payload.subarray(3), helloMessage)).to.equal(0);
+      });
+    });
+  });
+
+  describe("Receive Message", () => {
+    const emitter = new MockEmitter(
+      foreignEmitterAddress.toString("hex"),
+      foreignEmitterChain
+    );
+
+    const guardians = new MockGuardians(0, [GUARDIAN_PRIVATE_KEY]);
+
+    describe("Finally Receive Message", () => {
+      const nonce = 69;
+      const payload = Buffer.from("Somebody set up us the bomb");
+      const consistencyLevel = 1;
+      const published = emitter.publishMessage(
+        nonce,
+        payload,
+        consistencyLevel
+      );
+
+      const signedWormholeMessage = guardians.addSignatures(published, [0]);
+
+      it("Post Wormhole Message", async () => {
+        const response = await postVaaSolana(
+          connection,
+          new NodeWallet(payer).signTransaction,
+          WORMHOLE_ADDRESS,
+          payer.publicKey,
+          signedWormholeMessage
+        ).catch((reason) => null);
+        expect(response).is.not.null;
+      });
+
+      it("Instruction: receive_message", async () => {
+        const parsed = parseVaa(signedWormholeMessage);
+        console.log("parsed", parsed);
+
+        const receiveMessageTx = await createReceiveMessageInstruction(
+          connection,
+          program.programId,
+          payer.publicKey,
+          WORMHOLE_ADDRESS,
+          parsed
+        )
+          .then((ix) =>
+            web3.sendAndConfirmTransaction(
+              connection,
+              new web3.Transaction().add(ix),
+              [payer]
+            )
+          )
+          .catch((reason) => {
+            // should not happen
+            console.log(reason);
+            return null;
+          });
+        expect(receiveMessageTx).is.not.null;
+
+        const received = await getReceivedData(
+          connection,
+          program.programId,
+          parsed.sequence
+        );
+        console.log("wut", received);
       });
     });
   });

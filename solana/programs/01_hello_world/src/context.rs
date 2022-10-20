@@ -3,11 +3,13 @@ use anchor_lang::{
     solana_program::sysvar::{clock, rent},
 };
 use std::str::FromStr;
+use wormhole_solana_anchor::wormhole_program as wormhole_sdk;
 
-use crate::{
+use super::{
+    constants,
     env::WORMHOLE_ADDRESS,
     error::HelloWorldError,
-    state::{Config, ForeignEmitter},
+    state::{Config, ForeignEmitter, Received},
 };
 
 #[derive(Accounts)]
@@ -19,7 +21,7 @@ pub struct Initialize<'info> {
     #[account(
         init,
         payer = owner,
-        seeds = [b"hello_world.config"],
+        seeds = [constants::SEED_PREFIX_CONFIG],
         bump,
         space = Config::MAXIMUM_SIZE,
 
@@ -34,7 +36,7 @@ pub struct Initialize<'info> {
     pub wormhole_program: AccountInfo<'info>,
 
     #[account(
-        seeds = [b"Bridge"],
+        seeds = [wormhole_sdk::SEED_PREFIX_CONFIG.as_ref()],
         bump,
         seeds::program = wormhole_program,
     )]
@@ -42,7 +44,7 @@ pub struct Initialize<'info> {
     pub wormhole_config: AccountInfo<'info>,
 
     #[account(
-        seeds = [b"fee_collector"],
+        seeds = [wormhole_sdk::SEED_PREFIX_FEE_COLLECTOR.as_ref()],
         bump,
         seeds::program = wormhole_program
     )]
@@ -51,7 +53,7 @@ pub struct Initialize<'info> {
     pub wormhole_fee_collector: AccountInfo<'info>,
 
     #[account(
-        seeds = [b"emitter"],
+        seeds = [wormhole_sdk::SEED_PREFIX_EMITTER.as_ref()],
         bump
     )]
     /// CHECK: Wormhole Emitter
@@ -59,7 +61,7 @@ pub struct Initialize<'info> {
 
     #[account(
         seeds = [
-            b"Sequence",
+            wormhole_sdk::SEED_PREFIX_SEQUENCE.as_ref(),
             wormhole_emitter.key().as_ref()
         ],
         bump,
@@ -80,8 +82,8 @@ pub struct RegisterForeignEmitter<'info> {
 
     #[account(
         has_one = owner @ HelloWorldError::PermissionDenied,
-        seeds = [b"hello_world.config"],
-        bump = config.bump
+        seeds = [constants::SEED_PREFIX_CONFIG],
+        bump
     )]
     pub config: Account<'info, Config>,
 
@@ -89,7 +91,7 @@ pub struct RegisterForeignEmitter<'info> {
         init_if_needed,
         payer = owner,
         seeds = [
-            b"hello_world.foreign_emitter",
+            constants::SEED_PREFIX_FOREIGN_EMITTER,
             chain.to_le_bytes().as_ref()
         ],
         bump,
@@ -108,8 +110,8 @@ pub struct SendMessage<'info> {
 
     #[account(
         mut,
-        seeds = [b"hello_world.config"],
-        bump = config.bump,
+        seeds = [constants::SEED_PREFIX_CONFIG],
+        bump,
     )]
     pub config: Account<'info, Config>,
 
@@ -151,7 +153,7 @@ pub struct SendMessage<'info> {
     #[account(
         mut,
         seeds = [
-            b"hello_world.wormhole_message",
+            constants::SEED_PREFIX_MESSAGE,
             config.message_count.to_le_bytes().as_ref()
         ],
         bump,
@@ -172,4 +174,53 @@ pub struct SendMessage<'info> {
     )]
     /// CHECK: Rent
     pub rent: AccountInfo<'info>,
+}
+
+#[derive(Accounts)]
+pub struct ReceiveMessage<'info> {
+    #[account(mut)]
+    /// Payer will initialize an account that tracks his own message IDs
+    pub payer: Signer<'info>,
+
+    #[account(
+        mut,
+        seeds = [constants::SEED_PREFIX_CONFIG],
+        bump,
+    )]
+    pub config: Account<'info, Config>,
+
+    #[account(
+        address = config.wormhole.program @ HelloWorldError::InvalidWormholeProgram
+    )]
+    /// CHECK: Wormhole Program
+    pub wormhole_program: AccountInfo<'info>,
+
+    #[account(
+        owner = wormhole_program.key()
+    )]
+    /// CHECK: Posted Wormhole Message
+    pub wormhole_message: AccountInfo<'info>,
+
+    #[account(
+        seeds = [
+            constants::SEED_PREFIX_FOREIGN_EMITTER,
+            wormhole_sdk::get_emitter_chain(&wormhole_message)?.to_le_bytes().as_ref()
+        ],
+        bump,
+        constraint = foreign_emitter.verify(&wormhole_message)? @ HelloWorldError::InvalidForeignEmitter
+    )]
+    pub foreign_emitter: Account<'info, ForeignEmitter>,
+
+    #[account(
+        init,
+        payer = payer,
+        seeds = [
+            constants::SEED_PREFIX_RECEIVED,
+            wormhole_sdk::get_sequence(&wormhole_message)?.to_le_bytes().as_ref()
+        ],
+        bump,
+        space = Received::MAXIMUM_SIZE
+    )]
+    pub received: Account<'info, Received>,
+    pub system_program: Program<'info, System>,
 }

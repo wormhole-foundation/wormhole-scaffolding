@@ -1,22 +1,47 @@
-pub fn deserialize_emitter_chain(data: &[u8]) -> u16 {
-    let num_signatures = to_u32_be(data, 5) as usize;
-    return to_u16_be(&data, 6 + 66 * num_signatures + 8);
+use anchor_lang::prelude::*;
+use solana_program::account_info::AccountInfo;
+
+use super::{constants::*, PostedMessageData, WormholeProgramData};
+
+pub fn verify_emitter<'info>(
+    posted_message_acct: &AccountInfo<'info>,
+    chain: u16,
+    address: &[u8; 32],
+) -> Result<bool> {
+    let mut buf: &[u8] = &posted_message_acct.try_borrow_data()?;
+    let posted = PostedMessageData::deserialize(&mut buf)?;
+    Ok(posted.message.emitter_chain == chain && posted.message.emitter_address == *address)
 }
 
-pub fn deserialize_emitter_address(data: &[u8]) -> [u8; 32] {
-    let num_signatures = to_u32_be(data, 5) as usize;
+pub fn get_emitter_chain<'info>(posted_message_acct: &AccountInfo<'info>) -> Result<u16> {
+    let buf: &[u8] = &posted_message_acct.try_borrow_data()?;
+    let mut out = [0u8; 2];
+    out.copy_from_slice(&buf[MESSAGE_INDEX_EMITTER_CHAIN..(MESSAGE_INDEX_EMITTER_CHAIN + 2)]);
+    Ok(u16::from_le_bytes(out))
+}
 
-    let index = 6 + 66 * num_signatures + 10;
-
+pub fn get_emitter_address<'info>(posted_message_acct: &AccountInfo<'info>) -> Result<[u8; 32]> {
+    let buf: &[u8] = &posted_message_acct.try_borrow_data()?;
     let mut out = [0u8; 32];
-    out.copy_from_slice(&data[index..(index + 32)]);
-    out
+    out.copy_from_slice(&buf[MESSAGE_INDEX_EMITTER_ADDRESS..(MESSAGE_INDEX_EMITTER_ADDRESS + 32)]);
+    Ok(out)
 }
 
-fn to_u16_be(bytes: &[u8], index: usize) -> u16 {
-    u16::from_be_bytes(bytes[index..(index + 2)].try_into().unwrap())
+pub fn get_sequence<'info>(posted_message_acct: &AccountInfo<'info>) -> Result<u64> {
+    let buf: &[u8] = &posted_message_acct.try_borrow_data()?;
+    let mut out = [0u8; 8];
+    out.copy_from_slice(&buf[MESSAGE_INDEX_SEQUENCE..(MESSAGE_INDEX_SEQUENCE + 8)]);
+    Ok(u64::from_le_bytes(out))
 }
 
-fn to_u32_be(bytes: &[u8], index: usize) -> u32 {
-    u32::from_be_bytes(bytes[index..(index + 4)].try_into().unwrap())
+pub fn get_message_payload<'info>(posted_message_acct: &AccountInfo<'info>) -> Result<Vec<u8>> {
+    let buf: &[u8] = &posted_message_acct.try_borrow_data()?;
+    let length = buf[MESSAGE_INDEX_PAYLOAD_LENGTH] as usize;
+    Ok(buf[MESSAGE_INDEX_PAYLOAD..(MESSAGE_INDEX_PAYLOAD + length)].to_vec())
+}
+
+pub fn get_message_fee<'info>(config: &AccountInfo<'info>) -> Result<u64> {
+    let mut buf: &[u8] = &config.try_borrow_data()?;
+    let wormhole_program_data = WormholeProgramData::deserialize(&mut buf)?;
+    Ok(wormhole_program_data.config.fee)
 }
