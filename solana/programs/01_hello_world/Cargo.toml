@@ -1,5 +1,5 @@
 [package]
-name = "hello_world"
+name = "hello-world"
 version = "0.1.0"
 description = "01 - Hello World"
 edition = "2021"
@@ -17,3 +17,4 @@ default = []
 
 [dependencies]
 anchor-lang = { version="0.25.0", features = ["init-if-needed"]}
+wormhole-solana-anchor = { path = "../../modules/wormhole-solana-anchor", default-features = false }

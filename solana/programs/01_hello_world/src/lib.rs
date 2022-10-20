@@ -10,7 +10,6 @@ pub mod env;
 pub mod error;
 pub mod message;
 pub mod state;
-pub mod wormhole_program;
 
 // WARNING: This should be the pubkey of your program's keypair
 declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
@@ -19,6 +18,7 @@ declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 pub mod hello_world {
     use super::*;
     use anchor_lang::solana_program;
+    use wormhole_solana_anchor::wormhole_program;
 
     /// This instruction can be used to generate your program's config.
     /// And for convenience, we will store Wormhole-related PDAs in the
@@ -80,7 +80,7 @@ pub mod hello_world {
 
     pub fn send_message(
         ctx: Context<SendMessage>,
-        batch_id: u32,
+        message_id: u32,
         hello_message: Vec<u8>,
     ) -> Result<()> {
         // Pay Wormhole fee
@@ -116,39 +116,33 @@ pub mod hello_world {
             payload.extend(&hello_message);
 
             let config = &ctx.accounts.config;
-            solana_program::program::invoke_signed(
-                &solana_program::instruction::Instruction {
-                    program_id: ctx.accounts.wormhole_program.key(),
-                    accounts: vec![
-                        AccountMeta::new(ctx.accounts.wormhole_config.key(), false),
-                        AccountMeta::new(ctx.accounts.wormhole_message.key(), true),
-                        AccountMeta::new_readonly(ctx.accounts.wormhole_emitter.key(), true),
-                        AccountMeta::new(ctx.accounts.wormhole_sequence.key(), false),
-                        AccountMeta::new(ctx.accounts.payer.key(), true),
-                        AccountMeta::new(ctx.accounts.wormhole_fee_collector.key(), false),
-                        AccountMeta::new_readonly(ctx.accounts.clock.key(), false),
-                        AccountMeta::new_readonly(ctx.accounts.rent.key(), false),
-                        AccountMeta::new_readonly(ctx.accounts.system_program.key(), false),
-                    ],
-                    data: (
-                        wormhole_program::Instruction::PostMessage,
-                        wormhole_program::PostMessageData {
-                            batch_id,
-                            payload,
-                            finality: wormhole_program::Finality::Confirmed, // put in config?
-                        },
-                    )
-                        .try_to_vec()?,
-                },
-                &ctx.accounts.to_account_infos(),
-                &[
+
+            wormhole_program::post_message(
+                CpiContext::new_with_signer(
+                    ctx.accounts.wormhole_program.to_account_info(),
+                    wormhole_program::PostMessage {
+                        config: ctx.accounts.wormhole_config.to_account_info(),
+                        message: ctx.accounts.wormhole_message.to_account_info(),
+                        emitter: ctx.accounts.wormhole_emitter.to_account_info(),
+                        sequence: ctx.accounts.wormhole_sequence.to_account_info(),
+                        payer: ctx.accounts.payer.to_account_info(),
+                        fee_collector: ctx.accounts.wormhole_fee_collector.to_account_info(),
+                        clock: ctx.accounts.clock.to_account_info(),
+                        rent: ctx.accounts.rent.to_account_info(),
+                        system_program: ctx.accounts.system_program.to_account_info(),
+                    },
                     &[
-                        b"hello_world.wormhole_message",
-                        config.message_count.to_le_bytes().as_ref(),
-                        &[ctx.bumps["wormhole_message"]],
+                        &[
+                            b"hello_world.wormhole_message",
+                            config.message_count.to_le_bytes().as_ref(),
+                            &[ctx.bumps["wormhole_message"]],
+                        ],
+                        &[b"emitter", &[config.wormhole.emitter_bump]],
                     ],
-                    &[b"emitter", &[config.wormhole.emitter_bump]],
-                ],
+                ),
+                message_id,
+                payload,
+                wormhole_program::Finality::Confirmed, // put in config?
             )?;
         }
 
