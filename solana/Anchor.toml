@@ -5,6 +5,7 @@ skip-lint = false
 [programs.localnet]
 ### WARNING: Be sure to change these pubkeys to reflect your deployed keypairs
 hello_world = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
+hello_token = "GDch61JmJpTo9npwenypnk3KdofmozK1hNaTdbYRkNPb"
 
 [registry]
 url = "https://api.apr.dev"

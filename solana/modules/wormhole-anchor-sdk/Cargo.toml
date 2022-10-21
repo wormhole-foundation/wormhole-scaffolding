@@ -8,3 +8,4 @@ description = "SDK using Anchor interfaces to interact with Wormhole Solana Prog
 anchor-lang = { version = "0.25.0", features = ["derive"] }
 borsh = { version = "^0.9", optional = true }
 solana-program = "~1.10.29"
+anchor-spl = "0.25.0"

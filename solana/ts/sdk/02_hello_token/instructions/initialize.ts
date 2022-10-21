@@ -6,20 +6,22 @@ import {
 } from "@solana/web3.js";
 import {
   deriveAddress,
-  getWormholeDerivedAccounts,
+  getTokenBridgeDerivedAccounts,
 } from "@certusone/wormhole-sdk/solana";
-import { createHelloWorldProgramInterface } from "../program";
+import { createHelloTokenProgramInterface } from "../program";
 import { deriveConfigKey } from "../accounts";
 
 export async function createInitializeInstruction(
   connection: Connection,
   programId: PublicKeyInitData,
   payer: PublicKeyInitData,
+  tokenBridgeProgramId: PublicKeyInitData,
   wormholeProgramId: PublicKeyInitData
 ): Promise<TransactionInstruction> {
-  const program = createHelloWorldProgramInterface(connection, programId);
-  const wormholeAccounts = getWormholeDerivedAccounts(
+  const program = createHelloTokenProgramInterface(connection, programId);
+  const tokenBridgeAccounts = getTokenBridgeDerivedAccounts(
     program.programId,
+    tokenBridgeProgramId,
     wormholeProgramId
   );
   return program.methods
@@ -27,8 +29,9 @@ export async function createInitializeInstruction(
     .accounts({
       owner: new PublicKey(payer),
       config: deriveConfigKey(programId),
+      tokenBridgeProgram: new PublicKey(tokenBridgeProgramId),
       wormholeProgram: new PublicKey(wormholeProgramId),
-      ...wormholeAccounts,
+      ...tokenBridgeAccounts,
     })
     .instruction();
 }

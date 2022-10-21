@@ -25,33 +25,25 @@ pub mod hello_world {
     /// And for convenience, we will store Wormhole-related PDAs in the
     /// config so we can verify these accounts with a simple == constraint.
     pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
-        require!(
-            ctx.accounts.config.owner == Pubkey::default(),
-            HelloWorldError::AlreadyInitialized
-        );
-
         // Initialize program config
-        {
-            let config = &mut ctx.accounts.config;
+        let config = &mut ctx.accounts.config;
 
-            // Set the owner of the config (effectively the owner of the program)
-            config.owner = ctx.accounts.owner.key();
+        // Set the owner of the config (effectively the owner of the program)
+        config.owner = ctx.accounts.owner.key();
 
-            // Set Wormhole related addresses
-            config.wormhole.program = ctx.accounts.wormhole_program.key();
-            config.wormhole.config = ctx.accounts.wormhole_config.key();
-            config.wormhole.fee_collector = ctx.accounts.wormhole_fee_collector.key();
-            config.wormhole.emitter = ctx.accounts.wormhole_emitter.key();
-            config.wormhole.sequence = ctx.accounts.wormhole_sequence.key();
-            config.wormhole.emitter_bump = *ctx
-                .bumps
-                .get("wormhole_emitter")
-                .ok_or(HelloWorldError::BumpNotFound)?;
+        // Set Wormhole related addresses
+        let wormhole = &mut config.wormhole;
+        wormhole.program = ctx.accounts.wormhole_program.key();
+        wormhole.config = ctx.accounts.wormhole_config.key();
+        wormhole.fee_collector = ctx.accounts.wormhole_fee_collector.key();
+        wormhole.emitter = ctx.accounts.wormhole_emitter.key();
+        wormhole.sequence = ctx.accounts.wormhole_sequence.key();
+        wormhole.emitter_bump = *ctx
+            .bumps
+            .get("wormhole_emitter")
+            .ok_or(HelloWorldError::BumpNotFound)?;
 
-            // Save bump
-            config.bump = ctx.bumps["config"];
-            config.message_count = 0;
-        }
+        config.message_count = 0;
 
         // Done
         Ok(())

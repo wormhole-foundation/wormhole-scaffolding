@@ -15,6 +15,9 @@ export const PAYER_PRIVATE_KEY = Uint8Array.from([
 export const WORMHOLE_ADDRESS = new PublicKey(
   process.env.TESTING_WORMHOLE_ADDRESS!
 );
+export const TOKEN_BRIDGE_ADDRESS = new PublicKey(
+  process.env.TESTING_TOKEN_BRIDGE_ADDRESS!
+);
 
 // guardian signer
 export const GUARDIAN_PRIVATE_KEY = process.env.TESTING_DEVNET_GUARDIAN!;
@@ -25,4 +28,7 @@ export const FUZZ_TEST_ITERATIONS = 64;
 // programs
 export const HELLO_WORLD_ADDRESS = new PublicKey(
   process.env.TESTING_HELLO_WORLD_ADDRESS!
+);
+export const HELLO_TOKEN_ADDRESS = new PublicKey(
+  process.env.TESTING_HELLO_TOKEN_ADDRESS!
 );

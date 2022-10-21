@@ -13,3 +13,4 @@ remove the following dependencies:
 - @terra-money/terra.js
 - @injectivelabs/sdk-ts
 - js-base64
+- @xpla/xpla.js

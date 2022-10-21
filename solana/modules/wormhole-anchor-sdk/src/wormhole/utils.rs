@@ -48,6 +48,8 @@ pub fn get_message_payload<'info>(posted_message_acct: &AccountInfo<'info>) -> R
 }
 
 pub fn get_message_fee<'info>(config: &AccountInfo<'info>) -> Result<u64> {
+    // TODO: consider skipping directly to where the fees are encoded
+    // instead of deserializing the whole account
     let mut buf: &[u8] = &config.try_borrow_data()?;
     let wormhole_program_data = WormholeProgramData::deserialize(&mut buf)?;
     Ok(wormhole_program_data.config.fee)

@@ -5,10 +5,22 @@ import {
   PublicKey,
   PublicKeyInitData,
 } from "@solana/web3.js";
-import { createHelloWorldProgramInterface } from "../program";
+import { createHelloTokenProgramInterface } from "../program";
 
 export function deriveConfigKey(programId: PublicKeyInitData) {
-  return deriveAddress([Buffer.from("hello_world.config")], programId);
+  return deriveAddress([Buffer.from("hello_token.config")], programId);
+}
+
+export interface TokenBridgeAddresses {
+  program: PublicKey;
+  config: PublicKey;
+  authoritySigner: PublicKey;
+  custodySigner: PublicKey;
+  mintAuthority: PublicKey;
+  sender: PublicKey;
+  redeemer: PublicKey;
+  senderBump: number;
+  redeemerBump: number;
 }
 
 export interface WormholeAddresses {
@@ -21,6 +33,7 @@ export interface WormholeAddresses {
 
 export interface ConfigData {
   owner: PublicKey;
+  tokenBridge: TokenBridgeAddresses;
   wormhole: WormholeAddresses;
   messageCount: bigint;
 }
@@ -30,13 +43,14 @@ export async function getConfigData(
   programId: PublicKeyInitData,
   commitment?: Commitment
 ): Promise<ConfigData> {
-  const data = await createHelloWorldProgramInterface(
+  const data = await createHelloTokenProgramInterface(
     connection,
     programId
   ).account.config.fetch(deriveConfigKey(programId), commitment);
 
   return {
     owner: data.owner,
+    tokenBridge: data.tokenBridge,
     wormhole: data.wormhole,
     messageCount: BigInt(data.messageCount.toString()),
   };

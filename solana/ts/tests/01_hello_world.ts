@@ -6,7 +6,10 @@ import {
   NodeWallet,
   postVaaSolana,
 } from "@certusone/wormhole-sdk/solana";
-import { getPostedMessage } from "@certusone/wormhole-sdk/solana/wormhole";
+import {
+  getPostedMessage,
+  getWormholeDerivedAccounts,
+} from "@certusone/wormhole-sdk/solana/wormhole";
 import { MockEmitter, MockGuardians } from "@certusone/wormhole-sdk/mock";
 import { parseVaa } from "@certusone/wormhole-sdk";
 import {
@@ -36,18 +39,12 @@ describe(" 1: Hello World", () => {
   const connection = new web3.Connection(LOCALHOST, "confirmed");
   const payer = web3.Keypair.fromSecretKey(PAYER_PRIVATE_KEY);
 
-  // program interface
-  const program = createHelloWorldProgramInterface(
-    connection,
-    HELLO_WORLD_ADDRESS
-  );
-
   // foreign emitter info
   const foreignEmitterChain = 2;
   const foreignEmitterAddress = Buffer.alloc(32, "deadbeef", "hex");
 
   // create real pdas and array of invalid ones (generated from other bumps)
-  const realConfig = deriveConfigKey(program.programId);
+  const realConfig = deriveConfigKey(HELLO_WORLD_ADDRESS);
   const invalidConfigs: web3.PublicKey[] = [];
   for (let i = 255; i >= 0; --i) {
     const bumpBytes = Buffer.alloc(1);
@@ -55,7 +52,7 @@ describe(" 1: Hello World", () => {
     try {
       const pda = web3.PublicKey.createProgramAddressSync(
         [Buffer.from("hello_world.config"), bumpBytes],
-        program.programId
+        HELLO_WORLD_ADDRESS
       );
       if (!pda.equals(realConfig)) {
         invalidConfigs.push(pda);
@@ -66,7 +63,7 @@ describe(" 1: Hello World", () => {
   }
 
   const realForeignEmitter = deriveForeignEmitterKey(
-    program.programId,
+    HELLO_WORLD_ADDRESS,
     foreignEmitterChain
   );
   const invalidForeignEmitters: web3.PublicKey[] = [];
@@ -84,7 +81,7 @@ describe(" 1: Hello World", () => {
           })(),
           bumpBytes,
         ],
-        program.programId
+        HELLO_WORLD_ADDRESS
       );
       if (!pda.equals(realForeignEmitter)) {
         invalidForeignEmitters.push(pda);
@@ -96,11 +93,15 @@ describe(" 1: Hello World", () => {
 
   describe("Initialize Program", () => {
     describe("Fuzz Test Invalid Accounts for Instruction: initialize", () => {
-      const wormholeCpi = getPostMessageCpiAccounts(
-        program.programId,
-        WORMHOLE_ADDRESS,
-        payer.publicKey,
-        web3.PublicKey.default // dummy for message
+      // program interface
+      const program = createHelloWorldProgramInterface(
+        connection,
+        HELLO_WORLD_ADDRESS
+      );
+
+      const wormholeCpi = getWormholeDerivedAccounts(
+        HELLO_WORLD_ADDRESS,
+        WORMHOLE_ADDRESS
       );
 
       // TODO: use createProgramAddressSync to try different bumps for config
@@ -146,7 +147,7 @@ describe(" 1: Hello World", () => {
         {
           const wormholeProgram = web3.BPF_LOADER_PROGRAM_ID;
           const cpi = getPostMessageCpiAccounts(
-            program.programId,
+            HELLO_WORLD_ADDRESS,
             wormholeProgram,
             payer.publicKey,
             web3.PublicKey.default // dummy for message
@@ -380,14 +381,12 @@ describe(" 1: Hello World", () => {
         expect(initializeTx).is.not.null;
 
         // verify account data
-        const configData = await getConfigData(connection, program.programId);
+        const configData = await getConfigData(connection, HELLO_WORLD_ADDRESS);
         expect(configData.owner.equals(payer.publicKey)).is.true;
 
-        const wormholeCpi = getPostMessageCpiAccounts(
-          program.programId,
-          WORMHOLE_ADDRESS,
-          payer.publicKey,
-          web3.PublicKey.default // dummy for message
+        const wormholeCpi = getWormholeDerivedAccounts(
+          HELLO_WORLD_ADDRESS,
+          WORMHOLE_ADDRESS
         );
         expect(configData.wormhole.program.equals(WORMHOLE_ADDRESS)).is.true;
         expect(configData.wormhole.config.equals(wormholeCpi.wormholeConfig)).to
@@ -403,8 +402,6 @@ describe(" 1: Hello World", () => {
           configData.wormhole.sequence.equals(wormholeCpi.wormholeSequence)
         ).is.true;
 
-        expect(configData.bump).is.greaterThanOrEqual(0);
-        expect(configData.bump).is.lessThanOrEqual(255);
         expect(configData.messageCount).to.equal(0n);
       });
 
@@ -433,6 +430,12 @@ describe(" 1: Hello World", () => {
 
   describe("Register Foreign Emitter", () => {
     describe("Fuzz Test Invalid Accounts for Instruction: register_foreign_emitter", () => {
+      // program interface
+      const program = createHelloWorldProgramInterface(
+        connection,
+        HELLO_WORLD_ADDRESS
+      );
+
       const emitterChain = foreignEmitterChain;
       const emitterAddress = foreignEmitterAddress;
 
@@ -635,7 +638,7 @@ describe(" 1: Hello World", () => {
         const registerForeignEmitterTx =
           await createRegisterForeignEmitterInstruction(
             connection,
-            program.programId,
+            HELLO_WORLD_ADDRESS,
             payer.publicKey,
             emitterChain,
             emitterAddress
@@ -657,7 +660,7 @@ describe(" 1: Hello World", () => {
         // verify account data
         const foreignEmitterData = await getForeignEmitterData(
           connection,
-          program.programId,
+          HELLO_WORLD_ADDRESS,
           emitterChain
         );
         expect(foreignEmitterData.chain).to.equal(emitterChain);
@@ -673,7 +676,7 @@ describe(" 1: Hello World", () => {
         const registerForeignEmitterTx =
           await createRegisterForeignEmitterInstruction(
             connection,
-            program.programId,
+            HELLO_WORLD_ADDRESS,
             payer.publicKey,
             emitterChain,
             emitterAddress
@@ -695,7 +698,7 @@ describe(" 1: Hello World", () => {
         // verify account data
         const foreignEmitterData = await getForeignEmitterData(
           connection,
-          program.programId,
+          HELLO_WORLD_ADDRESS,
           emitterChain
         );
         expect(foreignEmitterData.chain).to.equal(emitterChain);
@@ -715,12 +718,12 @@ describe(" 1: Hello World", () => {
         // save message count to grab posted message later
         const messageCount = await getConfigData(
           connection,
-          program.programId
+          HELLO_WORLD_ADDRESS
         ).then((config) => config.messageCount);
 
         const sendMessageTx = await createSendMessageInstruction(
           connection,
-          program.programId,
+          HELLO_WORLD_ADDRESS,
           payer.publicKey,
           WORMHOLE_ADDRESS,
           batchId,
@@ -743,7 +746,7 @@ describe(" 1: Hello World", () => {
         // verify account data
         const messageData = await getPostedMessage(
           connection,
-          deriveWormholeMessageKey(program.programId, messageCount)
+          deriveWormholeMessageKey(HELLO_WORLD_ADDRESS, messageCount)
         ).then((posted) => posted.message);
         expect(messageData.nonce).to.equal(batchId);
 
@@ -790,7 +793,7 @@ describe(" 1: Hello World", () => {
       it("Instruction: receive_message", async () => {
         const receiveMessageTx = await createReceiveMessageInstruction(
           connection,
-          program.programId,
+          HELLO_WORLD_ADDRESS,
           payer.publicKey,
           WORMHOLE_ADDRESS,
           signedWormholeMessage
@@ -812,7 +815,7 @@ describe(" 1: Hello World", () => {
         const parsed = parseVaa(signedWormholeMessage);
         const received = await getReceivedData(
           connection,
-          program.programId,
+          HELLO_WORLD_ADDRESS,
           parsed.sequence
         );
         expect(received.batchId).to.equal(batchId);
@@ -822,7 +825,7 @@ describe(" 1: Hello World", () => {
       it("Cannot Call Instruction Again With Same Wormhole Message: receive_message", async () => {
         const receiveMessageTx = await createReceiveMessageInstruction(
           connection,
-          program.programId,
+          HELLO_WORLD_ADDRESS,
           payer.publicKey,
           WORMHOLE_ADDRESS,
           signedWormholeMessage
