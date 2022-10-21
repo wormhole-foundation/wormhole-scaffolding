@@ -1,5 +1,5 @@
 [package]
-name = "wormhole-solana-anchor"
+name = "wormhole-anchor-sdk"
 version = "0.1.0"
 edition = "2021"
 description = "SDK using Anchor interfaces to interact with Wormhole Solana Programs"

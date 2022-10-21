@@ -13,6 +13,20 @@ pub fn verify_emitter<'info>(
     Ok(posted.message.emitter_chain == chain && posted.message.emitter_address == *address)
 }
 
+pub fn get_batch_id<'info>(posted_message_acct: &AccountInfo<'info>) -> Result<u32> {
+    let buf: &[u8] = &posted_message_acct.try_borrow_data()?;
+    let mut out = [0u8; 4];
+    out.copy_from_slice(&buf[MESSAGE_INDEX_BATCH_ID..(MESSAGE_INDEX_BATCH_ID + 4)]);
+    Ok(u32::from_le_bytes(out))
+}
+
+pub fn get_sequence<'info>(posted_message_acct: &AccountInfo<'info>) -> Result<u64> {
+    let buf: &[u8] = &posted_message_acct.try_borrow_data()?;
+    let mut out = [0u8; 8];
+    out.copy_from_slice(&buf[MESSAGE_INDEX_SEQUENCE..(MESSAGE_INDEX_SEQUENCE + 8)]);
+    Ok(u64::from_le_bytes(out))
+}
+
 pub fn get_emitter_chain<'info>(posted_message_acct: &AccountInfo<'info>) -> Result<u16> {
     let buf: &[u8] = &posted_message_acct.try_borrow_data()?;
     let mut out = [0u8; 2];
@@ -25,13 +39,6 @@ pub fn get_emitter_address<'info>(posted_message_acct: &AccountInfo<'info>) -> R
     let mut out = [0u8; 32];
     out.copy_from_slice(&buf[MESSAGE_INDEX_EMITTER_ADDRESS..(MESSAGE_INDEX_EMITTER_ADDRESS + 32)]);
     Ok(out)
-}
-
-pub fn get_sequence<'info>(posted_message_acct: &AccountInfo<'info>) -> Result<u64> {
-    let buf: &[u8] = &posted_message_acct.try_borrow_data()?;
-    let mut out = [0u8; 8];
-    out.copy_from_slice(&buf[MESSAGE_INDEX_SEQUENCE..(MESSAGE_INDEX_SEQUENCE + 8)]);
-    Ok(u64::from_le_bytes(out))
 }
 
 pub fn get_message_payload<'info>(posted_message_acct: &AccountInfo<'info>) -> Result<Vec<u8>> {

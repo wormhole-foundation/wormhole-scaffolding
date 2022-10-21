@@ -19,7 +19,7 @@ declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 pub mod hello_world {
     use super::*;
     use anchor_lang::solana_program;
-    use wormhole_solana_anchor::wormhole_program;
+    use wormhole_anchor_sdk::wormhole;
 
     /// This instruction can be used to generate your program's config.
     /// And for convenience, we will store Wormhole-related PDAs in the
@@ -81,12 +81,12 @@ pub mod hello_world {
 
     pub fn send_message(
         ctx: Context<SendMessage>,
-        message_id: u32,
+        batch_id: u32,
         hello_message: Vec<u8>,
     ) -> Result<()> {
         // Pay Wormhole fee
         {
-            let fee = wormhole_program::get_message_fee(&ctx.accounts.wormhole_config)?;
+            let fee = wormhole::get_message_fee(&ctx.accounts.wormhole_config)?;
             if fee > 0 {
                 solana_program::program::invoke(
                     &solana_program::system_instruction::transfer(
@@ -114,10 +114,10 @@ pub mod hello_world {
 
             let config = &ctx.accounts.config;
 
-            wormhole_program::post_message(
+            wormhole::post_message(
                 CpiContext::new_with_signer(
                     ctx.accounts.wormhole_program.to_account_info(),
-                    wormhole_program::PostMessage {
+                    wormhole::PostMessage {
                         config: ctx.accounts.wormhole_config.to_account_info(),
                         message: ctx.accounts.wormhole_message.to_account_info(),
                         emitter: ctx.accounts.wormhole_emitter.to_account_info(),
@@ -137,9 +137,9 @@ pub mod hello_world {
                         &[b"emitter", &[config.wormhole.emitter_bump]],
                     ],
                 ),
-                message_id,
+                batch_id,
                 payload,
-                wormhole_program::Finality::Confirmed, // put in config?
+                wormhole::Finality::Confirmed, // put in config?
             )?;
         }
 
@@ -154,6 +154,14 @@ pub mod hello_world {
     }
 
     pub fn receive_message(ctx: Context<ReceiveMessage>) -> Result<()> {
+        let wormhole_message = &ctx.accounts.wormhole_message;
+
+        // Save batch_id and message payload
+        let received = &mut ctx.accounts.received;
+        received.batch_id = wormhole::get_batch_id(wormhole_message)?;
+        received.message = wormhole::get_message_payload(wormhole_message)?;
+
+        // Done
         Ok(())
     }
 }

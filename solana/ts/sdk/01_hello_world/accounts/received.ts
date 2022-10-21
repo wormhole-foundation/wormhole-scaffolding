@@ -19,13 +19,20 @@ export function deriveReceivedKey(
   );
 }
 
+export interface Received {
+  batchId: number;
+  message: Buffer;
+}
+
 export async function getReceivedData(
   connection: Connection,
   programId: PublicKeyInitData,
   sequence: bigint,
   commitment?: Commitment
-): Promise<Buffer> {
+): Promise<Received> {
   return createHelloWorldProgramInterface(connection, programId)
     .account.received.fetch(deriveReceivedKey(programId, sequence), commitment)
-    .then((received) => received.message as Buffer);
+    .then((received) => {
+      return { batchId: received.batchId, message: received.message as Buffer };
+    });
 }

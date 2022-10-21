@@ -3,7 +3,7 @@ use anchor_lang::{
     solana_program::sysvar::{clock, rent},
 };
 use std::str::FromStr;
-use wormhole_solana_anchor::wormhole_program as wormhole_sdk;
+use wormhole_anchor_sdk::wormhole;
 
 use super::{
     constants,
@@ -36,7 +36,7 @@ pub struct Initialize<'info> {
     pub wormhole_program: AccountInfo<'info>,
 
     #[account(
-        seeds = [wormhole_sdk::SEED_PREFIX_CONFIG.as_ref()],
+        seeds = [wormhole::SEED_PREFIX_CONFIG.as_ref()],
         bump,
         seeds::program = wormhole_program,
     )]
@@ -44,7 +44,7 @@ pub struct Initialize<'info> {
     pub wormhole_config: AccountInfo<'info>,
 
     #[account(
-        seeds = [wormhole_sdk::SEED_PREFIX_FEE_COLLECTOR.as_ref()],
+        seeds = [wormhole::SEED_PREFIX_FEE_COLLECTOR.as_ref()],
         bump,
         seeds::program = wormhole_program
     )]
@@ -53,7 +53,7 @@ pub struct Initialize<'info> {
     pub wormhole_fee_collector: AccountInfo<'info>,
 
     #[account(
-        seeds = [wormhole_sdk::SEED_PREFIX_EMITTER.as_ref()],
+        seeds = [wormhole::SEED_PREFIX_EMITTER.as_ref()],
         bump
     )]
     /// CHECK: Wormhole Emitter
@@ -61,7 +61,7 @@ pub struct Initialize<'info> {
 
     #[account(
         seeds = [
-            wormhole_sdk::SEED_PREFIX_SEQUENCE.as_ref(),
+            wormhole::SEED_PREFIX_SEQUENCE.as_ref(),
             wormhole_emitter.key().as_ref()
         ],
         bump,
@@ -204,7 +204,7 @@ pub struct ReceiveMessage<'info> {
     #[account(
         seeds = [
             constants::SEED_PREFIX_FOREIGN_EMITTER,
-            wormhole_sdk::get_emitter_chain(&wormhole_message)?.to_le_bytes().as_ref()
+            wormhole::get_emitter_chain(&wormhole_message)?.to_le_bytes().as_ref()
         ],
         bump,
         constraint = foreign_emitter.verify(&wormhole_message)? @ HelloWorldError::InvalidForeignEmitter
@@ -216,7 +216,7 @@ pub struct ReceiveMessage<'info> {
         payer = payer,
         seeds = [
             constants::SEED_PREFIX_RECEIVED,
-            wormhole_sdk::get_sequence(&wormhole_message)?.to_le_bytes().as_ref()
+            wormhole::get_sequence(&wormhole_message)?.to_le_bytes().as_ref()
         ],
         bump,
         space = Received::MAXIMUM_SIZE

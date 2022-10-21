@@ -48,7 +48,7 @@ pub struct MessageData {
     pub posted_timestamp: u32,
 
     /// Unique id for this message
-    pub message_id: u32,
+    pub batch_id: u32,
 
     /// Sequence number of this message
     pub sequence: u64,

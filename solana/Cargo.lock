@@ -593,7 +593,7 @@ name = "hello-world"
 version = "0.1.0"
 dependencies = [
  "anchor-lang",
- "wormhole-solana-anchor",
+ "wormhole-anchor-sdk",
 ]
 
 [[package]]
@@ -1394,7 +1394,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c811ca4a8c853ef420abd8592ba53ddbbac90410fab6903b3e79972a631f7680"
 
 [[package]]
-name = "wormhole-solana-anchor"
+name = "wormhole-anchor-sdk"
 version = "0.1.0"
 dependencies = [
  "anchor-lang",

@@ -18,7 +18,7 @@ pub enum Instruction {
 #[derive(AnchorDeserialize, AnchorSerialize)]
 pub struct PostMessageData {
     /// Unique id for this message
-    pub message_id: u32,
+    pub batch_id: u32,
 
     /// Message payload
     pub payload: Vec<u8>,
@@ -42,7 +42,7 @@ pub struct PostMessage<'info> {
 
 pub fn post_message<'a, 'b, 'c, 'info>(
     ctx: CpiContext<'a, 'b, 'c, 'info, PostMessage<'info>>,
-    message_id: u32,
+    batch_id: u32,
     payload: Vec<u8>,
     finality: Finality,
 ) -> Result<()> {
@@ -62,7 +62,7 @@ pub fn post_message<'a, 'b, 'c, 'info>(
         data: (
             Instruction::PostMessage,
             PostMessageData {
-                message_id,
+                batch_id,
                 payload,
                 finality,
             },

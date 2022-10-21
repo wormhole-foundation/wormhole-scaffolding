@@ -763,14 +763,15 @@ describe(" 1: Hello World", () => {
 
     const guardians = new MockGuardians(0, [GUARDIAN_PRIVATE_KEY]);
 
+    const batchId = 69;
+    const wormholePayload = Buffer.from("Somebody set up us the bomb");
+
     describe("Finally Receive Message", () => {
-      const nonce = 69;
-      const payload = Buffer.from("Somebody set up us the bomb");
-      const consistencyLevel = 1;
+      const finality = 1;
       const published = emitter.publishMessage(
-        nonce,
-        payload,
-        consistencyLevel
+        batchId,
+        wormholePayload,
+        finality
       );
 
       const signedWormholeMessage = guardians.addSignatures(published, [0]);
@@ -787,15 +788,12 @@ describe(" 1: Hello World", () => {
       });
 
       it("Instruction: receive_message", async () => {
-        const parsed = parseVaa(signedWormholeMessage);
-        console.log("parsed", parsed);
-
         const receiveMessageTx = await createReceiveMessageInstruction(
           connection,
           program.programId,
           payer.publicKey,
           WORMHOLE_ADDRESS,
-          parsed
+          signedWormholeMessage
         )
           .then((ix) =>
             web3.sendAndConfirmTransaction(
@@ -811,12 +809,36 @@ describe(" 1: Hello World", () => {
           });
         expect(receiveMessageTx).is.not.null;
 
+        const parsed = parseVaa(signedWormholeMessage);
         const received = await getReceivedData(
           connection,
           program.programId,
           parsed.sequence
         );
-        console.log("wut", received);
+        expect(received.batchId).to.equal(batchId);
+        expect(Buffer.compare(received.message, wormholePayload)).to.equal(0);
+      });
+
+      it("Cannot Call Instruction Again With Same Wormhole Message: receive_message", async () => {
+        const receiveMessageTx = await createReceiveMessageInstruction(
+          connection,
+          program.programId,
+          payer.publicKey,
+          WORMHOLE_ADDRESS,
+          signedWormholeMessage
+        )
+          .then((ix) =>
+            web3.sendAndConfirmTransaction(
+              connection,
+              new web3.Transaction().add(ix),
+              [payer]
+            )
+          )
+          .catch((reason) => {
+            expect(errorExistsInLog(reason, "already in use")).to.be.true;
+            return null;
+          });
+        expect(receiveMessageTx).is.null;
       });
     });
   });
