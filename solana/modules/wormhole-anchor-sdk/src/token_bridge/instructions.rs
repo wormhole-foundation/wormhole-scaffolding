@@ -37,7 +37,7 @@ pub struct TransferNativeWithPayload<'info> {
     pub custody: AccountInfo<'info>,
     pub authority_signer: AccountInfo<'info>,
     pub custody_signer: AccountInfo<'info>,
-    pub wormhole_config: AccountInfo<'info>,
+    pub wormhole_bridge: AccountInfo<'info>,
     pub wormhole_message: AccountInfo<'info>,
     pub wormhole_emitter: AccountInfo<'info>,
     pub wormhole_sequence: AccountInfo<'info>,
@@ -69,7 +69,7 @@ pub fn transfer_native_with_payload<'a, 'b, 'c, 'info>(
             AccountMeta::new(ctx.accounts.custody.key(), false),
             AccountMeta::new_readonly(ctx.accounts.authority_signer.key(), false),
             AccountMeta::new_readonly(ctx.accounts.custody_signer.key(), false),
-            AccountMeta::new(ctx.accounts.wormhole_config.key(), false),
+            AccountMeta::new(ctx.accounts.wormhole_bridge.key(), false),
             AccountMeta::new(ctx.accounts.wormhole_message.key(), true),
             AccountMeta::new_readonly(ctx.accounts.wormhole_emitter.key(), false),
             AccountMeta::new(ctx.accounts.wormhole_sequence.key(), false),
@@ -103,29 +103,6 @@ pub fn transfer_native_with_payload<'a, 'b, 'c, 'info>(
     .map_err(Into::into)
 }
 
-pub fn approve_and_transfer_native_with_payload<'a, 'b, 'c, 'info>(
-    approve_ctx: CpiContext<'a, 'b, 'c, 'info, anchor_spl::token::Approve<'info>>,
-    transfer_ctx: CpiContext<'a, 'b, 'c, 'info, TransferNativeWithPayload<'info>>,
-    batch_id: u32,
-    amount: u64,
-    recipient_address: [u8; 32],
-    recipient_chain: u16,
-    payload: Vec<u8>,
-    cpi_program_id: &Pubkey,
-) -> Result<()> {
-    anchor_spl::token::approve(approve_ctx, amount)?;
-
-    transfer_native_with_payload(
-        transfer_ctx,
-        batch_id,
-        amount,
-        recipient_address,
-        recipient_chain,
-        payload,
-        cpi_program_id,
-    )
-}
-
 #[derive(AnchorDeserialize, AnchorSerialize)]
 pub struct TransferWrappedWithPayloadData {
     pub batch_id: u32,
@@ -145,7 +122,7 @@ pub struct TransferWrappedWithPayload<'info> {
     pub wrapped_mint: AccountInfo<'info>,
     pub wrapped_metadata: AccountInfo<'info>,
     pub authority_signer: AccountInfo<'info>,
-    pub wormhole_config: AccountInfo<'info>,
+    pub wormhole_bridge: AccountInfo<'info>,
     pub wormhole_message: AccountInfo<'info>,
     pub wormhole_emitter: AccountInfo<'info>,
     pub wormhole_sequence: AccountInfo<'info>,
@@ -177,7 +154,7 @@ pub fn transfer_wrapped_with_payload<'a, 'b, 'c, 'info>(
             AccountMeta::new(ctx.accounts.wrapped_mint.key(), false),
             AccountMeta::new_readonly(ctx.accounts.wrapped_metadata.key(), false),
             AccountMeta::new_readonly(ctx.accounts.authority_signer.key(), false),
-            AccountMeta::new(ctx.accounts.wormhole_config.key(), false),
+            AccountMeta::new(ctx.accounts.wormhole_bridge.key(), false),
             AccountMeta::new(ctx.accounts.wormhole_message.key(), true),
             AccountMeta::new_readonly(ctx.accounts.wormhole_emitter.key(), false),
             AccountMeta::new(ctx.accounts.wormhole_sequence.key(), false),
@@ -209,27 +186,4 @@ pub fn transfer_wrapped_with_payload<'a, 'b, 'c, 'info>(
         ctx.signer_seeds,
     )
     .map_err(Into::into)
-}
-
-pub fn approve_and_transfer_wrapped_with_payload<'a, 'b, 'c, 'info>(
-    approve_ctx: CpiContext<'a, 'b, 'c, 'info, anchor_spl::token::Approve<'info>>,
-    transfer_ctx: CpiContext<'a, 'b, 'c, 'info, TransferWrappedWithPayload<'info>>,
-    batch_id: u32,
-    amount: u64,
-    recipient_address: [u8; 32],
-    recipient_chain: u16,
-    payload: Vec<u8>,
-    cpi_program_id: &Pubkey,
-) -> Result<()> {
-    anchor_spl::token::approve(approve_ctx, amount)?;
-
-    transfer_wrapped_with_payload(
-        transfer_ctx,
-        batch_id,
-        amount,
-        recipient_address,
-        recipient_chain,
-        payload,
-        cpi_program_id,
-    )
 }

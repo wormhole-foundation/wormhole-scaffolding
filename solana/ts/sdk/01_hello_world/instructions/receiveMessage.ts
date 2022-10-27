@@ -30,8 +30,7 @@ export async function createReceiveMessageInstruction(
   programId: PublicKeyInitData,
   payer: PublicKeyInitData,
   wormholeProgramId: PublicKeyInitData,
-  wormholeMessage: SignedVaa | ParsedVaa,
-  commitment?: Commitment
+  wormholeMessage: SignedVaa | ParsedVaa
 ): Promise<TransactionInstruction> {
   const program = createHelloWorldProgramInterface(connection, programId);
 
@@ -40,12 +39,12 @@ export async function createReceiveMessageInstruction(
     : wormholeMessage;
 
   return program.methods
-    .receiveMessage()
+    .receiveMessage([...parsed.hash])
     .accounts({
       payer: new PublicKey(payer),
       config: deriveConfigKey(programId),
       wormholeProgram: new PublicKey(wormholeProgramId),
-      wormholeMessage: derivePostedVaaKey(wormholeProgramId, parsed.hash),
+      posted: derivePostedVaaKey(wormholeProgramId, parsed.hash),
       foreignEmitter: deriveForeignEmitterKey(programId, parsed.emitterChain),
       received: deriveReceivedKey(programId, parsed.sequence),
     })

@@ -31,4 +31,7 @@ pub enum HelloWorldError {
 
     #[msg("BumpNotFound")]
     BumpNotFound,
+
+    #[msg("InvalidMessage")]
+    InvalidMessage,
 }

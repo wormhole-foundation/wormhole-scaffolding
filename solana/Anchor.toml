@@ -23,11 +23,11 @@ program = "./dependencies/spl_token_metadata.so"
 
 ### NOTE: Check against testing.env
 [[test.genesis]]
-address = "Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o"
+address = "worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth"
 program = "./dependencies/wormhole.so"
 
 ### NOTE: Check against testing.env
 [[test.genesis]]
-address = "B6RHG3mfcckmrYN1UhmJzyS1XX3fZKbkeUcpJe9Sy3FE"
+address = "wormDTUJ6AWPNvk59vGQbDvGJmqbDTdgWgAqcLBCgUb"
 program = "./dependencies/token_bridge.so"
 ### NOTE: Check against testing.env

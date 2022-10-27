@@ -8,7 +8,7 @@ export function deriveReceivedKey(
 ) {
   return deriveAddress(
     [
-      Buffer.from("hello_world.received"),
+      Buffer.from("received"),
       (() => {
         const buf = Buffer.alloc(8);
         buf.writeBigInt64LE(sequence);

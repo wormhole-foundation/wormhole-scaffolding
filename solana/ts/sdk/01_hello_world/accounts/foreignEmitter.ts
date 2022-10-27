@@ -8,7 +8,7 @@ export function deriveForeignEmitterKey(
 ) {
   return deriveAddress(
     [
-      Buffer.from("hello_world.foreign_emitter"),
+      Buffer.from("foreign_emitter"),
       (() => {
         const buf = Buffer.alloc(2);
         buf.writeUInt16LE(chain);

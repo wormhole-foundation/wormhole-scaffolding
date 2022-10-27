@@ -7,7 +7,6 @@ pub use state::*;
 
 pub mod constants;
 pub mod context;
-pub mod env;
 pub mod error;
 pub mod message;
 pub mod state;
@@ -18,8 +17,6 @@ declare_id!("GDch61JmJpTo9npwenypnk3KdofmozK1hNaTdbYRkNPb");
 #[program]
 pub mod hello_token {
     use super::*;
-    use anchor_lang::solana_program;
-    use wormhole_anchor_sdk::wormhole;
 
     /// This instruction can be used to generate your program's config.
     /// And for convenience, we will store Wormhole-related PDAs in the
@@ -33,7 +30,6 @@ pub mod hello_token {
 
         // Set Token Bridge related addresses
         let token_bridge = &mut config.token_bridge;
-        token_bridge.program = ctx.accounts.token_bridge_program.key();
         token_bridge.config = ctx.accounts.token_bridge_config.key();
         token_bridge.authority_signer = ctx.accounts.token_bridge_authority_signer.key();
         token_bridge.custody_signer = ctx.accounts.token_bridge_custody_signer.key();
@@ -53,11 +49,8 @@ pub mod hello_token {
         // Set Wormhole related addresses
         {
             let wormhole = &mut config.wormhole;
-            wormhole.program = ctx.accounts.wormhole_program.key();
-            wormhole.config = ctx.accounts.wormhole_config.key();
+            wormhole.config = ctx.accounts.wormhole_bridge.key();
             wormhole.fee_collector = ctx.accounts.wormhole_fee_collector.key();
-            wormhole.emitter = ctx.accounts.wormhole_emitter.key();
-            wormhole.sequence = ctx.accounts.wormhole_sequence.key();
         }
 
         // Done

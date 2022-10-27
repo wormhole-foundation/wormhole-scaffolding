@@ -14,3 +14,4 @@ remove the following dependencies:
 - @injectivelabs/sdk-ts
 - js-base64
 - @xpla/xpla.js
+- aptos

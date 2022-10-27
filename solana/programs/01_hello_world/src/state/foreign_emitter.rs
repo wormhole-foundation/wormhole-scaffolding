@@ -1,5 +1,4 @@
 use anchor_lang::prelude::*;
-use wormhole_anchor_sdk::wormhole;
 
 #[account]
 #[derive(Default)]
@@ -13,8 +12,9 @@ impl ForeignEmitter {
         + 2 // chain
         + 32 // address
     ;
+    pub const SEED_PREFIX: &'static [u8; 15] = b"foreign_emitter";
 
-    pub fn verify(&self, wormhole_message: &AccountInfo) -> Result<bool> {
-        Ok(wormhole::get_emitter_address(&wormhole_message)? == self.address)
+    pub fn verify(&self, address: &[u8; 32]) -> bool {
+        *address == self.address
     }
 }

@@ -1,2 +1,0 @@
-pub const WORMHOLE_ADDRESS: &str = std::env!("RELEASE_WORMHOLE_ADDRESS");
-pub const TOKEN_BRIDGE_ADDRESS: &str = std::env!("RELEASE_TOKEN_BRIDGE_ADDRESS");

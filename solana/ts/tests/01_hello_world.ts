@@ -7,7 +7,12 @@ import {
   postVaaSolana,
 } from "@certusone/wormhole-sdk/solana";
 import {
+  deriveEmitterSequenceKey,
+  deriveFeeCollectorKey,
+  deriveWormholeBridgeDataKey,
+  deriveWormholeEmitterKey,
   getPostedMessage,
+  getProgramSequenceTracker,
   getWormholeDerivedAccounts,
 } from "@certusone/wormhole-sdk/solana/wormhole";
 import { MockEmitter, MockGuardians } from "@certusone/wormhole-sdk/mock";
@@ -24,6 +29,7 @@ import {
   getConfigData,
   getForeignEmitterData,
   getReceivedData,
+  getWormholeEmitterData,
 } from "../sdk/01_hello_world";
 import {
   FUZZ_TEST_ITERATIONS,
@@ -43,53 +49,18 @@ describe(" 1: Hello World", () => {
   const foreignEmitterChain = 2;
   const foreignEmitterAddress = Buffer.alloc(32, "deadbeef", "hex");
 
-  // create real pdas and array of invalid ones (generated from other bumps)
-  const realConfig = deriveConfigKey(HELLO_WORLD_ADDRESS);
-  const invalidConfigs: web3.PublicKey[] = [];
-  for (let i = 255; i >= 0; --i) {
-    const bumpBytes = Buffer.alloc(1);
-    bumpBytes.writeUint8(i);
-    try {
-      const pda = web3.PublicKey.createProgramAddressSync(
-        [Buffer.from("hello_world.config"), bumpBytes],
-        HELLO_WORLD_ADDRESS
-      );
-      if (!pda.equals(realConfig)) {
-        invalidConfigs.push(pda);
-      }
-    } catch (reason) {
-      // do nothing
-    }
-  }
+  // Create real pdas and array of invalid ones (generated from other bumps).
+  // This is a bit hardcore, but should show the effectiveness of using Anchor
+  const wormholeCpi = getWormholeDerivedAccounts(
+    HELLO_WORLD_ADDRESS,
+    WORMHOLE_ADDRESS
+  );
 
+  const realConfig = deriveConfigKey(HELLO_WORLD_ADDRESS);
   const realForeignEmitter = deriveForeignEmitterKey(
     HELLO_WORLD_ADDRESS,
     foreignEmitterChain
   );
-  const invalidForeignEmitters: web3.PublicKey[] = [];
-  for (let i = 255; i >= 0; --i) {
-    const bumpBytes = Buffer.alloc(1);
-    bumpBytes.writeUint8(i);
-    try {
-      const pda = web3.PublicKey.createProgramAddressSync(
-        [
-          Buffer.from("hello_world.foreign_emitter"),
-          (() => {
-            const buf = Buffer.alloc(2);
-            buf.writeUInt16LE(foreignEmitterChain);
-            return buf;
-          })(),
-          bumpBytes,
-        ],
-        HELLO_WORLD_ADDRESS
-      );
-      if (!pda.equals(realForeignEmitter)) {
-        invalidForeignEmitters.push(pda);
-      }
-    } catch (reason) {
-      // do nothing
-    }
-  }
 
   describe("Initialize Program", () => {
     describe("Fuzz Test Invalid Accounts for Instruction: initialize", () => {
@@ -99,26 +70,45 @@ describe(" 1: Hello World", () => {
         HELLO_WORLD_ADDRESS
       );
 
-      const wormholeCpi = getWormholeDerivedAccounts(
+      const wormholeCpi = getPostMessageCpiAccounts(
         HELLO_WORLD_ADDRESS,
-        WORMHOLE_ADDRESS
+        WORMHOLE_ADDRESS,
+        payer.publicKey,
+        deriveAddress([Buffer.from("alive")], HELLO_WORLD_ADDRESS)
       );
 
-      // TODO: use createProgramAddressSync to try different bumps for config
-      // Also add for other config account injections
       it("Invalid Account: config", async () => {
-        //for (let i = 0; i < FUZZ_TEST_ITERATIONS; ++i) {
-        for (const config of invalidConfigs) {
+        const possibleConfigs: web3.PublicKey[] = [];
+        for (let i = 255; i >= 0; --i) {
+          const bumpBytes = Buffer.alloc(1);
+          bumpBytes.writeUint8(i);
+          try {
+            possibleConfigs.push(
+              web3.PublicKey.createProgramAddressSync(
+                [Buffer.from("config"), bumpBytes],
+                HELLO_WORLD_ADDRESS
+              )
+            );
+          } catch (reason) {
+            // do nothing
+          }
+        }
+        expect(possibleConfigs.shift()!.equals(realConfig)).is.true;
+
+        for (const config of possibleConfigs) {
           const initializeTx = await program.methods
             .initialize()
             .accounts({
               owner: payer.publicKey,
               config,
               wormholeProgram: WORMHOLE_ADDRESS,
-              wormholeConfig: wormholeCpi.wormholeConfig,
+              wormholeBridge: wormholeCpi.wormholeBridge,
               wormholeFeeCollector: wormholeCpi.wormholeFeeCollector,
               wormholeEmitter: wormholeCpi.wormholeEmitter,
               wormholeSequence: wormholeCpi.wormholeSequence,
+              wormholeMessage: wormholeCpi.wormholeMessage,
+              clock: wormholeCpi.clock,
+              rent: wormholeCpi.rent,
             })
             .instruction()
             .then((ix) =>
@@ -142,94 +132,71 @@ describe(" 1: Hello World", () => {
       });
 
       it("Invalid Account: wormhole_program", async () => {
-        // First create invalid wormhole program and derive CPI PDAs
-        // from this bogus address.
-        {
-          const wormholeProgram = web3.BPF_LOADER_PROGRAM_ID;
-          const cpi = getPostMessageCpiAccounts(
-            HELLO_WORLD_ADDRESS,
+        const wormholeProgram = web3.Ed25519Program.programId;
+
+        const initializeTx = await program.methods
+          .initialize()
+          .accounts({
+            owner: payer.publicKey,
+            config: realConfig,
             wormholeProgram,
-            payer.publicKey,
-            web3.PublicKey.default // dummy for message
-          );
-
-          const initializeTx = await program.methods
-            .initialize()
-            .accounts({
-              owner: payer.publicKey,
-              config: realConfig,
-              wormholeProgram,
-              wormholeConfig: cpi.wormholeConfig,
-              wormholeFeeCollector: cpi.wormholeFeeCollector,
-              wormholeEmitter: cpi.wormholeEmitter,
-              wormholeSequence: cpi.wormholeSequence,
-            })
-            .instruction()
-            .then((ix) => {
-              return web3.sendAndConfirmTransaction(
-                connection,
-                new web3.Transaction().add(ix),
-                [payer]
-              );
-            })
-            .catch((reason) => {
-              expect(errorExistsInLog(reason, "InvalidWormholeProgram")).is
-                .true;
-              return null;
-            });
-          expect(initializeTx).is.null;
-        }
-
-        // Now just pass an invalid Wormhole program address
-        // while passing in the correct PDAs.
-        {
-          const wormholeProgram = web3.Ed25519Program.programId;
-
-          const initializeTx = await program.methods
-            .initialize()
-            .accounts({
-              owner: payer.publicKey,
-              config: realConfig,
-              wormholeProgram,
-              wormholeConfig: wormholeCpi.wormholeConfig,
-              wormholeFeeCollector: wormholeCpi.wormholeFeeCollector,
-              wormholeEmitter: wormholeCpi.wormholeEmitter,
-              wormholeSequence: wormholeCpi.wormholeSequence,
-            })
-            .instruction()
-            .then((ix) =>
-              web3.sendAndConfirmTransaction(
-                connection,
-                new web3.Transaction().add(ix),
-                [payer]
-              )
+            wormholeBridge: wormholeCpi.wormholeBridge,
+            wormholeFeeCollector: wormholeCpi.wormholeFeeCollector,
+            wormholeEmitter: wormholeCpi.wormholeEmitter,
+            wormholeSequence: wormholeCpi.wormholeSequence,
+            wormholeMessage: wormholeCpi.wormholeMessage,
+            clock: wormholeCpi.clock,
+            rent: wormholeCpi.rent,
+          })
+          .instruction()
+          .then((ix) =>
+            web3.sendAndConfirmTransaction(
+              connection,
+              new web3.Transaction().add(ix),
+              [payer]
             )
-            .catch((reason) => {
-              expect(errorExistsInLog(reason, "InvalidWormholeProgram")).to.be
-                .true;
-              return null;
-            });
-          expect(initializeTx).is.null;
-        }
+          )
+          .catch((reason) => {
+            expect(errorExistsInLog(reason, "InvalidProgramId")).to.be.true;
+            return null;
+          });
+        expect(initializeTx).is.null;
       });
 
-      it("Invalid Account: wormhole_config", async () => {
-        for (let i = 0; i < FUZZ_TEST_ITERATIONS; ++i) {
-          const wormholeConfig = deriveAddress(
-            [Buffer.from(`Bogus ${i}`)],
-            web3.Keypair.generate().publicKey
-          );
+      it("Invalid Account: wormhole_bridge", async () => {
+        const possibleWormholeBridges: web3.PublicKey[] = [];
+        for (let i = 255; i >= 0; --i) {
+          const bumpBytes = Buffer.alloc(1);
+          bumpBytes.writeUint8(i);
+          try {
+            possibleWormholeBridges.push(
+              web3.PublicKey.createProgramAddressSync(
+                [Buffer.from("Bridge"), bumpBytes],
+                WORMHOLE_ADDRESS
+              )
+            );
+          } catch (reason) {
+            // do nothing
+          }
+        }
+        expect(
+          possibleWormholeBridges.shift()!.equals(wormholeCpi.wormholeBridge)
+        ).is.true;
 
+        for (const wormholeBridge of possibleWormholeBridges) {
           const initializeTx = await program.methods
             .initialize()
             .accounts({
               owner: payer.publicKey,
               config: realConfig,
               wormholeProgram: WORMHOLE_ADDRESS,
-              wormholeConfig,
+              wormholeBridge,
               wormholeFeeCollector: wormholeCpi.wormholeFeeCollector,
               wormholeEmitter: wormholeCpi.wormholeEmitter,
               wormholeSequence: wormholeCpi.wormholeSequence,
+              wormholeMessage: wormholeCpi.wormholeMessage,
+              clock: wormholeCpi.clock,
+              rent: wormholeCpi.rent,
             })
             .instruction()
             .then((ix) =>
@@ -240,9 +207,7 @@ describe(" 1: Hello World", () => {
               )
             )
             .catch((reason) => {
-              expect(
-                errorExistsInLog(reason, "A seeds constraint was violated")
-              ).is.true;
+              expect(errorExistsInLog(reason, "AccountNotInitialized")).is.true;
               return null;
             });
           expect(initializeTx).is.null;
@@ -250,22 +215,41 @@ describe(" 1: Hello World", () => {
       });
 
       it("Invalid Account: wormhole_fee_collector", async () => {
-        for (let i = 0; i < FUZZ_TEST_ITERATIONS; ++i) {
-          const wormholeFeeCollector = deriveAddress(
-            [Buffer.from(`Bogus ${i}`)],
-            web3.Keypair.generate().publicKey
-          );
+        const possibleWormholeFeeCollectors: web3.PublicKey[] = [];
+        for (let i = 255; i >= 0; --i) {
+          const bumpBytes = Buffer.alloc(1);
+          bumpBytes.writeUint8(i);
+          try {
+            possibleWormholeFeeCollectors.push(
+              web3.PublicKey.createProgramAddressSync(
+                [Buffer.from("fee_collector"), bumpBytes],
+                WORMHOLE_ADDRESS
+              )
+            );
+          } catch (reason) {
+            // do nothing
+          }
+        }
+        expect(
+          possibleWormholeFeeCollectors
+            .shift()!
+            .equals(wormholeCpi.wormholeFeeCollector)
+        ).is.true;
 
+        for (const wormholeFeeCollector of possibleWormholeFeeCollectors) {
           const initializeTx = await program.methods
             .initialize()
             .accounts({
               owner: payer.publicKey,
               config: realConfig,
               wormholeProgram: WORMHOLE_ADDRESS,
-              wormholeConfig: wormholeCpi.wormholeConfig,
+              wormholeBridge: wormholeCpi.wormholeBridge,
               wormholeFeeCollector,
               wormholeEmitter: wormholeCpi.wormholeEmitter,
               wormholeSequence: wormholeCpi.wormholeSequence,
+              wormholeMessage: wormholeCpi.wormholeMessage,
+              clock: wormholeCpi.clock,
+              rent: wormholeCpi.rent,
             })
             .instruction()
             .then((ix) =>
@@ -276,9 +260,7 @@ describe(" 1: Hello World", () => {
               )
             )
             .catch((reason) => {
-              expect(
-                errorExistsInLog(reason, "A seeds constraint was violated")
-              ).is.true;
+              expect(errorExistsInLog(reason, "AccountNotInitialized")).is.true;
               return null;
             });
           expect(initializeTx).is.null;
@@ -286,22 +268,39 @@ describe(" 1: Hello World", () => {
       });
 
       it("Invalid Account: wormhole_emitter", async () => {
-        for (let i = 0; i < FUZZ_TEST_ITERATIONS; ++i) {
-          const wormholeEmitter = deriveAddress(
-            [Buffer.from(`Bogus ${i}`)],
-            web3.Keypair.generate().publicKey
-          );
+        const possibleWormholeEmitters: web3.PublicKey[] = [];
+        for (let i = 255; i >= 0; --i) {
+          const bumpBytes = Buffer.alloc(1);
+          bumpBytes.writeUint8(i);
+          try {
+            possibleWormholeEmitters.push(
+              web3.PublicKey.createProgramAddressSync(
+                [Buffer.from("emitter"), bumpBytes],
+                HELLO_WORLD_ADDRESS
+              )
+            );
+          } catch (reason) {
+            // do nothing
+          }
+        }
+        expect(
+          possibleWormholeEmitters.shift()!.equals(wormholeCpi.wormholeEmitter)
+        ).is.true;
 
+        for (const wormholeEmitter of possibleWormholeEmitters) {
           const initializeTx = await program.methods
             .initialize()
             .accounts({
               owner: payer.publicKey,
               config: realConfig,
               wormholeProgram: WORMHOLE_ADDRESS,
-              wormholeConfig: wormholeCpi.wormholeConfig,
+              wormholeBridge: wormholeCpi.wormholeBridge,
               wormholeFeeCollector: wormholeCpi.wormholeFeeCollector,
               wormholeEmitter,
               wormholeSequence: wormholeCpi.wormholeSequence,
+              wormholeMessage: wormholeCpi.wormholeMessage,
+              clock: wormholeCpi.clock,
+              rent: wormholeCpi.rent,
             })
             .instruction()
             .then((ix) =>
@@ -313,7 +312,10 @@ describe(" 1: Hello World", () => {
             )
             .catch((reason) => {
               expect(
-                errorExistsInLog(reason, "A seeds constraint was violated")
+                errorExistsInLog(
+                  reason,
+                  "Cross-program invocation with unauthorized signer or writable account"
+                )
               ).is.true;
               return null;
             });
@@ -322,22 +324,45 @@ describe(" 1: Hello World", () => {
       });
 
       it("Invalid Account: wormhole_sequence", async () => {
-        for (let i = 0; i < FUZZ_TEST_ITERATIONS; ++i) {
-          const wormholeSequence = deriveAddress(
-            [Buffer.from(`Bogus ${i}`)],
-            web3.Keypair.generate().publicKey
-          );
+        const possibleWormholeSequences: web3.PublicKey[] = [];
+        for (let i = 255; i >= 0; --i) {
+          const bumpBytes = Buffer.alloc(1);
+          bumpBytes.writeUint8(i);
+          try {
+            possibleWormholeSequences.push(
+              web3.PublicKey.createProgramAddressSync(
+                [
+                  Buffer.from("Sequence"),
+                  wormholeCpi.wormholeEmitter.toBuffer(),
+                  bumpBytes,
+                ],
+                WORMHOLE_ADDRESS
+              )
+            );
+          } catch (reason) {
+            // do nothing
+          }
+        }
+        expect(
+          possibleWormholeSequences
+            .shift()!
+            .equals(wormholeCpi.wormholeSequence)
+        ).is.true;
 
+        for (const wormholeSequence of possibleWormholeSequences) {
           const initializeTx = await program.methods
             .initialize()
             .accounts({
               owner: payer.publicKey,
               config: realConfig,
               wormholeProgram: WORMHOLE_ADDRESS,
-              wormholeConfig: wormholeCpi.wormholeConfig,
+              wormholeBridge: wormholeCpi.wormholeBridge,
               wormholeFeeCollector: wormholeCpi.wormholeFeeCollector,
               wormholeEmitter: wormholeCpi.wormholeSequence,
               wormholeSequence,
+              wormholeMessage: wormholeCpi.wormholeMessage,
+              clock: wormholeCpi.clock,
+              rent: wormholeCpi.rent,
             })
             .instruction()
             .then((ix) =>
@@ -349,7 +374,10 @@ describe(" 1: Hello World", () => {
             )
             .catch((reason) => {
               expect(
-                errorExistsInLog(reason, "A seeds constraint was violated")
+                errorExistsInLog(
+                  reason,
+                  "Cross-program invocation with unauthorized signer or writable account"
+                )
               ).is.true;
               return null;
             });
@@ -388,21 +416,13 @@ describe(" 1: Hello World", () => {
           HELLO_WORLD_ADDRESS,
           WORMHOLE_ADDRESS
         );
-        expect(configData.wormhole.program.equals(WORMHOLE_ADDRESS)).is.true;
-        expect(configData.wormhole.config.equals(wormholeCpi.wormholeConfig)).to
+        expect(configData.wormhole.bridge.equals(wormholeCpi.wormholeBridge)).to
           .be.true;
         expect(
           configData.wormhole.feeCollector.equals(
             wormholeCpi.wormholeFeeCollector
           )
         ).is.true;
-        expect(configData.wormhole.emitter.equals(wormholeCpi.wormholeEmitter))
-          .is.true;
-        expect(
-          configData.wormhole.sequence.equals(wormholeCpi.wormholeSequence)
-        ).is.true;
-
-        expect(configData.messageCount).to.equal(0n);
       });
 
       it("Cannot Call Instruction Again: initialize", async () => {
@@ -482,7 +502,24 @@ describe(" 1: Hello World", () => {
       });
 
       it("Invalid Account: config", async () => {
-        for (const config of invalidConfigs) {
+        const possibleConfigs: web3.PublicKey[] = [];
+        for (let i = 255; i >= 0; --i) {
+          const bumpBytes = Buffer.alloc(1);
+          bumpBytes.writeUint8(i);
+          try {
+            possibleConfigs.push(
+              web3.PublicKey.createProgramAddressSync(
+                [Buffer.from("config"), bumpBytes],
+                HELLO_WORLD_ADDRESS
+              )
+            );
+          } catch (reason) {
+            // do nothing
+          }
+        }
+        expect(possibleConfigs.shift()!.equals(realConfig)).is.true;
+
+        for (const config of possibleConfigs) {
           const registerForeignEmitterTx = await program.methods
             .registerForeignEmitter(emitterChain, [...emitterAddress])
             .accounts({
@@ -512,8 +549,34 @@ describe(" 1: Hello World", () => {
       });
 
       it("Invalid Account: foreign_emitter", async () => {
+        const possibleForeignEmitters: web3.PublicKey[] = [];
+        for (let i = 255; i >= 0; --i) {
+          const bumpBytes = Buffer.alloc(1);
+          bumpBytes.writeUint8(i);
+          try {
+            possibleForeignEmitters.push(
+              web3.PublicKey.createProgramAddressSync(
+                [
+                  Buffer.from("foreign_emitter"),
+                  (() => {
+                    const buf = Buffer.alloc(2);
+                    buf.writeUInt16LE(foreignEmitterChain);
+                    return buf;
+                  })(),
+                  bumpBytes,
+                ],
+                HELLO_WORLD_ADDRESS
+              )
+            );
+          } catch (reason) {
+            // do nothing
+          }
+        }
+        expect(possibleForeignEmitters.shift()!.equals(realForeignEmitter)).is
+          .true;
+
         // First pass completely bogus PDAs
-        for (const foreignEmitter of invalidForeignEmitters) {
+        for (const foreignEmitter of possibleForeignEmitters) {
           const registerForeignEmitterTx = await program.methods
             .registerForeignEmitter(emitterChain, [...emitterAddress])
             .accounts({
@@ -711,22 +774,21 @@ describe(" 1: Hello World", () => {
 
   describe("Send Message", () => {
     describe("Finally Send Message", () => {
-      const batchId = 42069;
       const helloMessage = Buffer.from("All your base are belong to us");
 
       it("Instruction: send_message", async () => {
         // save message count to grab posted message later
-        const messageCount = await getConfigData(
+        const sequence = await getProgramSequenceTracker(
           connection,
-          HELLO_WORLD_ADDRESS
-        ).then((config) => config.messageCount);
+          HELLO_WORLD_ADDRESS,
+          WORMHOLE_ADDRESS
+        ).then((sequenceTracker) => sequenceTracker.value() + 1n);
 
         const sendMessageTx = await createSendMessageInstruction(
           connection,
           HELLO_WORLD_ADDRESS,
           payer.publicKey,
           WORMHOLE_ADDRESS,
-          batchId,
           helloMessage
         )
           .then((ix) =>
@@ -744,13 +806,11 @@ describe(" 1: Hello World", () => {
         expect(sendMessageTx).is.not.null;
 
         // verify account data
-        const messageData = await getPostedMessage(
+        const payload = await getPostedMessage(
           connection,
-          deriveWormholeMessageKey(HELLO_WORLD_ADDRESS, messageCount)
-        ).then((posted) => posted.message);
-        expect(messageData.nonce).to.equal(batchId);
+          deriveWormholeMessageKey(HELLO_WORLD_ADDRESS, sequence)
+        ).then((posted) => posted.message.payload);
 
-        const payload = messageData.payload;
         expect(payload.readUint8(0)).to.equal(1); // payload ID
         expect(payload.readUint16BE(1)).to.equal(helloMessage.length);
         expect(Buffer.compare(payload.subarray(3), helloMessage)).to.equal(0);
@@ -766,8 +826,15 @@ describe(" 1: Hello World", () => {
 
     const guardians = new MockGuardians(0, [GUARDIAN_PRIVATE_KEY]);
 
-    const batchId = 69;
-    const wormholePayload = Buffer.from("Somebody set up us the bomb");
+    const batchId = 0;
+    const message = Buffer.from("Somebody set up us the bomb");
+    const wormholePayload = (() => {
+      const buf = Buffer.alloc(3 + message.length);
+      buf.writeUint8(1, 0);
+      buf.writeUint16BE(message.length, 1);
+      buf.write(message.toString(), 3);
+      return buf;
+    })();
 
     describe("Finally Receive Message", () => {
       const finality = 1;
@@ -819,7 +886,7 @@ describe(" 1: Hello World", () => {
           parsed.sequence
         );
         expect(received.batchId).to.equal(batchId);
-        expect(Buffer.compare(received.message, wormholePayload)).to.equal(0);
+        expect(Buffer.compare(received.message, message)).to.equal(0);
       });
 
       it("Cannot Call Instruction Again With Same Wormhole Message: receive_message", async () => {

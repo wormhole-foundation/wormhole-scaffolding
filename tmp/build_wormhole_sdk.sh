@@ -5,7 +5,8 @@
 #
 #   WARNING!
 #
-#   This is a temporary script until the wormhole SDK merges a specific PR.
+#   This is a temporary script until there is a new Wormhole SDK version
+#   on npm.
 #
 ###############################################################################
 
@@ -19,7 +20,7 @@ fi
 echo "fetching wormhole-sdk from wormhole repo"
 git clone \
     --depth 1 \
-    --branch sdk/remove-wasm \
+    --branch dev.v2 \
     --filter=blob:none \
     --sparse \
     https://github.com/wormhole-foundation/wormhole \

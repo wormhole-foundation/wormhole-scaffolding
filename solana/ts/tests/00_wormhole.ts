@@ -2,15 +2,13 @@ import { web3 } from "@project-serum/anchor";
 import { expect } from "chai";
 import { Wallet } from "ethers";
 import { tryNativeToHexString } from "@certusone/wormhole-sdk";
-import {
-  createInitializeInstruction,
-  getGuardianSet,
-  getWormholeInfo,
-} from "@certusone/wormhole-sdk/solana/wormhole";
+import * as wormhole from "@certusone/wormhole-sdk/solana/wormhole";
+import * as tokenBridge from "@certusone/wormhole-sdk/solana/tokenBridge";
 import {
   GUARDIAN_PRIVATE_KEY,
   LOCALHOST,
   PAYER_PRIVATE_KEY,
+  TOKEN_BRIDGE_ADDRESS,
   WORMHOLE_ADDRESS,
 } from "./helpers/consts";
 
@@ -32,7 +30,7 @@ describe(" 0: Wormhole", () => {
   });
 
   describe("Verify Wormhole Program", () => {
-    it("Guardian Set", async () => {
+    it("Initialize", async () => {
       // initialize
       const guardianSetExpirationTime = 86400;
       const fee = 100n;
@@ -43,32 +41,41 @@ describe(" 0: Wormhole", () => {
       );
       const initialGuardians = [devnetGuardian];
 
-      const initializeTx = await web3.sendAndConfirmTransaction(
-        connection,
-        new web3.Transaction().add(
-          createInitializeInstruction(
-            WORMHOLE_ADDRESS,
-            payer.publicKey,
-            guardianSetExpirationTime,
-            fee,
-            initialGuardians
-          )
-        ),
-        [payer]
-      );
-      // console.log(`initializeTx: ${initializeTx}`);
+      const initializeTx = await web3
+        .sendAndConfirmTransaction(
+          connection,
+          new web3.Transaction().add(
+            wormhole.createInitializeInstruction(
+              WORMHOLE_ADDRESS,
+              payer.publicKey,
+              guardianSetExpirationTime,
+              fee,
+              initialGuardians
+            )
+          ),
+          [payer]
+        )
+        .catch((reason) => {
+          // should not happen
+          console.log(reason);
+          return null;
+        });
+      expect(initializeTx).is.not.null;
 
       const accounts = await connection.getProgramAccounts(WORMHOLE_ADDRESS);
       expect(accounts).has.length(2);
 
-      const info = await getWormholeInfo(connection, WORMHOLE_ADDRESS);
+      const info = await wormhole.getWormholeBridgeData(
+        connection,
+        WORMHOLE_ADDRESS
+      );
       expect(info.guardianSetIndex).to.equal(0);
       expect(info.config.guardianSetExpirationTime).to.equal(
         guardianSetExpirationTime
       );
       expect(info.config.fee).to.equal(fee);
 
-      const guardianSet = await getGuardianSet(
+      const guardianSet = await wormhole.getGuardianSet(
         connection,
         WORMHOLE_ADDRESS,
         info.guardianSetIndex
@@ -76,6 +83,33 @@ describe(" 0: Wormhole", () => {
       expect(guardianSet.index).to.equal(0);
       expect(guardianSet.keys).has.length(1);
       expect(Buffer.compare(guardianSet.keys[0], devnetGuardian)).to.equal(0);
+    });
+  });
+
+  describe("Verify Token Bridge Program", () => {
+    it("Initialize", async () => {
+      // initialize
+      const initializeTx = await web3
+        .sendAndConfirmTransaction(
+          connection,
+          new web3.Transaction().add(
+            tokenBridge.createInitializeInstruction(
+              TOKEN_BRIDGE_ADDRESS,
+              payer.publicKey,
+              WORMHOLE_ADDRESS
+            )
+          ),
+          [payer]
+        )
+        .catch((reason) => {
+          // should not happen
+          console.log(reason);
+          return null;
+        });
+      expect(initializeTx).is.not.null;
+
+      const accounts = await connection.getProgramAccounts(WORMHOLE_ADDRESS);
+      expect(accounts).has.length(2);
     });
   });
 

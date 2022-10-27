@@ -1,9 +1,10 @@
-use anchor_lang::prelude::*;
+use anchor_lang::{prelude::*, solana_program};
+use std::io;
 
-use super::Finality;
+use crate::wormhole::{message::MessageData, program::ID, types::Finality};
 
-#[derive(Default, AnchorSerialize, AnchorDeserialize, Copy, Clone, PartialEq, Eq)]
-pub struct WormholeProgramData {
+#[derive(Default, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq)]
+pub struct BridgeData {
     /// The current guardian set index, used to decide which signature sets to accept.
     pub guardian_set_index: u32,
 
@@ -11,11 +12,23 @@ pub struct WormholeProgramData {
     pub last_lamports: u64,
 
     /// Bridge configuration, which is set once upon initialization.
-    pub config: WormholeConfig,
+    pub config: BridgeConfig,
 }
 
-#[derive(Default, AnchorSerialize, AnchorDeserialize, Copy, Clone, PartialEq, Eq)]
-pub struct WormholeConfig {
+impl BridgeData {
+    pub const SEED_PREFIX: &'static [u8; 6] = b"Bridge";
+
+    pub fn guardian_set_expiration_time(&self) -> u32 {
+        self.config.guardian_set_expiration_time
+    }
+
+    pub fn fee(&self) -> u64 {
+        self.config.fee
+    }
+}
+
+#[derive(Default, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq)]
+pub struct BridgeConfig {
     /// Period for how long a guardian set is valid after it has been replaced by a new one.  This
     /// guarantees that VAAs issued by that set can still be submitted for a certain period.  In
     /// this period we still trust the old guardian set.
@@ -25,49 +38,188 @@ pub struct WormholeConfig {
     pub fee: u64,
 }
 
-#[derive(Default, AnchorSerialize, Clone, PartialEq, Eq)]
-pub struct PostedMessageData {
-    pub message: MessageData,
+impl AccountDeserialize for BridgeData {
+    fn try_deserialize(buf: &mut &[u8]) -> Result<Self> {
+        Self::try_deserialize_unchecked(buf)
+    }
+
+    fn try_deserialize_unchecked(buf: &mut &[u8]) -> Result<Self> {
+        Self::deserialize(buf).map_err(Into::into)
+    }
+}
+
+impl AccountSerialize for BridgeData {
+    fn try_serialize<W: io::Write>(&self, _writer: &mut W) -> Result<()> {
+        // no-op
+        Ok(())
+    }
+}
+
+impl Owner for BridgeData {
+    fn owner() -> Pubkey {
+        ID
+    }
 }
 
 #[derive(Default, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq)]
-pub struct MessageData {
-    /// Header of the posted VAA
-    pub version: u8,
+pub struct FeeCollector {}
 
-    /// Level of consistency requested by the emitter
-    pub finality: Finality,
-
-    /// Time the message was submitted
-    pub timestamp: u32,
-
-    /// Account where signatures are stored
-    pub signature_account: Pubkey,
-
-    /// Time the posted message was created
-    pub posted_timestamp: u32,
-
-    /// Unique id for this message
-    pub batch_id: u32,
-
-    /// Sequence number of this message
-    pub sequence: u64,
-
-    /// Emitter of the message
-    pub emitter_chain: u16,
-
-    /// Emitter of the message
-    pub emitter_address: [u8; 32],
-
-    /// Message payload
-    pub payload: Vec<u8>,
+impl FeeCollector {
+    pub const SEED_PREFIX: &'static [u8; 13] = b"fee_collector";
 }
 
-impl AnchorDeserialize for PostedMessageData {
-    fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
+impl AccountDeserialize for FeeCollector {
+    fn try_deserialize(buf: &mut &[u8]) -> Result<Self> {
+        Self::try_deserialize_unchecked(buf)
+    }
+
+    fn try_deserialize_unchecked(buf: &mut &[u8]) -> Result<Self> {
+        Self::deserialize(buf).map_err(Into::into)
+    }
+}
+
+impl AccountSerialize for FeeCollector {
+    fn try_serialize<W: io::Write>(&self, _writer: &mut W) -> Result<()> {
+        // no-op
+        Ok(())
+    }
+}
+
+impl Owner for FeeCollector {
+    fn owner() -> Pubkey {
+        solana_program::system_program::ID
+    }
+}
+
+#[derive(Default, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq)]
+pub struct SequenceTracker {
+    pub sequence: u64,
+}
+
+impl SequenceTracker {
+    pub const SEED_PREFIX: &'static [u8; 8] = b"Sequence";
+
+    pub fn value(&self) -> u64 {
+        self.sequence
+    }
+
+    pub fn next_value(&self) -> u64 {
+        self.value() + 1
+    }
+}
+
+impl AccountDeserialize for SequenceTracker {
+    fn try_deserialize(buf: &mut &[u8]) -> Result<Self> {
+        Self::try_deserialize_unchecked(buf)
+    }
+
+    fn try_deserialize_unchecked(buf: &mut &[u8]) -> Result<Self> {
+        Self::deserialize(buf).map_err(Into::into)
+    }
+}
+
+impl AccountSerialize for SequenceTracker {
+    fn try_serialize<W: io::Write>(&self, _writer: &mut W) -> Result<()> {
+        // no-op
+        Ok(())
+    }
+}
+
+impl Owner for SequenceTracker {
+    fn owner() -> Pubkey {
+        ID
+    }
+}
+
+#[derive(Default, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq)]
+pub struct SignatureSetData {
+    /// Signatures of validators
+    pub signatures: Vec<bool>,
+
+    /// Hash of the data
+    pub hash: [u8; 32],
+
+    /// Index of the guardian set
+    pub guardian_set_index: u32,
+}
+
+impl AccountDeserialize for SignatureSetData {
+    fn try_deserialize(buf: &mut &[u8]) -> Result<Self> {
+        Self::try_deserialize_unchecked(buf)
+    }
+
+    fn try_deserialize_unchecked(buf: &mut &[u8]) -> Result<Self> {
+        Self::deserialize(buf).map_err(Into::into)
+    }
+}
+
+impl AccountSerialize for SignatureSetData {
+    fn try_serialize<W: io::Write>(&self, _writer: &mut W) -> Result<()> {
+        // no-op
+        Ok(())
+    }
+}
+
+impl Owner for SignatureSetData {
+    fn owner() -> Pubkey {
+        ID
+    }
+}
+
+#[derive(Default, AnchorSerialize, Clone, PartialEq, Eq)]
+pub struct PostedVaaData {
+    pub message_data: MessageData,
+}
+
+impl PostedVaaData {
+    pub const SEED_PREFIX: &'static [u8; 9] = b"PostedVAA";
+
+    pub fn version(&self) -> u8 {
+        self.message_data.version
+    }
+
+    pub fn finality(&self) -> &Finality {
+        &self.message_data.finality
+    }
+
+    pub fn timestamp(&self) -> u32 {
+        self.message_data.timestamp
+    }
+
+    pub fn signature_set(&self) -> &Pubkey {
+        &self.message_data.signature_set
+    }
+
+    pub fn posted_timestamp(&self) -> u32 {
+        self.message_data.posted_timestamp
+    }
+
+    pub fn batch_id(&self) -> u32 {
+        self.message_data.batch_id
+    }
+
+    pub fn sequence(&self) -> u64 {
+        self.message_data.sequence
+    }
+
+    pub fn emitter_chain(&self) -> u16 {
+        self.message_data.emitter_chain
+    }
+
+    pub fn emitter_address(&self) -> &[u8; 32] {
+        &self.message_data.emitter_address
+    }
+
+    pub fn payload(&self) -> &[u8] {
+        &self.message_data.payload
+    }
+}
+
+impl AnchorDeserialize for PostedVaaData {
+    fn deserialize(buf: &mut &[u8]) -> io::Result<Self> {
         if buf.len() < 3 {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
                 "Invalid Wormhole Message",
             ));
         }
@@ -76,14 +228,37 @@ impl AnchorDeserialize for PostedMessageData {
         let expected: [&[u8]; 3] = [b"vaa", b"msg", b"msu"];
         let magic: &[u8] = &buf[0..3];
         if !expected.contains(&magic) {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
                 "Invalid Wormhole Message",
             ));
         };
         *buf = &buf[3..];
-        Ok(PostedMessageData {
-            message: MessageData::deserialize(buf)?,
+        Ok(PostedVaaData {
+            message_data: MessageData::deserialize(buf)?,
         })
+    }
+}
+
+impl AccountDeserialize for PostedVaaData {
+    fn try_deserialize(buf: &mut &[u8]) -> Result<Self> {
+        Self::try_deserialize_unchecked(buf)
+    }
+
+    fn try_deserialize_unchecked(buf: &mut &[u8]) -> Result<Self> {
+        Self::deserialize(buf).map_err(Into::into)
+    }
+}
+
+impl AccountSerialize for PostedVaaData {
+    fn try_serialize<W: io::Write>(&self, _writer: &mut W) -> Result<()> {
+        // no-op
+        Ok(())
+    }
+}
+
+impl Owner for PostedVaaData {
+    fn owner() -> Pubkey {
+        ID
     }
 }

@@ -14,30 +14,37 @@ import {
   deriveConfigKey,
   deriveWormholeMessageKey,
   getConfigData,
+  getWormholeEmitterData,
 } from "../accounts";
+import { getProgramSequenceTracker } from "@certusone/wormhole-sdk/solana/wormhole";
 
 export async function createSendMessageInstruction(
   connection: Connection,
   programId: PublicKeyInitData,
   payer: PublicKeyInitData,
   wormholeProgramId: PublicKeyInitData,
-  batchId: number,
   helloMessage: Buffer,
   commitment?: Commitment
 ): Promise<TransactionInstruction> {
   const program = createHelloWorldProgramInterface(connection, programId);
 
-  // get message count
-  const config = await getConfigData(connection, programId, commitment);
-  const message = deriveWormholeMessageKey(programId, config.messageCount);
+  // get sequence
+  const message = await getProgramSequenceTracker(
+    connection,
+    programId,
+    wormholeProgramId,
+    commitment
+  ).then((tracker) =>
+    deriveWormholeMessageKey(programId, tracker.sequence + 1n)
+  );
   const wormholeAccounts = getPostMessageCpiAccounts(
-    program.programId,
+    programId,
     wormholeProgramId,
     payer,
     message
   );
   return program.methods
-    .sendMessage(batchId, helloMessage)
+    .sendMessage(helloMessage)
     .accounts({
       config: deriveConfigKey(programId),
       wormholeProgram: new PublicKey(wormholeProgramId),

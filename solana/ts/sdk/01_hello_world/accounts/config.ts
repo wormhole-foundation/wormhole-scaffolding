@@ -8,21 +8,18 @@ import {
 import { createHelloWorldProgramInterface } from "../program";
 
 export function deriveConfigKey(programId: PublicKeyInitData) {
-  return deriveAddress([Buffer.from("hello_world.config")], programId);
+  return deriveAddress([Buffer.from("config")], programId);
 }
 
 export interface WormholeAddresses {
-  program: PublicKey;
-  config: PublicKey;
+  bridge: PublicKey;
   feeCollector: PublicKey;
-  emitter: PublicKey;
   sequence: PublicKey;
 }
 
 export interface ConfigData {
   owner: PublicKey;
   wormhole: WormholeAddresses;
-  messageCount: bigint;
 }
 
 export async function getConfigData(
@@ -38,6 +35,5 @@ export async function getConfigData(
   return {
     owner: data.owner,
     wormhole: data.wormhole,
-    messageCount: BigInt(data.messageCount.toString()),
   };
 }

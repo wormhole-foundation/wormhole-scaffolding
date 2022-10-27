@@ -6,10 +6,11 @@ import {
 } from "@solana/web3.js";
 import {
   deriveAddress,
+  getPostMessageCpiAccounts,
   getWormholeDerivedAccounts,
 } from "@certusone/wormhole-sdk/solana";
 import { createHelloWorldProgramInterface } from "../program";
-import { deriveConfigKey } from "../accounts";
+import { deriveConfigKey, deriveWormholeMessageKey } from "../accounts";
 
 export async function createInitializeInstruction(
   connection: Connection,
@@ -18,9 +19,12 @@ export async function createInitializeInstruction(
   wormholeProgramId: PublicKeyInitData
 ): Promise<TransactionInstruction> {
   const program = createHelloWorldProgramInterface(connection, programId);
-  const wormholeAccounts = getWormholeDerivedAccounts(
+  const message = deriveWormholeMessageKey(programId, 1n);
+  const wormholeAccounts = getPostMessageCpiAccounts(
     program.programId,
-    wormholeProgramId
+    wormholeProgramId,
+    payer,
+    message
   );
   return program.methods
     .initialize()

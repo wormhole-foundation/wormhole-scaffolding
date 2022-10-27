@@ -7,7 +7,6 @@ pub use state::*;
 
 pub mod constants;
 pub mod context;
-pub mod env;
 pub mod error;
 pub mod message;
 pub mod state;
@@ -32,18 +31,73 @@ pub mod hello_world {
         config.owner = ctx.accounts.owner.key();
 
         // Set Wormhole related addresses
-        let wormhole = &mut config.wormhole;
-        wormhole.program = ctx.accounts.wormhole_program.key();
-        wormhole.config = ctx.accounts.wormhole_config.key();
-        wormhole.fee_collector = ctx.accounts.wormhole_fee_collector.key();
-        wormhole.emitter = ctx.accounts.wormhole_emitter.key();
-        wormhole.sequence = ctx.accounts.wormhole_sequence.key();
-        wormhole.emitter_bump = *ctx
+        {
+            let wormhole = &mut config.wormhole;
+            wormhole.bridge = ctx.accounts.wormhole_bridge.key();
+            wormhole.fee_collector = ctx.accounts.wormhole_fee_collector.key();
+            wormhole.sequence = ctx.accounts.wormhole_sequence.key();
+        }
+
+        config.batch_id = 0; // no batching
+        config.finality = wormhole::Finality::Confirmed as u8;
+
+        // Initialize our wormhole emitter account
+        ctx.accounts.wormhole_emitter.bump = *ctx
             .bumps
             .get("wormhole_emitter")
             .ok_or(HelloWorldError::BumpNotFound)?;
 
-        config.message_count = 0;
+        {
+            let fee = ctx.accounts.wormhole_bridge.fee();
+            if fee > 0 {
+                solana_program::program::invoke(
+                    &solana_program::system_instruction::transfer(
+                        &ctx.accounts.owner.key(),
+                        &ctx.accounts.wormhole_fee_collector.key(),
+                        fee,
+                    ),
+                    &ctx.accounts.to_account_infos(),
+                )?;
+            }
+        };
+
+        // Send Wormhole message (basically to initialize the Sequence account)
+        // so it can be deserialized when send_message is called.
+        {
+            let wormhole_emitter = &ctx.accounts.wormhole_emitter;
+            let config = &ctx.accounts.config;
+
+            wormhole::post_message(
+                CpiContext::new_with_signer(
+                    ctx.accounts.wormhole_program.to_account_info(),
+                    wormhole::PostMessage {
+                        config: ctx.accounts.wormhole_bridge.to_account_info(),
+                        message: ctx.accounts.wormhole_message.to_account_info(),
+                        emitter: wormhole_emitter.to_account_info(),
+                        sequence: ctx.accounts.wormhole_sequence.to_account_info(),
+                        payer: ctx.accounts.owner.to_account_info(),
+                        fee_collector: ctx.accounts.wormhole_fee_collector.to_account_info(),
+                        clock: ctx.accounts.clock.to_account_info(),
+                        rent: ctx.accounts.rent.to_account_info(),
+                        system_program: ctx.accounts.system_program.to_account_info(),
+                    },
+                    &[
+                        &[
+                            constants::SEED_PREFIX_SENT,
+                            &wormhole::INITIAL_SEQUENCE.to_le_bytes()[..],
+                            &[*ctx
+                                .bumps
+                                .get("wormhole_message")
+                                .ok_or(HelloWorldError::BumpNotFound)?],
+                        ],
+                        &[wormhole::SEED_PREFIX_EMITTER, &[wormhole_emitter.bump]],
+                    ],
+                ),
+                config.batch_id,
+                ctx.program_id.try_to_vec()?,
+                config.finality.into(),
+            )?;
+        }
 
         // Done
         Ok(())
@@ -71,14 +125,10 @@ pub mod hello_world {
         Ok(())
     }
 
-    pub fn send_message(
-        ctx: Context<SendMessage>,
-        batch_id: u32,
-        hello_message: Vec<u8>,
-    ) -> Result<()> {
+    pub fn send_message(ctx: Context<SendMessage>, hello_message: Vec<u8>) -> Result<()> {
         // Pay Wormhole fee
         {
-            let fee = wormhole::get_message_fee(&ctx.accounts.wormhole_config)?;
+            let fee = ctx.accounts.wormhole_bridge.fee();
             if fee > 0 {
                 solana_program::program::invoke(
                     &solana_program::system_instruction::transfer(
@@ -93,26 +143,26 @@ pub mod hello_world {
 
         // Send Wormhole message
         {
-            // format Wormhole payload
-            let msg_size = hello_message.len() as u16;
-            let mut payload = Vec::with_capacity(
-                1 // payload id (u8)
-                + 2 // message length (u16)
-                + msg_size as usize,
-            );
-            payload.push(1u8); // payload ID
-            payload.extend(msg_size.to_be_bytes());
-            payload.extend(&hello_message);
+            // Format Wormhole payload
+            let mut payload: Vec<u8> = Vec::new();
+            Message::serialize(
+                &Message::Hello {
+                    message: hello_message,
+                },
+                &mut payload,
+            )?;
 
+            let wormhole_emitter = &ctx.accounts.wormhole_emitter;
             let config = &ctx.accounts.config;
 
+            // Post Wormhole message
             wormhole::post_message(
                 CpiContext::new_with_signer(
                     ctx.accounts.wormhole_program.to_account_info(),
                     wormhole::PostMessage {
-                        config: ctx.accounts.wormhole_config.to_account_info(),
+                        config: ctx.accounts.wormhole_bridge.to_account_info(),
                         message: ctx.accounts.wormhole_message.to_account_info(),
-                        emitter: ctx.accounts.wormhole_emitter.to_account_info(),
+                        emitter: wormhole_emitter.to_account_info(),
                         sequence: ctx.accounts.wormhole_sequence.to_account_info(),
                         payer: ctx.accounts.payer.to_account_info(),
                         fee_collector: ctx.accounts.wormhole_fee_collector.to_account_info(),
@@ -122,36 +172,39 @@ pub mod hello_world {
                     },
                     &[
                         &[
-                            b"hello_world.wormhole_message",
-                            config.message_count.to_le_bytes().as_ref(),
-                            &[ctx.bumps["wormhole_message"]],
+                            constants::SEED_PREFIX_SENT,
+                            &ctx.accounts.wormhole_sequence.next_value().to_le_bytes()[..],
+                            &[*ctx
+                                .bumps
+                                .get("wormhole_message")
+                                .ok_or(HelloWorldError::BumpNotFound)?],
                         ],
-                        &[b"emitter", &[config.wormhole.emitter_bump]],
+                        &[wormhole::SEED_PREFIX_EMITTER, &[wormhole_emitter.bump]],
                     ],
                 ),
-                batch_id,
+                config.batch_id,
                 payload,
-                wormhole::Finality::Confirmed, // put in config?
+                config.finality.into(),
             )?;
         }
-
-        // Log the message count in case anyone wanted to parse the logs for it
-        msg!("message_count: {}", ctx.accounts.config.message_count);
-
-        // Uptick message count
-        ctx.accounts.config.message_count += 1;
 
         // Done
         Ok(())
     }
 
-    pub fn receive_message(ctx: Context<ReceiveMessage>) -> Result<()> {
-        let wormhole_message = &ctx.accounts.wormhole_message;
+    pub fn receive_message(ctx: Context<ReceiveMessage>, _vaa_hash: [u8; 32]) -> Result<()> {
+        let posted_message_data = &ctx.accounts.posted.message_data;
 
-        // Save batch_id and message payload
-        let received = &mut ctx.accounts.received;
-        received.batch_id = wormhole::get_batch_id(wormhole_message)?;
-        received.message = wormhole::get_message_payload(wormhole_message)?;
+        let deserialized = Message::deserialize(&mut &posted_message_data.payload[..])
+            .map_err(|_| HelloWorldError::InvalidMessage)?;
+        match deserialized {
+            Message::Hello { message } => {
+                // Save batch_id and message payload
+                let received = &mut ctx.accounts.received;
+                received.batch_id = posted_message_data.batch_id;
+                received.message = message;
+            }
+        }
 
         // Done
         Ok(())

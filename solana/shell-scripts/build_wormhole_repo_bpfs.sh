@@ -33,7 +33,7 @@ echo "building"
 cd solana
 DOCKER_BUILDKIT=1 docker build \
     -f Dockerfile \
-    --build-arg BRIDGE_ADDRESS=Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o \
+    --build-arg BRIDGE_ADDRESS=worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth \
     -o artifacts .
 
 ### Move wormhole artifact

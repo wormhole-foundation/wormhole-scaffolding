@@ -2,15 +2,9 @@ use anchor_lang::{
     prelude::*,
     solana_program::sysvar::{clock, rent},
 };
-use std::str::FromStr;
 use wormhole_anchor_sdk::{token_bridge, wormhole};
 
-use super::{
-    constants,
-    env::{TOKEN_BRIDGE_ADDRESS, WORMHOLE_ADDRESS},
-    error::HelloTokenError,
-    state::{Config, Received},
-};
+use super::{constants, error::HelloTokenError, state::Config};
 
 #[derive(Accounts)]
 pub struct Initialize<'info> {
@@ -28,12 +22,8 @@ pub struct Initialize<'info> {
     )]
     pub config: Account<'info, Config>,
 
-    #[account(
-        executable,
-        address = Pubkey::from_str(TOKEN_BRIDGE_ADDRESS).unwrap() @ HelloTokenError::InvalidTokenBridgeProgram
-    )]
-    /// CHECK: Wormhole Program
-    pub token_bridge_program: AccountInfo<'info>,
+    #[account(executable)]
+    pub token_bridge_program: Program<'info, token_bridge::program::TokenBridge>,
 
     #[account(
         seeds = [token_bridge::SEED_PREFIX_CONFIG],
@@ -81,48 +71,42 @@ pub struct Initialize<'info> {
     /// CHECK: Token Bridge Receiver
     pub token_bridge_redeemer: AccountInfo<'info>,
 
-    #[account(
-        executable,
-        address = Pubkey::from_str(WORMHOLE_ADDRESS).unwrap() @ HelloTokenError::InvalidWormholeProgram
-    )]
-    /// CHECK: Wormhole Program
-    pub wormhole_program: AccountInfo<'info>,
+    #[account(executable)]
+    pub wormhole_program: Program<'info, wormhole::program::Wormhole>,
 
     #[account(
-        seeds = [wormhole::SEED_PREFIX_CONFIG.as_ref()],
+        seeds = [wormhole::BridgeData::SEED_PREFIX],
         bump,
         seeds::program = wormhole_program,
     )]
     /// CHECK: Wormhole Config
-    pub wormhole_config: AccountInfo<'info>,
+    pub wormhole_bridge: Account<'info, wormhole::BridgeData>,
 
     #[account(
-        seeds = [wormhole::SEED_PREFIX_FEE_COLLECTOR.as_ref()],
+        seeds = [wormhole::FeeCollector::SEED_PREFIX],
         bump,
         seeds::program = wormhole_program
     )]
-    /// CHECK: Wormhole Config
-    /// TODO: add fee collector deserializer?
-    pub wormhole_fee_collector: AccountInfo<'info>,
+    pub wormhole_fee_collector: Account<'info, wormhole::FeeCollector>,
 
     #[account(
-        seeds = [wormhole::SEED_PREFIX_EMITTER.as_ref()],
+        seeds = [wormhole::SEED_PREFIX_EMITTER],
         bump,
         seeds::program = token_bridge_program
     )]
-    /// CHECK: Wormhole Emitter
-    pub wormhole_emitter: AccountInfo<'info>,
+    /// CHECK: Token Bridge Emitter
+    pub token_bridge_emitter: AccountInfo<'info>,
 
     #[account(
         seeds = [
-            wormhole::SEED_PREFIX_SEQUENCE.as_ref(),
-            wormhole_emitter.key().as_ref()
+            wormhole::SequenceTracker::SEED_PREFIX,
+            token_bridge_emitter.key().as_ref()
         ],
         bump,
         seeds::program = wormhole_program
     )]
-    /// CHECK: Wormhole Emitter Sequence
-    pub wormhole_sequence: AccountInfo<'info>,
+    pub token_bridge_sequence: Account<'info, wormhole::SequenceTracker>,
 
+    #[account(executable)]
     pub system_program: Program<'info, System>,
 }

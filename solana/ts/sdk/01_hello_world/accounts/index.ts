@@ -1,4 +1,4 @@
 export * from "./config";
 export * from "./foreignEmitter";
 export * from "./received";
-export * from "./wormholeMessage";
+export * from "./wormhole";
