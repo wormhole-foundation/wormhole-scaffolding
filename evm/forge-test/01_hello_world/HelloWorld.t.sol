@@ -153,8 +153,8 @@ contract HelloWorldTest is Test {
         // start listening to events
         vm.recordLogs();
 
-        // call the source HelloWorld contract and emit the HelloWorld message
-        uint64 sequence = helloWorldSource.sendMessage();
+        // call the source HelloWorld contract and emit the passed HelloWorld message
+        uint64 sequence = helloWorldSource.sendMessage("HelloSolana");
 
         // record the emitted wormhole message
         Vm.Log[] memory entries = vm.getRecordedLogs();
@@ -178,7 +178,7 @@ contract HelloWorldTest is Test {
         assertEq(results.payloadID, 1);
         assertEq(results.message, "HelloSolana");
         assertEq(wormholeMessage.sequence, sequence);
-        assertEq(wormholeMessage.nonce, 42000); // message ID
+        assertEq(wormholeMessage.nonce, 0); // batchID
         assertEq(wormholeMessage.consistencyLevel, helloWorldSource.wormholeFinality());
     }
 
@@ -190,7 +190,7 @@ contract HelloWorldTest is Test {
         vm.recordLogs();
 
         // call the target HelloWorld contract and emit the HelloWorld message
-        helloWorldTarget.sendMessage();
+        helloWorldTarget.sendMessage("HelloSolana");
 
         // record the emitted wormhole message
         Vm.Log[] memory entries = vm.getRecordedLogs();
@@ -227,7 +227,7 @@ contract HelloWorldTest is Test {
         helloWorldSource.receiveMessage(encodedMessage);
     }
 
-    // This test confirms that the `receiveMessage` method correclty verifies the wormhole
+    // This test confirms that the `receiveMessage` method correctly verifies the wormhole
     // message emitter.
     function testReceiveMessageEmitterVerification() public {
         // start listening to events
@@ -240,7 +240,7 @@ contract HelloWorldTest is Test {
                 message: "HelloSolana"
             })
         );
-        wormhole.publishMessage(42000, helloWorldMessage, helloWorldSource.wormholeFinality());
+        wormhole.publishMessage(0, helloWorldMessage, helloWorldSource.wormholeFinality());
 
         // record the emitted wormhole message
         Vm.Log[] memory entries = vm.getRecordedLogs();

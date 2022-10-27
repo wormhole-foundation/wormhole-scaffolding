@@ -23,7 +23,7 @@ contract HelloWorld is HelloWorldGetters, HelloWorldMessages {
         setWormholeFinality(wormholeFinality_);
     }
 
-    function sendMessage() public payable returns (uint64 messageSequence) {
+    function sendMessage(string memory helloWorldMessage) public payable returns (uint64 messageSequence) {
         // cache wormhole instance and fees to save on gas
         IWormhole wormhole = wormhole();
         uint256 wormholeFee = wormhole.messageFee();
@@ -35,7 +35,7 @@ contract HelloWorld is HelloWorldGetters, HelloWorldMessages {
         // create the HelloWorldMessage struct
         HelloWorldMessage memory parsedMessage = HelloWorldMessage({
             payloadID: uint8(1),
-            message: "HelloSolana"
+            message: helloWorldMessage
         });
 
         // encode the message
@@ -44,7 +44,7 @@ contract HelloWorld is HelloWorldGetters, HelloWorldMessages {
         // Send the HelloWorld message by calling publishMessage on the
         // wormhole core contract.
         messageSequence = wormhole.publishMessage{value: wormholeFee}(
-            42000, // user specified message ID
+            0, // user specified batchID=0 to opt out of batching
             encodedMessage,
             wormholeFinality()
         );
@@ -99,11 +99,7 @@ contract HelloWorld is HelloWorldGetters, HelloWorldMessages {
     function verifyEmitter(IWormhole.VM memory vm) internal view returns (bool) {
         // Verify that the sender of the wormhole message is a trusted
         // HelloWorld contract.
-        if (getRegisteredEmitter(vm.emitterChainId) == vm.emitterAddress) {
-            return true;
-        }
-
-        return false;
+        return getRegisteredEmitter(vm.emitterChainId) == vm.emitterAddress;
     }
 
     modifier onlyOwner() {
