@@ -1,3 +1,5 @@
+pub const CHAIN_ID_SOLANA: u16 = 1;
+
 // seeds
 pub const SEED_PREFIX_EMITTER: &[u8; 7] = b"emitter";
 
