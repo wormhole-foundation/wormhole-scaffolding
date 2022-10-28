@@ -7,12 +7,22 @@ import "../libraries/BytesLib.sol";
 import "./HelloWorldGetters.sol";
 import "./HelloWorldMessages.sol";
 
+/**
+ * @title A Cross-Chain HelloWorld Application
+ * @notice This contract uses Wormhole's generic-messaging to send an arbitrary
+ * HelloWorld message to registered emitters on foreign blockchains
+ */
 contract HelloWorld is HelloWorldGetters, HelloWorldMessages {
     using BytesLib for bytes;
 
+    /**
+     * @notice Deploys the smart contract and sanity checks initial deployment values
+     * @dev Sets the owner, wormhole, chainId and wormholeFinality state variables.
+     * See HelloWorldState.sol for descriptions of each state variable.
+     */
     constructor(address wormhole_, uint16 chainId_, uint8 wormholeFinality_) {
         // sanity check input values
-        require(wormhole_ != address(0), "invalid wormhole address");
+        require(wormhole_ != address(0), "invalid Wormhole address");
         require(chainId_ > 0, "invalid chainId");
         require(wormholeFinality_ > 0, "invalid wormholeFinality");
 
@@ -23,12 +33,20 @@ contract HelloWorld is HelloWorldGetters, HelloWorldMessages {
         setWormholeFinality(wormholeFinality_);
     }
 
-    function sendMessage(string memory helloWorldMessage) public payable returns (uint64 messageSequence) {
-        // cache wormhole instance and fees to save on gas
+    /**
+     * @notice Creates an arbitrary HelloWorld message to be attested by the Wormhole guardians
+     * @dev batchID is set to 0 to opt out of batching in future Wormhole versions
+     * @param helloWorldMessage arbitrary HelloWorld string
+     * @return messageSequence Wormhole message sequence for this contract
+     */
+    function sendMessage(
+        string memory helloWorldMessage
+    ) public payable returns (uint64 messageSequence) {
+        // cache Wormhole instance and fees to save on gas
         IWormhole wormhole = wormhole();
         uint256 wormholeFee = wormhole.messageFee();
 
-        // Confirm that the caller has sent enough ether to pay for the wormhole
+        // Confirm that the caller has sent enough value to pay for the Wormhole
         // message fee.
         require(msg.value == wormholeFee, "insufficient value");
 
@@ -38,55 +56,74 @@ contract HelloWorld is HelloWorldGetters, HelloWorldMessages {
             message: helloWorldMessage
         });
 
-        // encode the message
+        // encode the HelloWorldMessage struct into bytes
         bytes memory encodedMessage = encodeMessage(parsedMessage);
 
         // Send the HelloWorld message by calling publishMessage on the
-        // wormhole core contract.
+        // Wormhole core contract and paying the Wormhole protocol fee.
         messageSequence = wormhole.publishMessage{value: wormholeFee}(
-            0, // user specified batchID=0 to opt out of batching
+            0, // batchID
             encodedMessage,
             wormholeFinality()
         );
     }
 
+    /**
+     * @notice Consumes arbitrary HelloWorld messages sent by registered emitters
+     * @dev The arbitrary message is verified by the Wormhole core endpoint `verifyVM`
+     * @param encodedMessage verified Wormhole messsage containing arbitrary HelloWorld message
+     */
     function receiveMessage(bytes memory encodedMessage) public {
-        // call the wormhole core contract to parse and verify the encodedMessage
+        // call the Wormhole core contract to parse and verify the encodedMessage
         (
             IWormhole.VM memory wormholeMessage,
             bool valid,
             string memory reason
         ) = wormhole().parseAndVerifyVM(encodedMessage);
 
-        // confirm that the core layer verified the message
+        // confirm that the Wormhole core contract verified the message
         require(valid, reason);
 
-        // verify that this message was emitted by a trusted contract
+        // verify that this message was emitted by a registered emitter
         require(verifyEmitter(wormholeMessage), "unknown emitter");
 
-        // decode the message payload into the HelloWorldStruct
+        // decode the message payload into the HelloWorldMessage struct
         HelloWorldMessage memory parsedMessage = decodeMessage(wormholeMessage.payload);
 
         /**
-         Check to see if this message has been consumed already. If not,
-         save the parsed message in the receivedMessages mapping.
-
-         This check can protect against replay attacks in xDapps where messages are
-         only meant to be consumed once.
+         * Check to see if this message has been consumed already. If not,
+         * save the parsed message in the receivedMessages mapping.
+         *
+         * This check can protect against replay attacks in xDapps where messages are
+         * only meant to be consumed once.
         */
         require(!isMessageConsumed(wormholeMessage.hash), "message already consumed");
         consumeMessage(wormholeMessage.hash, parsedMessage.message);
     }
 
+    /**
+     * @notice Registers foreign emitters (HelloWorld contracts) with this contract
+     * @dev Only the deployer (owner) can invoke this methcd
+     * @param emitterChainId Wormhole chainId of the contract being registered.
+     * See https://book.wormhole.com/reference/contracts.html for more information.
+     * @param emitterAddress 32 byte address of the contract being registered. For EVM
+     * contracts the first 12 bytes should be zeros.
+     */
     function registerEmitter(
         uint16 emitterChainId,
         bytes32 emitterAddress
     ) public onlyOwner {
-        // sanity check both input arguments
+        // sanity check the emitterChainId and emitterAddress input values
+        require(
+            emitterChainId != 0,
+            "emitterChainId cannot equal 0"
+        )
         require(
             emitterAddress != bytes32(0),
             "emitterAddress cannot equal bytes32(0)"
         );
+
+        // check to see if an emitter is already registerd for the passed emitterChainId
         require(
             getRegisteredEmitter(emitterChainId) == bytes32(0),
             "emitterChainId already registered"
@@ -97,7 +134,7 @@ contract HelloWorld is HelloWorldGetters, HelloWorldMessages {
     }
 
     function verifyEmitter(IWormhole.VM memory vm) internal view returns (bool) {
-        // Verify that the sender of the wormhole message is a trusted
+        // Verify that the sender of the Wormhole message is a trusted
         // HelloWorld contract.
         return getRegisteredEmitter(vm.emitterChainId) == vm.emitterAddress;
     }

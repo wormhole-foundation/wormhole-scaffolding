@@ -3,9 +3,9 @@ pragma solidity ^0.8.13;
 
 contract HelloWorldStructs {
     struct HelloWorldMessage {
-        // unique identifier
+        // unique identifier for this message type
         uint8 payloadID;
-        // message payload (max size uint256)
+        // arbitrary message string
         string message;
     }
 }
