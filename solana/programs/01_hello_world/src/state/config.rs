@@ -46,3 +46,16 @@ impl Config {
     /// AKA `b"config"`.
     pub const SEED_PREFIX: &'static [u8; 6] = b"config";
 }
+
+#[cfg(test)]
+pub mod test {
+    use super::*;
+
+    #[test]
+    fn test_config() -> Result<()> {
+        assert!(WormholeAddresses::LEN == 96, "WormholeAddress::LEN wrong value");
+        assert!(Config::MAXIMUM_SIZE == 141, "Config::MAXIMUM_SIZE wrong value");
+
+        Ok(())
+    }
+}

@@ -55,3 +55,88 @@ impl AnchorDeserialize for Message {
         }
     }
 }
+
+#[cfg(test)]
+pub mod test {
+    use super::*;
+    use anchor_lang::prelude::Result;
+    use std::str;
+    use std::string::String;
+
+    #[test]
+    fn test_message_alive() -> Result<()> {
+        let my_program_id = Pubkey::new_unique();
+        let msg = Message::Alive {
+            program_id: my_program_id,
+        };
+
+        // Serialize program ID above.
+        let mut encoded = Vec::new();
+        msg.serialize(&mut encoded)?;
+
+        // Verify Payload ID.
+        assert!(encoded[0] == PAYLOAD_ID_ALIVE, "buf[0] != PAYLOAD_ID_ALIVE");
+
+        // Verify Program ID.
+        let mut program_id_bytes = [0u8; 32];
+        program_id_bytes.copy_from_slice(&encoded[1..33]);
+        assert!(
+            program_id_bytes == my_program_id.to_bytes(),
+            "incorrect program ID"
+        );
+
+        // Now deserialize the encoded message.
+        if let Message::Alive { program_id } = Message::deserialize(&mut encoded.as_slice())? {
+            assert!(program_id == my_program_id, "incorrect program ID");
+        } else {
+            return Err(std::io::Error::new(std::io::ErrorKind::Other, "invalid message").into());
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_message_hello() -> Result<()> {
+        let raw_message = "All your base are belong to us";
+        let msg = Message::Hello {
+            message: String::from(raw_message).as_bytes().to_vec(),
+        };
+
+        // Serialize message above.
+        let mut encoded = Vec::new();
+        msg.serialize(&mut encoded)?;
+
+        // Verify Payload ID.
+        assert!(encoded[0] == PAYLOAD_ID_HELLO, "buf[0] != PAYLOAD_ID_HELLO");
+
+        // Verify message length.
+        let mut message_len_bytes = [0u8; 2];
+        message_len_bytes.copy_from_slice(&encoded[1..3]);
+        assert!(
+            u16::from_be_bytes(message_len_bytes) as usize == raw_message.len(),
+            "incorrect message length"
+        );
+
+        // Verify message.
+        let from_utf8_result = str::from_utf8(&encoded[3..]);
+        assert!(from_utf8_result.is_ok(), "from_utf8 resulted in an error");
+        assert!(
+            from_utf8_result.unwrap() == raw_message,
+            "incorrect message"
+        );
+
+        // Now deserialize the encoded message.
+        if let Message::Hello { message } = Message::deserialize(&mut encoded.as_slice())? {
+            let from_utf8_result = str::from_utf8(&message);
+            assert!(from_utf8_result.is_ok(), "from_utf8 resulted in an error");
+            assert!(
+                from_utf8_result.unwrap() == raw_message,
+                "incorrect message"
+            );
+        } else {
+            return Err(std::io::Error::new(std::io::ErrorKind::Other, "invalid message").into());
+        }
+
+        Ok(())
+    }
+}

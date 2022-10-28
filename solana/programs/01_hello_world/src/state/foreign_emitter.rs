@@ -24,3 +24,29 @@ impl ForeignEmitter {
         *address == self.address
     }
 }
+
+#[cfg(test)]
+pub mod test {
+    use super::*;
+
+    #[test]
+    fn test_foreign_emitter() -> Result<()> {
+        assert!(
+            ForeignEmitter::MAXIMUM_SIZE == 42,
+            "ForeignEmitter::MAXIMUM_SIZE wrong value"
+        );
+
+        let chain = 2u16;
+        let address = [
+            4u8, 20u8, 6u8, 9u8, 4u8, 20u8, 6u8, 9u8, 4u8, 20u8, 6u8, 9u8, 4u8, 20u8, 6u8, 9u8,
+            4u8, 20u8, 6u8, 9u8, 4u8, 20u8, 6u8, 9u8, 4u8, 20u8, 6u8, 9u8, 4u8, 20u8, 6u8, 9u8,
+        ];
+        let foreign_emitter = ForeignEmitter { chain, address };
+        assert!(
+            foreign_emitter.verify(&address),
+            "foreign_emitter.verify(address) failed"
+        );
+
+        Ok(())
+    }
+}

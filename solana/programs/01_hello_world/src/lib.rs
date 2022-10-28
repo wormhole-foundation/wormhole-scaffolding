@@ -318,7 +318,13 @@ pub mod hello_world {
             .map_err(|_| HelloWorldError::InvalidMessage)?;
 
         if let Message::Hello { message } = deserialized {
-            // Save batch_id and message payload
+            // Message cannot be larger than the maximum size of the account.
+            require!(
+                message.len() <= MESSAGE_MAX_LENGTH,
+                HelloWorldError::InvalidMessage,
+            );
+
+            // Save batch ID, keccak256 hash and message payload.
             let received = &mut ctx.accounts.received;
             received.batch_id = posted_message_data.batch_id;
             received.wormhole_message_hash = vaa_hash;

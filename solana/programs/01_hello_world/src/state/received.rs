@@ -24,3 +24,18 @@ impl Received {
     /// AKA `b"received"`.
     pub const SEED_PREFIX: &'static [u8; 8] = b"received";
 }
+
+#[cfg(test)]
+pub mod test {
+    use super::*;
+
+    #[test]
+    fn test_received() -> Result<()> {
+        assert!(
+            Received::MAXIMUM_SIZE == 1072,
+            "Received::MAXIMUM_SIZE wrong value"
+        );
+
+        Ok(())
+    }
+}
