@@ -23,11 +23,11 @@ pub enum HelloTokenError {
     #[msg("InvalidWormholeSequence")]
     InvalidWormholeSequence,
 
-    #[msg("InvalidSystemProgram")]
-    InvalidSystemProgram,
+    #[msg("InvalidSysvar")]
+    InvalidSysvar,
 
-    #[msg("PermissionDenied")]
-    PermissionDenied,
+    #[msg("OwnerOnly")]
+    OwnerOnly,
 
     #[msg("InvalidForeignEmitter")]
     InvalidForeignEmitter,

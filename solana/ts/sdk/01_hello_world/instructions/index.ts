@@ -1,4 +1,4 @@
 export * from "./initialize";
 export * from "./receiveMessage";
-export * from "./registerForeignEmitter";
+export * from "./registerEmitter";
 export * from "./sendMessage";

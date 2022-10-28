@@ -16,7 +16,7 @@ export async function createRegisterForeignEmitterInstruction(
 ): Promise<TransactionInstruction> {
   const program = createHelloWorldProgramInterface(connection, programId);
   return program.methods
-    .registerForeignEmitter(emitterChain, [...emitterAddress])
+    .registerEmitter(emitterChain, [...emitterAddress])
     .accounts({
       owner: new PublicKey(payer),
       config: deriveConfigKey(program.programId),

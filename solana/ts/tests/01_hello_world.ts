@@ -449,7 +449,7 @@ describe(" 1: Hello World", () => {
   });
 
   describe("Register Foreign Emitter", () => {
-    describe("Fuzz Test Invalid Accounts for Instruction: register_foreign_emitter", () => {
+    describe("Fuzz Test Invalid Accounts for Instruction: register_emitter", () => {
       // program interface
       const program = createHelloWorldProgramInterface(
         connection,
@@ -479,7 +479,7 @@ describe(" 1: Hello World", () => {
           const nonOwner = nonOwners[i];
 
           const registerForeignEmitterTx = await program.methods
-            .registerForeignEmitter(emitterChain, [...emitterAddress])
+            .registerEmitter(emitterChain, [...emitterAddress])
             .accounts({
               owner: nonOwner.publicKey,
               config: realConfig,
@@ -494,7 +494,7 @@ describe(" 1: Hello World", () => {
               )
             )
             .catch((reason) => {
-              expect(errorExistsInLog(reason, "PermissionDenied")).is.true;
+              expect(errorExistsInLog(reason, "OwnerOnly")).is.true;
               return null;
             });
           expect(registerForeignEmitterTx).is.null;
@@ -521,7 +521,7 @@ describe(" 1: Hello World", () => {
 
         for (const config of possibleConfigs) {
           const registerForeignEmitterTx = await program.methods
-            .registerForeignEmitter(emitterChain, [...emitterAddress])
+            .registerEmitter(emitterChain, [...emitterAddress])
             .accounts({
               owner: payer.publicKey,
               config,
@@ -578,7 +578,7 @@ describe(" 1: Hello World", () => {
         // First pass completely bogus PDAs
         for (const foreignEmitter of possibleForeignEmitters) {
           const registerForeignEmitterTx = await program.methods
-            .registerForeignEmitter(emitterChain, [...emitterAddress])
+            .registerEmitter(emitterChain, [...emitterAddress])
             .accounts({
               owner: payer.publicKey,
               config: realConfig,
@@ -609,7 +609,7 @@ describe(" 1: Hello World", () => {
           const bogusEmitterChain = emitterChain + 1;
 
           const registerForeignEmitterTx = await program.methods
-            .registerForeignEmitter(bogusEmitterChain, [...emitterAddress])
+            .registerEmitter(bogusEmitterChain, [...emitterAddress])
             .accounts({
               owner: payer.publicKey,
               config: realConfig,
@@ -639,7 +639,7 @@ describe(" 1: Hello World", () => {
         {
           const bogusEmitterAddress = Buffer.alloc(20, "deadbeef", "hex");
           const registerForeignEmitterTx = await program.methods
-            .registerForeignEmitter(emitterChain, [...bogusEmitterAddress])
+            .registerEmitter(emitterChain, [...bogusEmitterAddress])
             .accounts({
               owner: payer.publicKey,
               config: realConfig,
@@ -669,7 +669,7 @@ describe(" 1: Hello World", () => {
         {
           const bogusEmitterAddress = Buffer.alloc(32);
           const registerForeignEmitterTx = await program.methods
-            .registerForeignEmitter(emitterChain, [...bogusEmitterAddress])
+            .registerEmitter(emitterChain, [...bogusEmitterAddress])
             .accounts({
               owner: payer.publicKey,
               config: realConfig,
@@ -694,7 +694,7 @@ describe(" 1: Hello World", () => {
     });
 
     describe("Finally Register Foreign Emitter", () => {
-      it("Instruction: register_foreign_emitter", async () => {
+      it("Instruction: register_emitter", async () => {
         const emitterChain = foreignEmitterChain;
         const emitterAddress = Buffer.alloc(32, "fbadc0de", "hex");
 

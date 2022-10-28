@@ -5,7 +5,6 @@ pub use error::*;
 pub use message::*;
 pub use state::*;
 
-pub mod constants;
 pub mod context;
 pub mod error;
 pub mod message;
@@ -16,6 +15,23 @@ pub mod state;
 declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 
 #[program]
+/// # Hello World (Scaffolding Example #1)
+///
+/// A Cross-Chain Hello World application. This contract uses Wormhole's
+/// generic messaging to send an arbitrary message to registered emitters on
+/// foreign networks.
+///
+/// ## Program Instructions
+/// * [`initialize`](initialize)
+/// * [`register_emitter`](register_emitter)
+/// * [`send_message`](send_message)
+/// * [`receive_message`](receive_message)
+///
+/// ## Program Accounts
+/// * [Config]
+/// * [ForeignEmitter]
+/// * [Received]
+/// * [WormholeEmitter]
 pub mod hello_world {
     use super::*;
     use anchor_lang::solana_program;
@@ -25,7 +41,7 @@ pub mod hello_world {
     /// to store data useful for other instructions. The config specifies
     /// an owner (e.g. multisig) and should be read-only for every instruction
     /// in this example. This owner will be checked for designated owner-only
-    /// instructions like [`register_foreign_emitter`].
+    /// instructions like [`register_emitter`](register_emitter).
     ///
     /// # Arguments
     ///
@@ -144,7 +160,7 @@ pub mod hello_world {
                     },
                     &[
                         &[
-                            constants::SEED_PREFIX_SENT,
+                            SEED_PREFIX_SENT,
                             &wormhole::INITIAL_SEQUENCE.to_le_bytes()[..],
                             &[*ctx
                                 .bumps
@@ -174,7 +190,7 @@ pub mod hello_world {
     /// * `ctx`     - `RegisterForeignEmitter` context
     /// * `chain`   - Wormhole Chain ID
     /// * `address` - Wormhole Emitter Address
-    pub fn register_foreign_emitter(
+    pub fn register_emitter(
         ctx: Context<RegisterForeignEmitter>,
         chain: u16,
         address: [u8; 32],
@@ -267,7 +283,7 @@ pub mod hello_world {
                 },
                 &[
                     &[
-                        constants::SEED_PREFIX_SENT,
+                        SEED_PREFIX_SENT,
                         &ctx.accounts.wormhole_sequence.next_value().to_le_bytes()[..],
                         &[*ctx
                             .bumps
@@ -295,7 +311,7 @@ pub mod hello_world {
     /// # Arguments
     ///
     /// * `vaa_hash` - Keccak256 hash of verified Wormhole message
-    pub fn receive_message(ctx: Context<ReceiveMessage>, _vaa_hash: [u8; 32]) -> Result<()> {
+    pub fn receive_message(ctx: Context<ReceiveMessage>, vaa_hash: [u8; 32]) -> Result<()> {
         let posted_message_data = &ctx.accounts.posted.message_data;
 
         let deserialized = Message::deserialize(&mut &posted_message_data.payload[..])
@@ -305,6 +321,7 @@ pub mod hello_world {
             // Save batch_id and message payload
             let received = &mut ctx.accounts.received;
             received.batch_id = posted_message_data.batch_id;
+            received.wormhole_message_hash = vaa_hash;
             received.message = message;
 
             // Done

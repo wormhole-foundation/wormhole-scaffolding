@@ -4,6 +4,13 @@ use std::io;
 const PAYLOAD_ID_ALIVE: u8 = 0;
 const PAYLOAD_ID_HELLO: u8 = 1;
 
+/// Expected message types for this program. Only valid payloads are:
+/// * `Alive`: Payload ID == 0. Emitted when [`initialize`](crate::initialize)
+///  is called).
+/// * `Hello`: Payload ID == 1. Emitted when
+/// [`send_message`](crate::send_message) is called).
+///
+/// Payload IDs are encoded as u8.
 pub enum Message {
     Alive { program_id: Pubkey },
     Hello { message: Vec<u8> },
