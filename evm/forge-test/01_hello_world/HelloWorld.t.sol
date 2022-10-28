@@ -8,20 +8,28 @@ import {WormholeSimulator} from "wormhole-solidity/WormholeSimulator.sol";
 
 import "forge-std/console.sol";
 
+/**
+ * @title A Test Suite for the EVM HelloWorld Contracts
+ */
 contract HelloWorldTest is Test {
-    IWormhole wormhole;
+    // guardian private key for simulated signing of Wormhole messages
     uint256 guardianSigner;
 
     // contract instances
+    IWormhole wormhole;
     WormholeSimulator public wormholeSimulator;
     HelloWorld public helloWorldSource;
     HelloWorld public helloWorldTarget;
 
+    /**
+     * @notice Sets up the wormholeSimulator contracts and deploys HelloWorld
+     * contracts before each test is executed.
+     */
     function setUp() public {
         // verify that we're using the correct fork (AVAX mainnet in this case)
         require(block.chainid == vm.envUint("TESTING_FORK_CHAINID"), "wrong evm");
 
-        // this will be used to sign wormhole messages
+        // this will be used to sign Wormhole messages
         guardianSigner = uint256(vm.envBytes32("TESTING_DEVNET_GUARDIAN"));
 
         // set up Wormhole using Wormhole existing on AVAX mainnet
@@ -51,8 +59,10 @@ contract HelloWorldTest is Test {
         assertTrue(address(helloWorldSource) != address(helloWorldTarget));
     }
 
-    // This test confirms that the contracts are able to serialize and deserialize
-    // the HelloWorld message correctly.
+    /**
+     * @notice This test confirms that the contracts are able to serialize and deserialize
+     * the HelloWorld message correctly.
+     */
     function testMessageDeserialization(
         string memory messageToSend
     ) public {
@@ -72,24 +82,28 @@ contract HelloWorldTest is Test {
         assertEq(results.message, messageToSend);
     }
 
-    // This test confirms that decodeMessage reverts when a message
-    // has an unexpected payloadID.
+    /**
+     * @notice This test confirms that decodeMessage reverts when a message
+     * has an unexpected payloadID.
+     */
     function testIncorrectMessagePayload() public {
         // encode the message by calling the encodeMessage method
         bytes memory encodedMessage = helloWorldSource.encodeMessage(
             HelloWorldStructs.HelloWorldMessage({
-                payloadID: uint8(2),
+                payloadID: uint8(2), // add invalid payloadID (uint8(2))
                 message: "HelloSolana"
             })
         );
 
-        // expect a revert when trying to decode a message with payloadID 2
+        // expect a revert when trying to decode a message the wrong payloadID
         vm.expectRevert("invalid payloadID");
         helloWorldSource.decodeMessage(encodedMessage);
     }
 
-    // This test confirms that decodeMessage reverts when a message
-    // is an unexpected length.
+    /**
+     * @notice This test confirms that decodeMessage reverts when a message
+     * is an unexpected length.
+     */
     function testIncorrectMessageLength() public {
         // encode the message by calling the encodeMessage method
         bytes memory encodedMessage = helloWorldSource.encodeMessage(
@@ -105,20 +119,22 @@ contract HelloWorldTest is Test {
             uint256(42000)
         );
 
-        // expect a revert when trying to decode a message with payloadID 2
+        // expect a revert when trying to decode a message an invalid length
         vm.expectRevert("invalid message length");
         helloWorldSource.decodeMessage(encodedMessage);
     }
 
-    // This test confirms that the owner can correctly register a trusted emitter
-    // with the HelloWorld contracts. It also tests that an emitter chainId can
-    // only be registered once.
+    /**
+     * @notice This test confirms that the owner can correctly register a registered emitter
+     * with the HelloWorld contracts. It also tests that an emitter chainId can
+     * only be registered once.
+     */
     function testRegisterEmitter() public {
         // cache the new emitter info
         uint16 newEmitterChainId = helloWorldTarget.chainId();
         bytes32 newEmitterAddress = bytes32(uint256(uint160(address(helloWorldTarget))));
 
-        // register the emitter with the owners wallet
+        // register the emitter with the owner's wallet
         helloWorldSource.registerEmitter(newEmitterChainId, newEmitterAddress);
 
         // verify that the contract state was updated correctly
@@ -132,14 +148,16 @@ contract HelloWorldTest is Test {
         helloWorldSource.registerEmitter(newEmitterChainId, newEmitterAddress);
     }
 
-    // This test confirms that only the owner can register a trusted emitter
-    // with the HelloWorld contracts.
+    /**
+     * @notice This test confirms that only the owner can register a registered emitter
+     * with the HelloWorld contracts.
+     */
     function testRegisterEmitterNotOwner() public {
         // cache the new emitter info
         uint16 newEmitterChainId = helloWorldTarget.chainId();
         bytes32 newEmitterAddress = bytes32(uint256(uint160(address(helloWorldTarget))));
 
-        // prank the caller address to something different than the owner address
+        // prank the caller address to something different than the owner's address
         vm.prank(address(wormholeSimulator));
 
         // expect the registerEmitter call to revert
@@ -147,8 +165,10 @@ contract HelloWorldTest is Test {
         helloWorldSource.registerEmitter(newEmitterChainId, newEmitterAddress);
     }
 
-    // This test confirms that the `sendMessage` method correctly sends the
-    // HelloWorld message.
+    /**
+     * @notice This test confirms that the `sendMessage` method correctly sends the
+     * HelloWorld message.
+     */
     function testSendMessage() public {
         // start listening to events
         vm.recordLogs();
@@ -156,11 +176,11 @@ contract HelloWorldTest is Test {
         // call the source HelloWorld contract and emit the passed HelloWorld message
         uint64 sequence = helloWorldSource.sendMessage("HelloSolana");
 
-        // record the emitted wormhole message
+        // record the emitted Wormhole message
         Vm.Log[] memory entries = vm.getRecordedLogs();
 
-        // simulate signing the wormhole message
-        // NOTE: in the wormhole-sdk, signed wormhole messages are referred to as signed VAAs
+        // simulate signing the Wormhole message
+        // NOTE: in the wormhole-sdk, signed Wormhole messages are referred to as signed VAAs
         bytes memory encodedMessage = wormholeSimulator.fetchSignedMessageFromLogs(entries[0]);
 
         // parse and verify the message
@@ -182,9 +202,11 @@ contract HelloWorldTest is Test {
         assertEq(wormholeMessage.consistencyLevel, helloWorldSource.wormholeFinality());
     }
 
-    // This test confirms that the `receiveMessage` method correctly consumes
-    // a HelloWorld messsage from the registered HelloWorld emitter. It also confirms
-    // that message replay protection works.
+    /**
+     * @notice This test confirms that the `receiveMessage` method correctly consumes
+     * a HelloWorld messsage from the registered HelloWorld emitter. It also confirms
+     * that message replay protection works.
+     */
     function testReceiveMessage() public {
         // start listening to events
         vm.recordLogs();
@@ -195,8 +217,8 @@ contract HelloWorldTest is Test {
         // record the emitted wormhole message
         Vm.Log[] memory entries = vm.getRecordedLogs();
 
-        // simulate signing the wormhole message
-        // NOTE: in the wormhole-sdk, signed wormhole messages are referred to as signed VAAs
+        // simulate signing the Wormhole message
+        // NOTE: in the wormhole-sdk, signed Wormhole messages are referred to as signed VAAs
         bytes memory encodedMessage = wormholeSimulator.fetchSignedMessageFromLogs(entries[0]);
 
         // register the emitter on the source contract
@@ -205,7 +227,7 @@ contract HelloWorldTest is Test {
             bytes32(uint256(uint160(address(helloWorldTarget))))
         );
 
-        // invoke the source HelloWorld contract and pass the encoded wormhole message
+        // invoke the source HelloWorld contract and pass the encoded Wormhole message
         helloWorldSource.receiveMessage(encodedMessage);
 
         // Parse the encodedMessage to retrieve the hash. This is a safe operation
@@ -222,13 +244,15 @@ contract HelloWorldTest is Test {
         assertEq(savedMessage, "HelloSolana");
 
         // Confirm that message replay protection works by trying to call receiveMessage
-        // with the same wormhole message again.
+        // with the same Wormhole message again.
         vm.expectRevert("message already consumed");
         helloWorldSource.receiveMessage(encodedMessage);
     }
 
-    // This test confirms that the `receiveMessage` method correctly verifies the wormhole
-    // message emitter.
+    /**
+     * @notice This test confirms that the `receiveMessage` method correctly verifies the Wormhole
+     * message emitter.
+     */
     function testReceiveMessageEmitterVerification() public {
         // start listening to events
         vm.recordLogs();
@@ -242,11 +266,11 @@ contract HelloWorldTest is Test {
         );
         wormhole.publishMessage(0, helloWorldMessage, helloWorldSource.wormholeFinality());
 
-        // record the emitted wormhole message
+        // record the emitted Wormhole message
         Vm.Log[] memory entries = vm.getRecordedLogs();
 
-        // simulate signing the wormhole message
-        // NOTE: in the wormhole-sdk, signed wormhole messages are referred to as signed VAAs
+        // simulate signing the Wormhole message
+        // NOTE: in the wormhole-sdk, signed Wormhole messages are referred to as signed VAAs
         bytes memory encodedMessage = wormholeSimulator.fetchSignedMessageFromLogs(entries[0]);
 
         // register the emitter on the source contract

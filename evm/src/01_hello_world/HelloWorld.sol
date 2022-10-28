@@ -42,6 +42,12 @@ contract HelloWorld is HelloWorldGetters, HelloWorldMessages {
     function sendMessage(
         string memory helloWorldMessage
     ) public payable returns (uint64 messageSequence) {
+        // enforce a max size for the arbitrary message
+        require(
+            abi.encodePacked(helloWorldMessage).length < type(uint16).max,
+            "message too large"
+        );
+
         // cache Wormhole instance and fees to save on gas
         IWormhole wormhole = wormhole();
         uint256 wormholeFee = wormhole.messageFee();
@@ -117,7 +123,7 @@ contract HelloWorld is HelloWorldGetters, HelloWorldMessages {
         require(
             emitterChainId != 0,
             "emitterChainId cannot equal 0"
-        )
+        );
         require(
             emitterAddress != bytes32(0),
             "emitterAddress cannot equal bytes32(0)"

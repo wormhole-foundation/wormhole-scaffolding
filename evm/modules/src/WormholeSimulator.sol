@@ -7,6 +7,13 @@ import "../../src/libraries/BytesLib.sol";
 import "forge-std/Vm.sol";
 import "forge-std/console.sol";
 
+/**
+ * @title A Wormhole Guardian Simulator
+ * @notice This contract simulates signing Wormhole messages emitted in a forge test.
+ * It overrides the Wormhole guardian set to allow for signing messages with a single
+ * private key on any EVM where Wormhole core contracts are deployed.
+ * @dev This contract is meant to be used when testing against a mainnet fork.
+ */
 contract WormholeSimulator {
     using BytesLib for bytes;
 
@@ -20,6 +27,10 @@ contract WormholeSimulator {
     // Save the guardian PK to sign messages with
     uint256 private devnetGuardianPK;
 
+    /**
+     * @param wormhole_ address of the Wormhole core contract for the mainnet chain being forked
+     * @param devnetGuardian private key of the devnet Guardian
+     */
     constructor(address wormhole_, uint256 devnetGuardian) {
         wormhole = IWormhole(wormhole_);
         devnetGuardianPK = devnetGuardian;
@@ -108,8 +119,13 @@ contract WormholeSimulator {
         require(index == log.data.length, "failed to parse wormhole message");
     }
 
-    function encodeObservation(IWormhole.VM memory vm_) public pure returns (bytes memory) {
-        return abi.encodePacked(
+    /**
+     * @notice Encodes Wormhole message body into bytes
+     * @param vm_ Wormhole VM struct
+     * @return encodedObservation Wormhole message body encoded into bytes
+     */
+    function encodeObservation(IWormhole.VM memory vm_) public pure returns (bytes memory encodedObservation) {
+        encodedObservation = abi.encodePacked(
             vm_.timestamp,
             vm_.nonce,
             vm_.emitterChainId,
@@ -120,7 +136,12 @@ contract WormholeSimulator {
         );
     }
 
-    function fetchSignedMessageFromLogs(Vm.Log memory log) public returns (bytes memory) {
+    /**
+     * @notice Formats and signs a simulated Wormhole message using the emitted log from calling `publishMessage`
+     * @param log The forge Vm.log captured when recording events during test execution
+     * @return signedMessage Formatted and signed Wormhole message
+     */
+    function fetchSignedMessageFromLogs(Vm.Log memory log) public returns (bytes memory signedMessage) {
         // Create message instance
         IWormhole.VM memory vm_;
 
@@ -141,7 +162,7 @@ contract WormholeSimulator {
         (sigs[0].v, sigs[0].r, sigs[0].s) = vm.sign(devnetGuardianPK, vm_.hash);
         sigs[0].guardianIndex = 0;
 
-        return abi.encodePacked(
+        signedMessage = abi.encodePacked(
             vm_.version,
             wormhole.getCurrentGuardianSetIndex(),
             uint8(sigs.length),
