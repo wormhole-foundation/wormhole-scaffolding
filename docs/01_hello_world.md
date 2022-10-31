@@ -2,27 +2,37 @@
 
 ## Objective
 
-TODO
+Create a `HelloWorld` style example for using Wormhole's generic-messaging layer for developing xDapps (Cross-Chain Decentralized Applications).
 
 ## Background
 
-TODO
+Currently, no production grade examples exist that detail how to safely integrate with Wormhole's generic-messaging layer on all available networks. Network specific test cases and smart contract design are critical to safely operating an XDapp.
 
 ## Goals
 
-TODO
+Provide a complete example for integrating with Wormhole's generic-messaging layer by providing the following components:
+
+- Fully documented smart contracts
+- Unit and integration test suite
+- Deployment scripts
+- Dependencies for interacting with the Wormhole smart contracts
 
 ## Non-Goals
 
-TODO
+This design focuses only on providing an example to interact with Wormhole's generic-message layer. It does not provide:
 
-## Overview
-
-TODO
+- An example off-chain relayer
+- Testnet or mainnet deployment funds
 
 ## Detailed Design
 
-TODO
+The HelloWorld example XDapp utilizes the Wormhole generic-messaging layer to send and receive arbitrary HelloWorld messages between smart contracts.
+
+Before the HelloWorld contracts can send and receive messages, the owner (see `Registering Foreign Emitters` section of this document) of the contract must invoke the `registerEmitter` (or `register_emitter`) method to register trusted HelloWorld contracts on other chains. The HelloWorld contracts will confirm that all messages that it receives are sent by trusted HelloWorld contracts on other blockchains.
+
+To send a HelloWorld message, one will invoke the `sendMessage` (or `send_message`) method and pass an arbitrary message as an argument. The HelloWorld contract will then invoke the Wormhole core contract to publish the message. The Wormhole guardians will then attest the message after waiting the specified number of block confirmations (referred to as `wormholeFinality` in the contracts).
+
+Once the message is attested by the Wormhole guardians, one will invoke the `receiveMessage` (or `receive_message`) method and pass the attested Wormhole message as an argument. The receiving HelloWorld contract will parse and verify the attested Wormhole message, and save the arbitrary HelloWorld message in its state.
 
 ### EVM Interface
 
