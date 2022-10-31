@@ -10,7 +10,7 @@ pub struct Received {
     pub batch_id: u32,
     /// Keccak256 hash of verified Wormhole message.
     pub wormhole_message_hash: [u8; 32],
-    /// Message from [Message::Hello](crate::message::Message).
+    /// HelloWorldMessage from [HelloWorldMessage::Hello](crate::message::HelloWorldMessage).
     pub message: Vec<u8>,
 }
 

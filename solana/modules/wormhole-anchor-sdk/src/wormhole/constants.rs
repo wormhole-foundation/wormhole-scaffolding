@@ -2,6 +2,7 @@ pub const CHAIN_ID_SOLANA: u16 = 1;
 
 // seeds
 pub const SEED_PREFIX_EMITTER: &[u8; 7] = b"emitter";
+pub const SEED_PREFIX_POSTED_VAA: &[u8; 9] = b"PostedVAA";
 
 // version 1 message
 pub const MESSAGE_INDEX_VERSION: usize = 3;

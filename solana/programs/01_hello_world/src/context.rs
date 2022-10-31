@@ -6,6 +6,7 @@ use wormhole_anchor_sdk::wormhole;
 
 use crate::{
     error::HelloWorldError,
+    message::HelloWorldMessage,
     state::{Config, ForeignEmitter, Received, WormholeEmitter},
 };
 
@@ -243,7 +244,7 @@ pub struct ReceiveMessage<'info> {
 
     #[account(
         seeds = [
-            wormhole::PostedVaaData::SEED_PREFIX,
+            wormhole::SEED_PREFIX_POSTED_VAA,
             &vaa_hash
         ],
         bump,
@@ -251,7 +252,7 @@ pub struct ReceiveMessage<'info> {
     )]
     /// Verified Wormhole message account. The Wormhole program verified
     /// signatures and posted the account data here. Read-only.
-    pub posted: Account<'info, wormhole::PostedVaaData>,
+    pub posted: Account<'info, wormhole::PostedVaa<HelloWorldMessage>>,
 
     #[account(
         seeds = [

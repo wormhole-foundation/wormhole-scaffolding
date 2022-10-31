@@ -3,7 +3,7 @@ use anchor_lang::prelude::*;
 use super::Finality;
 
 #[derive(Default, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq)]
-pub struct MessageData {
+pub struct MessageMeta {
     /// Header of the posted VAA
     pub version: u8,
 
@@ -30,7 +30,4 @@ pub struct MessageData {
 
     /// Emitter of the message
     pub emitter_address: [u8; 32],
-
-    /// Message payload
-    pub payload: Vec<u8>,
 }

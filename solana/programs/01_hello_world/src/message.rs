@@ -4,6 +4,7 @@ use std::io;
 const PAYLOAD_ID_ALIVE: u8 = 0;
 const PAYLOAD_ID_HELLO: u8 = 1;
 
+#[derive(Clone)]
 /// Expected message types for this program. Only valid payloads are:
 /// * `Alive`: Payload ID == 0. Emitted when [`initialize`](crate::initialize)
 ///  is called).
@@ -11,19 +12,19 @@ const PAYLOAD_ID_HELLO: u8 = 1;
 /// [`send_message`](crate::send_message) is called).
 ///
 /// Payload IDs are encoded as u8.
-pub enum Message {
+pub enum HelloWorldMessage {
     Alive { program_id: Pubkey },
     Hello { message: Vec<u8> },
 }
 
-impl AnchorSerialize for Message {
+impl AnchorSerialize for HelloWorldMessage {
     fn serialize<W: io::Write>(&self, writer: &mut W) -> io::Result<()> {
         match self {
-            Message::Alive { program_id } => {
+            HelloWorldMessage::Alive { program_id } => {
                 PAYLOAD_ID_ALIVE.serialize(writer)?;
                 program_id.serialize(writer)
             }
-            Message::Hello { message } => {
+            HelloWorldMessage::Hello { message } => {
                 PAYLOAD_ID_HELLO.serialize(writer)?;
                 (message.len() as u16).to_be_bytes().serialize(writer)?;
                 for item in message {
@@ -35,10 +36,10 @@ impl AnchorSerialize for Message {
     }
 }
 
-impl AnchorDeserialize for Message {
+impl AnchorDeserialize for HelloWorldMessage {
     fn deserialize(buf: &mut &[u8]) -> io::Result<Self> {
         match buf[0] {
-            PAYLOAD_ID_ALIVE => Ok(Message::Alive {
+            PAYLOAD_ID_ALIVE => Ok(HelloWorldMessage::Alive {
                 program_id: Pubkey::new(&buf[1..33]),
             }),
             PAYLOAD_ID_HELLO => {
@@ -47,7 +48,7 @@ impl AnchorDeserialize for Message {
                     out.copy_from_slice(&buf[1..3]);
                     u16::from_be_bytes(out) as usize
                 };
-                Ok(Message::Hello {
+                Ok(HelloWorldMessage::Hello {
                     message: buf[3..(3 + length)].to_vec(),
                 })
             }
@@ -66,7 +67,7 @@ pub mod test {
     #[test]
     fn test_message_alive() -> Result<()> {
         let my_program_id = Pubkey::new_unique();
-        let msg = Message::Alive {
+        let msg = HelloWorldMessage::Alive {
             program_id: my_program_id,
         };
 
@@ -86,7 +87,9 @@ pub mod test {
         );
 
         // Now deserialize the encoded message.
-        if let Message::Alive { program_id } = Message::deserialize(&mut encoded.as_slice())? {
+        if let HelloWorldMessage::Alive { program_id } =
+            HelloWorldMessage::deserialize(&mut encoded.as_slice())?
+        {
             assert!(program_id == my_program_id, "incorrect program ID");
         } else {
             return Err(std::io::Error::new(std::io::ErrorKind::Other, "invalid message").into());
@@ -98,7 +101,7 @@ pub mod test {
     #[test]
     fn test_message_hello() -> Result<()> {
         let raw_message = "All your base are belong to us";
-        let msg = Message::Hello {
+        let msg = HelloWorldMessage::Hello {
             message: String::from(raw_message).as_bytes().to_vec(),
         };
 
@@ -126,7 +129,9 @@ pub mod test {
         );
 
         // Now deserialize the encoded message.
-        if let Message::Hello { message } = Message::deserialize(&mut encoded.as_slice())? {
+        if let HelloWorldMessage::Hello { message } =
+            HelloWorldMessage::deserialize(&mut encoded.as_slice())?
+        {
             let from_utf8_result = str::from_utf8(&message);
             assert!(from_utf8_result.is_ok(), "from_utf8 resulted in an error");
             assert!(
