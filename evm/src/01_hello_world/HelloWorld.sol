@@ -121,8 +121,8 @@ contract HelloWorld is HelloWorldGetters, HelloWorldMessages {
     ) public onlyOwner {
         // sanity check the emitterChainId and emitterAddress input values
         require(
-            emitterChainId != 0,
-            "emitterChainId cannot equal 0"
+            emitterChainId != 0 && emitterChainId != chainId(),
+            "emitterChainId cannot equal 0 or this chainId"
         );
         require(
             emitterAddress != bytes32(0),
