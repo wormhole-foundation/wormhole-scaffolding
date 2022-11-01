@@ -141,7 +141,7 @@ contract WormholeSimulator {
      * @param log The forge Vm.log captured when recording events during test execution
      * @return signedMessage Formatted and signed Wormhole message
      */
-    function fetchSignedMessageFromLogs(Vm.Log memory log) public returns (bytes memory signedMessage) {
+    function fetchSignedMessageFromLogs(Vm.Log memory log, uint16 emitterChainId) public returns (bytes memory signedMessage) {
         // Create message instance
         IWormhole.VM memory vm_;
 
@@ -151,7 +151,7 @@ contract WormholeSimulator {
         // Set empty body values before computing the hash
         vm_.version = uint8(1);
         vm_.timestamp = uint32(block.timestamp);
-        vm_.emitterChainId = wormhole.chainId();
+        vm_.emitterChainId = emitterChainId;
 
         // Compute the hash of the body
         bytes memory body = encodeObservation(vm_);

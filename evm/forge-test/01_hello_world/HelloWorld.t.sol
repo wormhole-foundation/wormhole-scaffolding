@@ -50,10 +50,8 @@ contract HelloWorldTest is Test {
         uint8 wormholeFinality = 15;
         helloWorldSource = new HelloWorld(address(wormhole), wormhole.chainId(), wormholeFinality);
 
-        // Initialize "target chain" HelloWorld contract. This contract will share the same
-        // chainID as the source contract, but (for testing purposes) will be treated like a contract living on
-        // a different blockchain.
-        helloWorldTarget = new HelloWorld(address(wormhole), wormhole.chainId(), wormholeFinality);
+        // initialize "target chain" HelloWorld contract
+        helloWorldTarget = new HelloWorld(address(wormhole), uint8(2), wormholeFinality);
 
         // confirm that the source and target contract addresses are different
         assertTrue(address(helloWorldSource) != address(helloWorldTarget));
@@ -181,7 +179,10 @@ contract HelloWorldTest is Test {
 
         // simulate signing the Wormhole message
         // NOTE: in the wormhole-sdk, signed Wormhole messages are referred to as signed VAAs
-        bytes memory encodedMessage = wormholeSimulator.fetchSignedMessageFromLogs(entries[0]);
+        bytes memory encodedMessage = wormholeSimulator.fetchSignedMessageFromLogs(
+            entries[0],
+            helloWorldSource.chainId()
+        );
 
         // parse and verify the message
         (
@@ -219,7 +220,10 @@ contract HelloWorldTest is Test {
 
         // simulate signing the Wormhole message
         // NOTE: in the wormhole-sdk, signed Wormhole messages are referred to as signed VAAs
-        bytes memory encodedMessage = wormholeSimulator.fetchSignedMessageFromLogs(entries[0]);
+        bytes memory encodedMessage = wormholeSimulator.fetchSignedMessageFromLogs(
+            entries[0],
+            helloWorldTarget.chainId()
+        );
 
         // register the emitter on the source contract
         helloWorldSource.registerEmitter(
@@ -271,7 +275,10 @@ contract HelloWorldTest is Test {
 
         // simulate signing the Wormhole message
         // NOTE: in the wormhole-sdk, signed Wormhole messages are referred to as signed VAAs
-        bytes memory encodedMessage = wormholeSimulator.fetchSignedMessageFromLogs(entries[0]);
+        bytes memory encodedMessage = wormholeSimulator.fetchSignedMessageFromLogs(
+            entries[0],
+            helloWorldSource.chainId()
+        );
 
         // register the emitter on the source contract
         helloWorldSource.registerEmitter(
