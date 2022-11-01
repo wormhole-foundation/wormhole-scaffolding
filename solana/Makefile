@@ -1,8 +1,8 @@
 include testing.env
 
-.PHONY: dependencies build test unit-test integration-test clean build-wormhole-repo all
+.PHONY: dependencies test unit-test integration-test clean build-wormhole-repo all
 
-all: build
+all: test
 
 .PHONY: clean
 clean:
@@ -23,11 +23,7 @@ build-wormhole-repo:
 
 .PHONY: unit-test
 unit-test:
-	RELEASE_WORMHOLE_ADDRESS=${TESTING_WORMHOLE_ADDRESS} \
-	RELEASE_TOKEN_BRIDGE_ADDRESS=${TESTING_TOKEN_BRIDGE_ADDRESS} \
 	cargo clippy
-	RELEASE_WORMHOLE_ADDRESS=${TESTING_WORMHOLE_ADDRESS} \
-	RELEASE_TOKEN_BRIDGE_ADDRESS=${TESTING_TOKEN_BRIDGE_ADDRESS} \
 	cargo test
 
 .PHONY: integration-test
