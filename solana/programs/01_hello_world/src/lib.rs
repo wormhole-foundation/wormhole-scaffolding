@@ -191,7 +191,7 @@ pub mod hello_world {
     /// * `chain`   - Wormhole Chain ID
     /// * `address` - Wormhole Emitter Address
     pub fn register_emitter(
-        ctx: Context<RegisterForeignEmitter>,
+        ctx: Context<RegisterEmitter>,
         chain: u16,
         address: [u8; 32],
     ) -> Result<()> {

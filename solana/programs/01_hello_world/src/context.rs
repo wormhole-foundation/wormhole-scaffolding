@@ -115,7 +115,7 @@ pub struct Initialize<'info> {
 
 #[derive(Accounts)]
 #[instruction(chain: u16)]
-pub struct RegisterForeignEmitter<'info> {
+pub struct RegisterEmitter<'info> {
     /// Owner of the program set in the [`Config`] account.
     #[account(mut)]
     pub owner: Signer<'info>,
