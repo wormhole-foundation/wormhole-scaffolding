@@ -4,27 +4,31 @@ use super::Finality;
 
 #[derive(AnchorDeserialize, AnchorSerialize)]
 pub enum Instruction {
-    Initialize,
-    PostMessage,
-    PostVAA,
-    SetFees,
-    TransferFees,
-    UpgradeContract,
-    UpgradeGuardianSet,
-    VerifySignatures,
-    PostMessageUnreliable,
-}
-
-#[derive(AnchorDeserialize, AnchorSerialize)]
-pub struct PostMessageData {
-    /// Unique id for this message
-    pub batch_id: u32,
-
-    /// Message payload
-    pub payload: Vec<u8>,
-
-    /// Commitment Level required for an attestation to be produced
-    pub finality: Finality,
+    Initialize, // placeholder
+    PostMessage {
+        batch_id: u32,
+        payload: Vec<u8>,
+        finality: Finality,
+    },
+    PostVAA {
+        version: u8,
+        guardian_set_index: u32,
+        timestamp: u32,
+        nonce: u32,
+        emitter_chain: u16,
+        emitter_address: [u8; 32],
+        sequence: u64,
+        consistency_level: u8,
+        payload: Vec<u8>,
+    },
+    SetFees,            // placeholder (governance action)
+    TransferFees,       // placeholder (governance action)
+    UpgradeContract,    // placeholder (governance action)
+    UpgradeGuardianSet, // placeholder (governance action)
+    VerifySignatures {
+        signers: [i8; 19],
+    },
+    PostMessageUnreliable, // placeholder (unused)
 }
 
 #[derive(Accounts)]
@@ -59,15 +63,12 @@ pub fn post_message<'a, 'b, 'c, 'info>(
             AccountMeta::new_readonly(ctx.accounts.rent.key(), false),
             AccountMeta::new_readonly(ctx.accounts.system_program.key(), false),
         ],
-        data: (
-            Instruction::PostMessage,
-            PostMessageData {
-                batch_id,
-                payload,
-                finality,
-            },
-        )
-            .try_to_vec()?,
+        data: Instruction::PostMessage {
+            batch_id,
+            payload,
+            finality,
+        }
+        .try_to_vec()?,
     };
 
     solana_program::program::invoke_signed(
