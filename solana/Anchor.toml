@@ -30,4 +30,3 @@ program = "./dependencies/wormhole.so"
 [[test.genesis]]
 address = "wormDTUJ6AWPNvk59vGQbDvGJmqbDTdgWgAqcLBCgUb"
 program = "./dependencies/token_bridge.so"
-### NOTE: Check against testing.env
