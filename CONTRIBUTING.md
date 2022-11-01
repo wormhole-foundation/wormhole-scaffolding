@@ -89,9 +89,9 @@ You can find the list of issues
 ### Reporting Bugs
 
 A bug in our examples constitutes anything that has undesirable behavior. This
-includes (and is not limited to) malfunctioning methods (unexpected state-
-changes and output), vulnerabilities (re-entrancy, fake account injection, etc)
-and undefined behavior.
+includes (and is not limited to) malfunctioning methods (unexpected
+state-changes and output), vulnerabilities (re-entrancy, fake account
+injection, etc) and undefined behavior.
 
 With vulnerabilities, we hope to illustrate as much as we can with protections
 against known vulnerabilities. We encourage contributors to add more test
@@ -181,8 +181,8 @@ A pull request (PR) is a request to merge changes from one branch with another
 branch. Repositories each have their own procedures for submitting a PR, so
 we will outline a simple procedure that you should follow. Following this
 procedure will facilitate its merge to the `main` branch because the code
-owners will have an easier time understanding the code and document changes,
-as well as the thought process behind these changes.
+owners will have an easier time understanding the code and documentation
+changes, as well as the thought process behind these changes.
 
 **Only code owners can approve and merge a pull request.** Only one approval
 is required before the code is merged.
