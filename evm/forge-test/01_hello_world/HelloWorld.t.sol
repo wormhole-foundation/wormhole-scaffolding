@@ -140,10 +140,6 @@ contract HelloWorldTest is Test {
             helloWorldTarget.chainId()
         );
         assertEq(emitterInContractState, newEmitterAddress);
-
-        // confirm that the target chain emitter can only be registered once
-        vm.expectRevert("emitterChainId already registered");
-        helloWorldSource.registerEmitter(newEmitterChainId, newEmitterAddress);
     }
 
     /**

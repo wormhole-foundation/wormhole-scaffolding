@@ -129,12 +129,6 @@ contract HelloWorld is HelloWorldGetters, HelloWorldMessages {
             "emitterAddress cannot equal bytes32(0)"
         );
 
-        // check to see if an emitter is already registerd for the passed emitterChainId
-        require(
-            getRegisteredEmitter(emitterChainId) == bytes32(0),
-            "emitterChainId already registered"
-        );
-
         // update the registeredEmitters state variable
         setEmitter(emitterChainId, emitterAddress);
     }
