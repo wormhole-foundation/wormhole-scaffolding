@@ -1,10 +1,13 @@
-# Ethereum Examples
+# Wormhole Integration in EVM
+
+These programs are enumerated the same as the other smart contract
+subdirectories (e.g. [solana](../solana)).
 
 ## Design Documents
 
 Read the design documents for each example project:
 
-- [HelloWorld](https://github.com/certusone/wormhole-scaffolding/blob/hello-world/integration/docs/01_hello_world.md).
+1. [HelloWorld](../docs/01_hello_world.md)
 
 ## Prerequisites
 

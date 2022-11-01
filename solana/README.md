@@ -3,6 +3,12 @@
 These programs are enumerated the same as the other smart contract
 subdirectories (e.g. [evm](../evm)).
 
+## Design Documents
+
+Read the design documents for each example project:
+
+1. [hello-world](../docs/01_hello_world.md)
+
 ## Getting Started
 
 First, you will need `cargo` and `anchor` CLI tools. If you need these tools,
