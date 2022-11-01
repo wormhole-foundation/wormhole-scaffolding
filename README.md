@@ -12,8 +12,7 @@ If your xChain app will require EVM smart contracts, we recommend using [Foundry
 
 If your xChain app will require Solana programs, prepare your development environment by installing [Solana and Anchor dependencies](https://book.anchor-lang.com/getting_started/installation.html), which include `solana` and `anchor` CLI tools.
 
-## Build
+## Build and Test
 
-Each directory represents Wormhole integrations for specific blockchain networks.
-
-**Note: Normally for web3 contract interactions, the Wormhole SDK is installed via [npm](https://www.npmjs.com/package/@certusone/wormhole-sdk). But for these examples, an unreleased version of the SDK is used. Please see [the temporary directory](tmp) for more details.**
+Each directory represents Wormhole integrations for specific blockchain networks. Please navigate
+to a network subdirectory to see more details on building and testing.
