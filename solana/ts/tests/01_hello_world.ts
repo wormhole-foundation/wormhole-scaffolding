@@ -881,6 +881,7 @@ describe(" 1: Hello World", () => {
         const received = await getReceivedData(
           connection,
           HELLO_WORLD_ADDRESS,
+          parsed.emitterChain,
           parsed.sequence
         );
         expect(received.batchId).to.equal(batchId);

@@ -40,7 +40,11 @@ export async function createReceiveMessageInstruction(
       wormholeProgram: new PublicKey(wormholeProgramId),
       posted: derivePostedVaaKey(wormholeProgramId, parsed.hash),
       foreignEmitter: deriveForeignEmitterKey(programId, parsed.emitterChain),
-      received: deriveReceivedKey(programId, parsed.sequence),
+      received: deriveReceivedKey(
+        programId,
+        parsed.emitterChain,
+        parsed.sequence
+      ),
     })
     .instruction();
 }

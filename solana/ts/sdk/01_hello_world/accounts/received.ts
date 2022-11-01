@@ -4,14 +4,16 @@ import { createHelloWorldProgramInterface } from "../program";
 
 export function deriveReceivedKey(
   programId: PublicKeyInitData,
+  chain: number,
   sequence: bigint
 ) {
   return deriveAddress(
     [
       Buffer.from("received"),
       (() => {
-        const buf = Buffer.alloc(8);
-        buf.writeBigInt64LE(sequence);
+        const buf = Buffer.alloc(10);
+        buf.writeUInt16LE(chain, 0);
+        buf.writeBigInt64LE(sequence, 2);
         return buf;
       })(),
     ],
@@ -27,11 +29,15 @@ export interface Received {
 export async function getReceivedData(
   connection: Connection,
   programId: PublicKeyInitData,
+  chain: number,
   sequence: bigint,
   commitment?: Commitment
 ): Promise<Received> {
   return createHelloWorldProgramInterface(connection, programId)
-    .account.received.fetch(deriveReceivedKey(programId, sequence), commitment)
+    .account.received.fetch(
+      deriveReceivedKey(programId, chain, sequence),
+      commitment
+    )
     .then((received) => {
       return { batchId: received.batchId, message: received.message as Buffer };
     });
