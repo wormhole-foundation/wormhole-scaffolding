@@ -28,7 +28,7 @@ This design focuses only on providing an example to interact with Wormhole's gen
 
 The HelloWorld example XDapp utilizes the Wormhole generic-messaging layer to send and receive arbitrary HelloWorld messages between smart contracts.
 
-Before the HelloWorld contracts can send and receive messages, the owner (see `Registering Foreign Emitters` section of this document) of the contract must invoke the `registerEmitter` (or `register_emitter`) method to register trusted HelloWorld contracts on other chains. The HelloWorld contracts will confirm that all messages that it receives are sent by trusted HelloWorld contracts on other blockchains.
+Before the HelloWorld contracts can send and receive messages, the owner (see `Registering Foreign Emitters` section of this document) of the contract must invoke the `registerEmitter` (or `register_emitter`) method to register trusted HelloWorld contracts on other blockchains. The HelloWorld contracts will confirm that all messages that it receives are sent by trusted HelloWorld contracts on other blockchains.
 
 To send a HelloWorld message, one will invoke the `sendMessage` (or `send_message`) method and pass an arbitrary message as an argument. The HelloWorld contract will then invoke the Wormhole core contract to publish the message. The Wormhole guardians will then attest the message after waiting the specified number of block confirmations (referred to as `wormholeFinality` in the contracts).
 
@@ -50,7 +50,7 @@ Once the message is attested by the Wormhole guardians, one will invoke the `rec
 ```rust
     pub fn initialize(ctx: Context<Initialize>)
     pub fn register_emitter(
-        ctx: Context<RegisterForeignEmitter>,
+        ctx: Context<RegisterEmitter>,
         chain: u16,
         address: [u8; 32],
     )
