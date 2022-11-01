@@ -1,0 +1,15 @@
+[package]
+name = "wormhole-anchor-sdk"
+version = "0.1.0"
+edition = "2021"
+description = "SDK using Anchor interfaces to interact with Wormhole Solana Programs"
+
+[features]
+mainnet = []
+solana-devnet = []
+tilt-devnet = []
+token-bridge = []
+
+[dependencies]
+anchor-lang = { version = "0.25.0", features = ["derive"] }
+anchor-spl = "0.25.0"

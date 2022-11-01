@@ -1,0 +1,20 @@
+[package]
+name = "hello-world"
+version = "0.1.0"
+description = "01 - Hello World"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "hello_world"
+
+[features]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+default = []
+
+[dependencies]
+anchor-lang = { version="0.25.0", features = ["init-if-needed"]}
+wormhole-anchor-sdk = { path = "../../modules/wormhole-anchor-sdk", features = ["mainnet"] }

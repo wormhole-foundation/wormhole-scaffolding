@@ -1,0 +1,20 @@
+[profile.default]
+solc_version = "0.8.13"
+optimizer = true
+optimizer_runs = 200
+
+test = "forge-test"
+
+libs = [
+    "lib",
+    "node_modules",
+]
+remappings = [
+    "@openzeppelin/=node_modules/@openzeppelin/",
+    "@solidity-parser/=node_modules/@solidity-parser/",
+    "ds-test/=lib/forge-std/lib/ds-test/src/",
+    "forge-std/=lib/forge-std/src/",
+    "wormhole-solidity/=modules/src",
+]
+
+# See more config options https://github.com/foundry-rs/foundry/tree/master/config
