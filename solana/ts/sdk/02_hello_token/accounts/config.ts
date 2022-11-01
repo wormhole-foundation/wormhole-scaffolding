@@ -1,4 +1,4 @@
-import { deriveAddress } from "@certusone/wormhole-sdk/solana";
+import { deriveAddress } from "@certusone/wormhole-sdk/lib/cjs/solana";
 import {
   Commitment,
   Connection,

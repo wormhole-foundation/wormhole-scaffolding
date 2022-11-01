@@ -2,8 +2,8 @@ import { web3 } from "@project-serum/anchor";
 import { expect } from "chai";
 import { Wallet } from "ethers";
 import { tryNativeToHexString } from "@certusone/wormhole-sdk";
-import * as wormhole from "@certusone/wormhole-sdk/solana/wormhole";
-import * as tokenBridge from "@certusone/wormhole-sdk/solana/tokenBridge";
+import * as wormhole from "@certusone/wormhole-sdk/lib/cjs/solana/wormhole";
+import * as tokenBridge from "@certusone/wormhole-sdk/lib/cjs/solana/tokenBridge";
 import {
   GUARDIAN_PRIVATE_KEY,
   LOCALHOST,

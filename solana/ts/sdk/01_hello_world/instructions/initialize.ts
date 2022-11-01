@@ -8,7 +8,7 @@ import {
   deriveAddress,
   getPostMessageCpiAccounts,
   getWormholeDerivedAccounts,
-} from "@certusone/wormhole-sdk/solana";
+} from "@certusone/wormhole-sdk/lib/cjs/solana";
 import { createHelloWorldProgramInterface } from "../program";
 import { deriveConfigKey, deriveWormholeMessageKey } from "../accounts";
 

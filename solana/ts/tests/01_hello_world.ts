@@ -5,17 +5,16 @@ import {
   getPostMessageCpiAccounts,
   NodeWallet,
   postVaaSolana,
-} from "@certusone/wormhole-sdk/solana";
+} from "@certusone/wormhole-sdk/lib/cjs/solana";
 import {
-  deriveEmitterSequenceKey,
-  deriveFeeCollectorKey,
-  deriveWormholeBridgeDataKey,
-  deriveWormholeEmitterKey,
   getPostedMessage,
   getProgramSequenceTracker,
   getWormholeDerivedAccounts,
-} from "@certusone/wormhole-sdk/solana/wormhole";
-import { MockEmitter, MockGuardians } from "@certusone/wormhole-sdk/mock";
+} from "@certusone/wormhole-sdk/lib/cjs/solana/wormhole";
+import {
+  MockEmitter,
+  MockGuardians,
+} from "@certusone/wormhole-sdk/lib/cjs/mock";
 import { parseVaa } from "@certusone/wormhole-sdk";
 import {
   createHelloWorldProgramInterface,
@@ -29,7 +28,6 @@ import {
   getConfigData,
   getForeignEmitterData,
   getReceivedData,
-  getWormholeEmitterData,
 } from "../sdk/01_hello_world";
 import {
   FUZZ_TEST_ITERATIONS,

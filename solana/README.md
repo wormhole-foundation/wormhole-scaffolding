@@ -25,7 +25,7 @@ your testing, use either of these commands:
 
 If you are pushing code to a branch and there is a PR associated with it, we
 recommend running `make clean` to make sure the environment does not have any
-old artifats. Then running the tests above afterwards to ensure that all of
+old artifacts. Then running the tests above afterwards to ensure that all of
 the tests run as you expect.
 
 [anchor book]: https://book.anchor-lang.com/getting_started/installation.html

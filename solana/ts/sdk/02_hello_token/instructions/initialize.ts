@@ -4,10 +4,7 @@ import {
   PublicKeyInitData,
   TransactionInstruction,
 } from "@solana/web3.js";
-import {
-  deriveAddress,
-  getTokenBridgeDerivedAccounts,
-} from "@certusone/wormhole-sdk/solana";
+import { getTokenBridgeDerivedAccounts } from "@certusone/wormhole-sdk/lib/cjs/solana";
 import { createHelloTokenProgramInterface } from "../program";
 import { deriveConfigKey } from "../accounts";
 

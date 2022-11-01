@@ -5,17 +5,11 @@ import {
   PublicKeyInitData,
   TransactionInstruction,
 } from "@solana/web3.js";
-import {
-  deriveAddress,
-  getPostMessageCpiAccounts,
-} from "@certusone/wormhole-sdk/solana";
 import { createHelloWorldProgramInterface } from "../program";
 import {
   deriveConfigKey,
   deriveForeignEmitterKey,
   deriveReceivedKey,
-  deriveWormholeMessageKey,
-  getConfigData,
 } from "../accounts";
 import {
   isBytes,
@@ -23,7 +17,7 @@ import {
   parseVaa,
   SignedVaa,
 } from "@certusone/wormhole-sdk";
-import { derivePostedVaaKey } from "@certusone/wormhole-sdk/solana/wormhole";
+import { derivePostedVaaKey } from "@certusone/wormhole-sdk/lib/cjs/solana/wormhole";
 
 export async function createReceiveMessageInstruction(
   connection: Connection,

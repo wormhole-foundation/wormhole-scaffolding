@@ -1,5 +1,5 @@
-import { deriveAddress, getAccountData } from "@certusone/wormhole-sdk/solana";
-import { deriveWormholeEmitterKey } from "@certusone/wormhole-sdk/solana/wormhole";
+import { deriveAddress } from "@certusone/wormhole-sdk/lib/cjs/solana";
+import { deriveWormholeEmitterKey } from "@certusone/wormhole-sdk/lib/cjs/solana/wormhole";
 import { Commitment, Connection, PublicKeyInitData } from "@solana/web3.js";
 import { createHelloWorldProgramInterface } from "../program";
 
