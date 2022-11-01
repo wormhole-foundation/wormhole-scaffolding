@@ -304,18 +304,14 @@ impl<T: AnchorDeserialize + AnchorSerialize> PostedVaa<T> {
 impl<T: AnchorDeserialize + AnchorSerialize> AnchorDeserialize for PostedVaa<T> {
     fn deserialize(buf: &mut &[u8]) -> io::Result<Self> {
         let buf = remove_vaa_discriminator(buf)?;
-
         let data_size = u32::deserialize(&mut &buf[88..92])?;
-        if data_size as usize != buf[92..].len() {
-            return Err(io::Error::new(
-                io::ErrorKind::Other,
-                "Cannot deserialize Wormhole payload",
-            ));
-        }
 
         Ok(PostedVaa {
             meta: MessageMeta::deserialize(&mut &buf[..88])?,
-            payload: (data_size, T::deserialize(&mut &buf[92..])?),
+            payload: (
+                data_size,
+                T::deserialize(&mut &buf[92..(92 + data_size as usize)])?,
+            ),
         })
     }
 }
