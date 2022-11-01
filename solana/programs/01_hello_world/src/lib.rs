@@ -264,8 +264,7 @@ pub mod hello_world {
 
         // There is only one type of message that this example uses to
         // communicate with its foreign counterparts (payload ID == 1).
-        let mut payload: Vec<u8> = Vec::new();
-        HelloWorldMessage::serialize(&HelloWorldMessage::Hello { message }, &mut payload)?;
+        let payload: Vec<u8> = HelloWorldMessage::Hello { message }.try_to_vec()?;
 
         wormhole::post_message(
             CpiContext::new_with_signer(
