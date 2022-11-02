@@ -123,9 +123,8 @@ contract HelloWorldTest is Test {
     }
 
     /**
-     * @notice This test confirms that the owner can correctly register a registered emitter
-     * with the HelloWorld contracts. It also tests that an emitter chainId can
-     * only be registered once.
+     * @notice This test confirms that the owner can correctly register a foreign emitter
+     * with the HelloWorld contracts.
      */
     function testRegisterEmitter() public {
         // cache the new emitter info
@@ -143,7 +142,7 @@ contract HelloWorldTest is Test {
     }
 
     /**
-     * @notice This test confirms that only the owner can register a registered emitter
+     * @notice This test confirms that ONLY the owner can register a foreign emitter
      * with the HelloWorld contracts.
      */
     function testRegisterEmitterNotOwner() public {
