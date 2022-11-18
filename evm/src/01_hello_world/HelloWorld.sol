@@ -109,7 +109,7 @@ contract HelloWorld is HelloWorldGetters, HelloWorldMessages {
 
     /**
      * @notice Registers foreign emitters (HelloWorld contracts) with this contract
-     * @dev Only the deployer (owner) can invoke this methcd
+     * @dev Only the deployer (owner) can invoke this method
      * @param emitterChainId Wormhole chainId of the contract being registered.
      * See https://book.wormhole.com/reference/contracts.html for more information.
      * @param emitterAddress 32 byte address of the contract being registered. For EVM
