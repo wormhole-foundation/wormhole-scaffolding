@@ -47,11 +47,10 @@ contract HelloWorldTest is Test {
         );
 
         // initialize "source chain" HelloWorld contract
-        uint8 wormholeFinality = 15;
-        helloWorldSource = new HelloWorld(address(wormhole), wormhole.chainId(), wormholeFinality);
+        helloWorldSource = new HelloWorld(address(wormhole), wormhole.chainId(), uint8(1));
 
         // initialize "target chain" HelloWorld contract
-        helloWorldTarget = new HelloWorld(address(wormhole), uint8(2), wormholeFinality);
+        helloWorldTarget = new HelloWorld(address(wormhole), uint8(2), uint8(1));
 
         // confirm that the source and target contract addresses are different
         assertTrue(address(helloWorldSource) != address(helloWorldTarget));
@@ -176,7 +175,8 @@ contract HelloWorldTest is Test {
         // NOTE: in the wormhole-sdk, signed Wormhole messages are referred to as signed VAAs
         bytes memory encodedMessage = wormholeSimulator.fetchSignedMessageFromLogs(
             entries[0],
-            helloWorldSource.chainId()
+            helloWorldSource.chainId(),
+            address(helloWorldSource)
         );
 
         // parse and verify the message
@@ -217,7 +217,8 @@ contract HelloWorldTest is Test {
         // NOTE: in the wormhole-sdk, signed Wormhole messages are referred to as signed VAAs
         bytes memory encodedMessage = wormholeSimulator.fetchSignedMessageFromLogs(
             entries[0],
-            helloWorldTarget.chainId()
+            helloWorldTarget.chainId(),
+            address(helloWorldTarget)
         );
 
         // register the emitter on the source contract
@@ -272,7 +273,8 @@ contract HelloWorldTest is Test {
         // NOTE: in the wormhole-sdk, signed Wormhole messages are referred to as signed VAAs
         bytes memory encodedMessage = wormholeSimulator.fetchSignedMessageFromLogs(
             entries[0],
-            helloWorldSource.chainId()
+            helloWorldSource.chainId(),
+            address(helloWorldSource)
         );
 
         // register the emitter on the source contract
