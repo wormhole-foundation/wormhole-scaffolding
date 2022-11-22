@@ -6,5 +6,7 @@ contract HelloTokenStructs {
         // unique identifier for this message type
         uint8 payloadID;
         bytes32 targetRecipient;
+        uint32 relayerFee;
+        bool isNative;
     }
 }

@@ -31,6 +31,14 @@ contract HelloTokenGetters is HelloTokenSetters {
         return _state.registeredEmitters[emitterChainId];
     }
 
+    function feePrecision() public view returns (uint32) {
+        return _state.feePrecision;
+    }
+
+    function relayerFee() public view returns (uint32) {
+        return _state.relayerFee;
+    }
+
     function getReceivedMessage(bytes32 hash) public view returns (string memory) {
         return _state.receivedMessages[hash];
     }

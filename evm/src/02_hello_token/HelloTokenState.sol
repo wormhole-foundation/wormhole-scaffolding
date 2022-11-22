@@ -21,6 +21,12 @@ contract HelloTokenStorage {
         // will attest a message.
         uint8 wormholeFinality;
 
+        // precision of relayer fee percentage
+        uint32 feePrecision;
+
+        // relayer fee in notional percentage terms
+        uint32 relayerFee;
+
         // Wormhole chain ID to known emitter address mapping. Xapps using
         // Wormhole should register all deployed contracts on each chain to
         // verify that messages being consumed are from trusted contracts.

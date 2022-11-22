@@ -27,13 +27,16 @@ contract HelloToken is HelloTokenGetters, HelloTokenMessages, ReentrancyGuard {
         address wormhole_,
         address tokenBridge_,
         uint16 chainId_,
-        uint8 wormholeFinality_
+        uint8 wormholeFinality_,
+        uint32 feePrecision,
+        uint32 relayerFeePercentage
     ) {
         // sanity check input values
         require(wormhole_ != address(0), "invalid Wormhole address");
         require(tokenBridge_ != address(0), "invalid TokenBridge address");
         require(chainId_ > 0, "invalid chainId");
         require(wormholeFinality_ > 0, "invalid wormholeFinality");
+        require(feePrecision > 0, "invalid fee precision");
 
         // set constructor state values
         setOwner(msg.sender);
@@ -41,6 +44,7 @@ contract HelloToken is HelloTokenGetters, HelloTokenMessages, ReentrancyGuard {
         setTokenBridge(tokenBridge_);
         setChainId(chainId_);
         setWormholeFinality(wormholeFinality_);
+        setRelayerFee(relayerFeePercentage);
     }
 
     /**
@@ -87,7 +91,9 @@ contract HelloToken is HelloTokenGetters, HelloTokenMessages, ReentrancyGuard {
         bytes memory messagePayload = encodePayload(
             HelloTokenMessage({
                 payloadID: 1,
-                targetRecipient: addressToBytes32(targetRecipient)
+                targetRecipient: addressToBytes32(targetRecipient),
+                relayerFee: relayerFee(),
+                isNative: false
             })
         );
 

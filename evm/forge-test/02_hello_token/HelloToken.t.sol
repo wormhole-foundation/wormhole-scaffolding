@@ -69,12 +69,18 @@ contract HelloTokenTest is Test {
         // instantiate TokenBridge interface
         bridge = ITokenBridge(vm.envAddress("TESTING_BRIDGE_ADDRESS"));
 
+        // relayer fee and precision
+        uint32 feePrecision = 1e6;
+        uint32 relayerFee = 1000; // 1 basis point
+
         // initialize "source chain" HelloToken contract
         helloTokenSource = new HelloToken(
             address(wormhole),
             vm.envAddress("TESTING_BRIDGE_ADDRESS"),
             wormhole.chainId(),
-            uint8(1) // wormhole finality
+            uint8(1), // wormhole finality
+            feePrecision,
+            relayerFee
         );
 
         // initialize "target chain" HelloToken contract
@@ -82,7 +88,9 @@ contract HelloTokenTest is Test {
             address(wormhole),
             vm.envAddress("TESTING_BRIDGE_ADDRESS"),
             uint8(2), // bogus chainId
-            uint8(1) // wormhole finality
+            uint8(1), // wormhole finality
+            feePrecision,
+            relayerFee
         );
 
         // confirm that the source and target contract addresses are different
@@ -116,19 +124,23 @@ contract HelloTokenTest is Test {
      * the HelloToken message correctly.
      */
     function testMessageDeserialization(
-        bytes32 targetRecipient
+        bytes32 targetRecipient,
+        uint32 relayerFee,
+        bool isNative
     ) public {
         vm.assume(targetRecipient != bytes32(0));
 
-        // encode the message by calling the encodeMessage method
+        // encode the message by calling the encodePayload method
         bytes memory encodedMessage = helloTokenSource.encodePayload(
             HelloTokenStructs.HelloTokenMessage({
                 payloadID: uint8(1),
-                targetRecipient: targetRecipient
+                targetRecipient: targetRecipient,
+                relayerFee: relayerFee,
+                isNative: isNative
             })
         );
 
-        // decode the message by calling the decodeMessage method
+        // decode the message by calling the decodePayload method
         HelloTokenStructs.HelloTokenMessage memory results =
             helloTokenSource.decodePayload(encodedMessage);
 
@@ -145,11 +157,13 @@ contract HelloTokenTest is Test {
         // create garbage targetRecipient address
         bytes32 targetRecipient = bytes32(uint256(uint160(address(this))));
 
-        // encode the message by calling the encodeMessage method
+        // encode the message by calling the encodePayload method
         bytes memory encodedMessage = helloTokenSource.encodePayload(
             HelloTokenStructs.HelloTokenMessage({
                 payloadID: uint8(2),
-                targetRecipient: targetRecipient
+                targetRecipient: targetRecipient,
+                relayerFee: 10000,
+                isNative: false
             })
         );
 
@@ -159,18 +173,20 @@ contract HelloTokenTest is Test {
     }
 
     /**
-     * @notice This test confirms that decodeMessage reverts when a message
+     * @notice This test confirms that decodePayload reverts when a message
      * is an unexpected length.
      */
     function testIncorrectMessageLength() public {
         // create garbage targetRecipient address
         bytes32 targetRecipient = bytes32(uint256(uint160(address(this))));
 
-        // encode the message by calling the encodeMessage method
+        // encode the message by calling the encodePayload method
         bytes memory encodedMessage = helloTokenSource.encodePayload(
             HelloTokenStructs.HelloTokenMessage({
                 payloadID: uint8(1),
-                targetRecipient: targetRecipient
+                targetRecipient: targetRecipient,
+                relayerFee: 10000,
+                isNative: false
             })
         );
 
@@ -312,6 +328,8 @@ contract HelloTokenTest is Test {
 
         assertEq(message.payloadID, 1);
         assertEq(message.targetRecipient, addressToBytes32(targetRecipient));
+        assertEq(message.relayerFee, helloTokenSource.relayerFee());
+        assertEq(message.isNative, false);
     }
 
     /**

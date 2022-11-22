@@ -28,6 +28,14 @@ contract HelloTokenSetters is HelloTokenState {
         _state.registeredEmitters[chainId] = emitter;
     }
 
+    function setFeePrecision(uint32 feePrecision_) internal {
+        _state.feePrecision = feePrecision_;
+    }
+
+    function setRelayerFee(uint32 relayerFee_) internal {
+        _state.relayerFee = relayerFee_;
+    }
+
     function consumeMessage(bytes32 hash, string memory message) internal {
         _state.receivedMessages[hash] = message;
         _state.consumedMessages[hash] = true;
