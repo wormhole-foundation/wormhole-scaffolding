@@ -8,34 +8,32 @@ import {
 import { createHelloTokenProgramInterface } from "../program";
 
 export function deriveConfigKey(programId: PublicKeyInitData) {
-  return deriveAddress([Buffer.from("hello_token.config")], programId);
+  return deriveAddress([Buffer.from("config")], programId);
 }
 
 export interface TokenBridgeAddresses {
-  program: PublicKey;
   config: PublicKey;
   authoritySigner: PublicKey;
   custodySigner: PublicKey;
   mintAuthority: PublicKey;
   sender: PublicKey;
   redeemer: PublicKey;
+  emitter: PublicKey;
+  sequence: PublicKey;
   senderBump: number;
   redeemerBump: number;
 }
 
 export interface WormholeAddresses {
-  program: PublicKey;
-  config: PublicKey;
+  bridge: PublicKey;
   feeCollector: PublicKey;
-  emitter: PublicKey;
-  sequence: PublicKey;
 }
 
 export interface ConfigData {
   owner: PublicKey;
   tokenBridge: TokenBridgeAddresses;
   wormhole: WormholeAddresses;
-  messageCount: bigint;
+  finality: number;
 }
 
 export async function getConfigData(
@@ -52,6 +50,6 @@ export async function getConfigData(
     owner: data.owner,
     tokenBridge: data.tokenBridge,
     wormhole: data.wormhole,
-    messageCount: BigInt(data.messageCount.toString()),
+    finality: data.finality,
   };
 }

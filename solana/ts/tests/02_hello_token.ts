@@ -2,13 +2,14 @@ import { expect } from "chai";
 import * as web3 from "@solana/web3.js";
 import {
   deriveAddress,
-  getPostMessageCpiAccounts,
   getTokenBridgeDerivedAccounts,
   NodeWallet,
   postVaaSolana,
-} from "@certusone/wormhole-sdk/solana";
-import { getPostedMessage } from "@certusone/wormhole-sdk/solana/wormhole";
-import { MockEmitter, MockGuardians } from "@certusone/wormhole-sdk/mock";
+} from "@certusone/wormhole-sdk/lib/cjs/solana";
+import {
+  MockEmitter,
+  MockGuardians,
+} from "@certusone/wormhole-sdk/lib/cjs/mock";
 import { parseVaa } from "@certusone/wormhole-sdk";
 import {
   createInitializeInstruction,
@@ -26,15 +27,15 @@ import { errorExistsInLog } from "./helpers/error";
 
 describe(" 2: Hello Token", () => {
   const connection = new web3.Connection(LOCALHOST, "confirmed");
-  const payer = web3.Keypair.fromSecretKey(PAYER_PRIVATE_KEY);
+  const wallet = NodeWallet.fromSecretKey(PAYER_PRIVATE_KEY);
 
   describe("Initialize Program", () => {
-    describe("Set Up Program", () => {
+    describe("Finally Set Up Program", () => {
       it("Instruction: initialize", async () => {
         const initializeTx = await createInitializeInstruction(
           connection,
           HELLO_TOKEN_ADDRESS,
-          payer.publicKey,
+          wallet.key(),
           TOKEN_BRIDGE_ADDRESS,
           WORMHOLE_ADDRESS
         )
@@ -42,7 +43,7 @@ describe(" 2: Hello Token", () => {
             web3.sendAndConfirmTransaction(
               connection,
               new web3.Transaction().add(ix),
-              [payer]
+              [wallet.signer()]
             )
           )
           .catch((reason) => {
@@ -54,20 +55,71 @@ describe(" 2: Hello Token", () => {
 
         // verify account data
         const configData = await getConfigData(connection, HELLO_TOKEN_ADDRESS);
-        expect(configData.owner.equals(payer.publicKey)).is.true;
+        expect(configData.owner.equals(wallet.key())).is.true;
+        expect(configData.finality).to.equal(0);
 
-        const accounts = getTokenBridgeDerivedAccounts(
+        const tokenBridgeAccounts = getTokenBridgeDerivedAccounts(
           HELLO_TOKEN_ADDRESS,
           TOKEN_BRIDGE_ADDRESS,
           WORMHOLE_ADDRESS
         );
+        expect(
+          configData.tokenBridge.config.equals(
+            tokenBridgeAccounts.tokenBridgeConfig
+          )
+        ).is.true;
+        expect(
+          configData.tokenBridge.authoritySigner.equals(
+            tokenBridgeAccounts.tokenBridgeAuthoritySigner
+          )
+        ).is.true;
+        expect(
+          configData.tokenBridge.custodySigner.equals(
+            tokenBridgeAccounts.tokenBridgeCustodySigner
+          )
+        ).is.true;
+        expect(
+          configData.tokenBridge.mintAuthority.equals(
+            tokenBridgeAccounts.tokenBridgeMintAuthority
+          )
+        ).is.true;
+        expect(
+          configData.tokenBridge.sender.equals(
+            tokenBridgeAccounts.tokenBridgeSender
+          )
+        ).is.true;
+        expect(
+          configData.tokenBridge.redeemer.equals(
+            tokenBridgeAccounts.tokenBridgeRedeemer
+          )
+        ).is.true;
+        expect(
+          configData.wormhole.bridge.equals(tokenBridgeAccounts.wormholeBridge)
+        ).to.be.true;
+        expect(
+          configData.tokenBridge.emitter.equals(
+            tokenBridgeAccounts.tokenBridgeEmitter
+          )
+        ).is.true;
+        expect(
+          configData.wormhole.feeCollector.equals(
+            tokenBridgeAccounts.wormholeFeeCollector
+          )
+        ).is.true;
+        expect(
+          configData.tokenBridge.sequence.equals(
+            tokenBridgeAccounts.tokenBridgeSequence
+          )
+        ).is.true;
+
+        // TODO
       });
 
       it("Cannot Call Instruction Again: initialize", async () => {
         const initializeTx = await createInitializeInstruction(
           connection,
           HELLO_TOKEN_ADDRESS,
-          payer.publicKey,
+          wallet.key(),
           TOKEN_BRIDGE_ADDRESS,
           WORMHOLE_ADDRESS
         )
@@ -75,7 +127,7 @@ describe(" 2: Hello Token", () => {
             web3.sendAndConfirmTransaction(
               connection,
               new web3.Transaction().add(ix),
-              [payer]
+              [wallet.signer()]
             )
           )
           .catch((reason) => {

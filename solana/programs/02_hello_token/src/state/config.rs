@@ -2,8 +2,9 @@ use anchor_lang::prelude::*;
 
 #[derive(Default, AnchorSerialize, AnchorDeserialize, Copy, Clone, PartialEq, Eq)]
 pub struct WormholeAddresses {
-    // program pdas
-    pub config: Pubkey,
+    /// [BridgeData](wormhole_anchor_sdk::wormhole::BridgeData) address.
+    pub bridge: Pubkey,
+    /// [FeeCollector](wormhole_anchor_sdk::wormhole::FeeCollector) address.
     pub fee_collector: Pubkey,
 }
 
@@ -23,8 +24,8 @@ pub struct TokenBridgeAddresses {
     pub mint_authority: Pubkey,
     pub sender: Pubkey,
     pub redeemer: Pubkey,
-    pub token_bridge_emitter: Pubkey,
-    pub token_bridge_sequence: Pubkey,
+    pub emitter: Pubkey,
+    pub sequence: Pubkey,
     // send/receive bumps
     pub sender_bump: u8,
     pub redeemer_bump: u8,
@@ -48,12 +49,16 @@ impl TokenBridgeAddresses {
 #[account]
 #[derive(Default)]
 pub struct Config {
+    /// Program's owner.
     pub owner: Pubkey,
+    /// Token Bridge program's relevant addresses.
     pub token_bridge: TokenBridgeAddresses,
+    /// Wormhole program's relevant addresses.
     pub wormhole: WormholeAddresses,
 
-    // Message counter
-    pub message_count: u64,
+    /// AKA consistency level. u8 representation of Solana's
+    /// [Finality](wormhole_anchor_sdk::wormhole::Finality).
+    pub finality: u8,
 }
 
 impl Config {
@@ -61,6 +66,23 @@ impl Config {
         + 32 // owner
         + TokenBridgeAddresses::LEN
         + WormholeAddresses::LEN
-        + 8 // mesasge_count
+        + 1 // finality
+        
     ;
+    /// AKA `b"config"`.
+    pub const SEED_PREFIX: &'static [u8; 6] = b"config";
+}
+
+#[cfg(test)]
+pub mod test {
+    use super::*;
+
+    #[test]
+    fn test_config() -> Result<()> {
+        assert_eq!(TokenBridgeAddresses::LEN, 258, "TokenBridgeAddresses::LEN wrong value");
+        assert_eq!(WormholeAddresses::LEN, 64, "WormholeAddress::LEN wrong value");
+        assert_eq!(Config::MAXIMUM_SIZE, 363, "Config::MAXIMUM_SIZE wrong value");
+
+        Ok(())
+    }
 }

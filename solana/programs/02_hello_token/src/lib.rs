@@ -5,7 +5,6 @@ pub use error::*;
 pub use message::*;
 pub use state::*;
 
-pub mod constants;
 pub mod context;
 pub mod error;
 pub mod message;
@@ -36,6 +35,8 @@ pub mod hello_token {
         token_bridge.mint_authority = ctx.accounts.token_bridge_mint_authority.key();
         token_bridge.sender = ctx.accounts.token_bridge_sender.key();
         token_bridge.redeemer = ctx.accounts.token_bridge_redeemer.key();
+        token_bridge.emitter = ctx.accounts.token_bridge_emitter.key();
+        token_bridge.sequence = ctx.accounts.token_bridge_sequence.key();
 
         token_bridge.sender_bump = *ctx
             .bumps
@@ -49,7 +50,7 @@ pub mod hello_token {
         // Set Wormhole related addresses
         {
             let wormhole = &mut config.wormhole;
-            wormhole.config = ctx.accounts.wormhole_bridge.key();
+            wormhole.bridge = ctx.accounts.wormhole_bridge.key();
             wormhole.fee_collector = ctx.accounts.wormhole_fee_collector.key();
         }
 

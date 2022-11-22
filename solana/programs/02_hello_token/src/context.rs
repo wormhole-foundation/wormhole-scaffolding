@@ -4,9 +4,13 @@ use anchor_lang::{
 };
 use wormhole_anchor_sdk::{token_bridge, wormhole};
 
-use super::{constants, error::HelloTokenError, state::Config};
+use super::{
+    state::{Config, TokenBridgeRedeemer, TokenBridgeSender},
+    HelloTokenError,
+};
 
 #[derive(Accounts)]
+/// Context used to initialize program data (i.e. config).
 pub struct Initialize<'info> {
     #[account(mut)]
     /// Whoever initializes the config will be the owner of the program.
@@ -15,87 +19,108 @@ pub struct Initialize<'info> {
     #[account(
         init,
         payer = owner,
-        seeds = [constants::SEED_PREFIX_CONFIG],
+        seeds = [Config::SEED_PREFIX],
         bump,
         space = Config::MAXIMUM_SIZE,
 
     )]
+    /// Config account, which saves program data useful for other instructions.
+    /// Also saves the payer of the [`initialize`](crate::initialize) instruction
+    /// as the program's owner.
     pub config: Account<'info, Config>,
 
-    #[account(executable)]
+    /// Wormhole program.
+    pub wormhole_program: Program<'info, wormhole::program::Wormhole>,
+
+    /// Token Bridge program.
     pub token_bridge_program: Program<'info, token_bridge::program::TokenBridge>,
 
     #[account(
-        seeds = [token_bridge::SEED_PREFIX_CONFIG],
+        seeds = [token_bridge::Config::SEED_PREFIX],
         bump,
-        seeds::program = token_bridge_program
+        seeds::program = token_bridge_program,
     )]
-    /// CHECK: Token Bridge Config
-    pub token_bridge_config: AccountInfo<'info>,
+    /// CHECK: Token Bridge authority signer. This isn't an account that holds
+    /// data; it is purely just a PDA, used as a delegate for transferring
+    /// SPL tokens on behalf of a token account.
+    pub token_bridge_config: Account<'info, token_bridge::Config>,
 
     #[account(
         seeds = [token_bridge::SEED_PREFIX_AUTHORITY_SIGNER],
         bump,
-        seeds::program = token_bridge_program
+        seeds::program = token_bridge_program,
     )]
-    /// CHECK: Token Bridge Authority Signer (used for transfer approvals)
-    pub token_bridge_authority_signer: AccountInfo<'info>,
+    /// CHECK: Token Bridge authority signer. This isn't an account that holds
+    /// data; it is purely just a PDA, used as a delegate for transferring
+    /// SPL tokens on behalf of a token account.
+    pub token_bridge_authority_signer: UncheckedAccount<'info>,
 
     #[account(
         seeds = [token_bridge::SEED_PREFIX_CUSTODY_SIGNER],
         bump,
-        seeds::program = token_bridge_program
+        seeds::program = token_bridge_program,
     )]
-    /// CHECK: Token Bridge Custody Signer
-    pub token_bridge_custody_signer: AccountInfo<'info>,
+    /// CHECK: Token Bridge custody signer. This isn't an account that holds
+    /// data; it is purely just a PDA, used as the owner of the Token Bridge's
+    /// custody (token) accounts.
+    pub token_bridge_custody_signer: UncheckedAccount<'info>,
 
     #[account(
-        seeds = [token_bridge::SEED_PREFIX_MINT_SIGNER],
+        seeds = [token_bridge::SEED_PREFIX_MINT_AUTHORITY],
         bump,
-        seeds::program = token_bridge_program
+        seeds::program = token_bridge_program,
     )]
-    /// CHECK: Token Bridge Wrapped Mint Authority
-    pub token_bridge_mint_authority: AccountInfo<'info>,
+    /// CHECK: Token Bridge mint authority. This isn't an account that holds
+    /// data; it is purely just a PDA, used as the mint authority for Token
+    /// Bridge wrapped assets.
+    pub token_bridge_mint_authority: UncheckedAccount<'info>,
 
     #[account(
-        seeds = [token_bridge::SEED_PREFIX_SENDER],
-        bump
+        init,
+        payer = owner,
+        seeds = [TokenBridgeSender::SEED_PREFIX],
+        bump,
+        space = TokenBridgeSender::MAXIMUM_SIZE,
     )]
-    /// CHECK: Token Bridge Sender
-    pub token_bridge_sender: AccountInfo<'info>,
+    /// Token Bridge sender.
+    pub token_bridge_sender: Account<'info, TokenBridgeSender>,
 
     #[account(
-        seeds = [token_bridge::SEED_PREFIX_REDEEMER],
-        bump
+        init,
+        payer = owner,
+        seeds = [TokenBridgeRedeemer::SEED_PREFIX],
+        bump,
+        space = TokenBridgeRedeemer::MAXIMUM_SIZE,
     )]
-    /// CHECK: Token Bridge Receiver
-    pub token_bridge_redeemer: AccountInfo<'info>,
-
-    #[account(executable)]
-    pub wormhole_program: Program<'info, wormhole::program::Wormhole>,
+    /// Token Bridge redeemer.
+    pub token_bridge_redeemer: Account<'info, TokenBridgeRedeemer>,
 
     #[account(
         seeds = [wormhole::BridgeData::SEED_PREFIX],
         bump,
         seeds::program = wormhole_program,
     )]
-    /// CHECK: Wormhole Config
+    /// Wormhole bridge data account (a.k.a. its config).
     pub wormhole_bridge: Account<'info, wormhole::BridgeData>,
+
+    #[account(
+        seeds = [token_bridge::SEED_PREFIX_EMITTER],
+        bump,
+        seeds::program = token_bridge_program
+    )]
+    /// CHECK: Token Bridge program's emitter account. This isn't an account
+    /// that holds data; it is purely just a PDA, used as a mechanism to emit
+    /// Wormhole messages originating from the Token Bridge program.
+    pub token_bridge_emitter: UncheckedAccount<'info>,
 
     #[account(
         seeds = [wormhole::FeeCollector::SEED_PREFIX],
         bump,
         seeds::program = wormhole_program
     )]
+    /// Wormhole fee collector account, which requires lamports before the
+    /// program can post a message (if there is a fee).
     pub wormhole_fee_collector: Account<'info, wormhole::FeeCollector>,
-
-    #[account(
-        seeds = [wormhole::SEED_PREFIX_EMITTER],
-        bump,
-        seeds::program = token_bridge_program
-    )]
-    /// CHECK: Token Bridge Emitter
-    pub token_bridge_emitter: AccountInfo<'info>,
 
     #[account(
         seeds = [
@@ -105,8 +130,9 @@ pub struct Initialize<'info> {
         bump,
         seeds::program = wormhole_program
     )]
+    /// Token Bridge emitter's sequence account.
     pub token_bridge_sequence: Account<'info, wormhole::SequenceTracker>,
 
-    #[account(executable)]
+    /// System program.
     pub system_program: Program<'info, System>,
 }

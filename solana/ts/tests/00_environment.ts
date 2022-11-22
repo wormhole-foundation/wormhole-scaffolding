@@ -1,7 +1,11 @@
 import { web3 } from "@project-serum/anchor";
 import { expect } from "chai";
 import { Wallet } from "ethers";
-import { tryNativeToHexString } from "@certusone/wormhole-sdk";
+import {
+  transferFromSolana,
+  transferNativeSol,
+  tryNativeToHexString,
+} from "@certusone/wormhole-sdk";
 import * as wormhole from "@certusone/wormhole-sdk/lib/cjs/solana/wormhole";
 import * as tokenBridge from "@certusone/wormhole-sdk/lib/cjs/solana/tokenBridge";
 import {
@@ -11,20 +15,25 @@ import {
   TOKEN_BRIDGE_ADDRESS,
   WORMHOLE_ADDRESS,
 } from "./helpers/consts";
+import {
+  NodeWallet,
+  signSendAndConfirmTransaction,
+} from "@certusone/wormhole-sdk/lib/cjs/solana";
+import { LAMPORTS_PER_SOL } from "@solana/web3.js";
 
 describe(" 0: Wormhole", () => {
   const connection = new web3.Connection(LOCALHOST, "confirmed");
-  const payer = web3.Keypair.fromSecretKey(PAYER_PRIVATE_KEY);
+  const wallet = NodeWallet.fromSecretKey(PAYER_PRIVATE_KEY);
 
   before("Airdrop", async () => {
     await connection
-      .requestAirdrop(payer.publicKey, 1000 * web3.LAMPORTS_PER_SOL)
+      .requestAirdrop(wallet.key(), 1000 * web3.LAMPORTS_PER_SOL)
       .then((tx) => connection.confirmTransaction(tx));
   });
 
   describe("Verify Local Validator", () => {
     it("Balance", async () => {
-      const balance = await connection.getBalance(payer.publicKey);
+      const balance = await connection.getBalance(wallet.key());
       expect(balance).to.equal(1000 * web3.LAMPORTS_PER_SOL);
     });
   });
@@ -47,13 +56,13 @@ describe(" 0: Wormhole", () => {
           new web3.Transaction().add(
             wormhole.createInitializeInstruction(
               WORMHOLE_ADDRESS,
-              payer.publicKey,
+              wallet.key(),
               guardianSetExpirationTime,
               fee,
               initialGuardians
             )
           ),
-          [payer]
+          [wallet.signer()]
         )
         .catch((reason) => {
           // should not happen
@@ -95,11 +104,11 @@ describe(" 0: Wormhole", () => {
           new web3.Transaction().add(
             tokenBridge.createInitializeInstruction(
               TOKEN_BRIDGE_ADDRESS,
-              payer.publicKey,
+              wallet.key(),
               WORMHOLE_ADDRESS
             )
           ),
-          [payer]
+          [wallet.signer()]
         )
         .catch((reason) => {
           // should not happen
@@ -111,13 +120,39 @@ describe(" 0: Wormhole", () => {
       const accounts = await connection.getProgramAccounts(WORMHOLE_ADDRESS);
       expect(accounts).has.length(2);
     });
+
+    it("Outbound Transfer Native", async () => {
+      const amount = BigInt(1 * LAMPORTS_PER_SOL); // explicitly sending 1 SOL
+      const targetAddress = Buffer.alloc(32, "deadbeef", "hex");
+      const transferResponse = transferNativeSol(
+        connection,
+        WORMHOLE_ADDRESS,
+        TOKEN_BRIDGE_ADDRESS,
+        wallet.key(),
+        amount,
+        targetAddress,
+        "ethereum"
+      )
+        .then((transaction) =>
+          signSendAndConfirmTransaction(
+            connection,
+            wallet.key(),
+            wallet.signTransaction,
+            transaction
+          )
+        )
+        .catch((reason) => {
+          // should not happen
+          console.log(reason);
+          return null;
+        });
+      expect(transferResponse).is.not.null;
+    });
   });
 
   describe("Check wormhole-sdk", () => {
     it("tryNativeToHexString", async () => {
-      expect(
-        tryNativeToHexString(payer.publicKey.toString(), "solana")
-      ).to.equal(
+      expect(tryNativeToHexString(wallet.key().toString(), "solana")).to.equal(
         "c291b257b963a479bbc5a56aa6525494a6d708e628ff2ad61c8679c99d2afca5"
       );
     });
