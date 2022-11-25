@@ -16,6 +16,7 @@ declare_id!("GDch61JmJpTo9npwenypnk3KdofmozK1hNaTdbYRkNPb");
 #[program]
 pub mod hello_token {
     use super::*;
+    use wormhole_anchor_sdk::wormhole;
 
     /// This instruction can be used to generate your program's config.
     /// And for convenience, we will store Wormhole-related PDAs in the
@@ -55,6 +56,38 @@ pub mod hello_token {
         }
 
         // Done
+        Ok(())
+    }
+
+    /// This instruction registers a new foreign contract (from another
+    /// network) and saves the emitter information in a ForeignEmitter account.
+    /// This instruction is owner-only, meaning that only the owner of the
+    /// program (defined in the [Config] account) can add and update foreign
+    /// contracts.
+    ///
+    /// # Arguments
+    ///
+    /// * `ctx`     - `RegisterForeignContract` context
+    /// * `chain`   - Wormhole Chain ID
+    /// * `address` - Wormhole Emitter Address
+    pub fn register_foreign_contract(
+        ctx: Context<RegisterForeignContract>,
+        chain: u16,
+        address: [u8; 32],
+    ) -> Result<()> {
+        // Foreign emitter cannot share the same Wormhole Chain ID as the
+        // Solana Wormhole program's. And cannot register a zero address.
+        require!(
+            chain > 0 && chain != wormhole::CHAIN_ID_SOLANA && !address.iter().all(|&x| x == 0),
+            HelloTokenError::InvalidForeignContract,
+        );
+
+        // Save the emitter info into the ForeignEmitter account.
+        let emitter = &mut ctx.accounts.foreign_contract;
+        emitter.chain = chain;
+        emitter.address = address;
+
+        // Done.
         Ok(())
     }
 }

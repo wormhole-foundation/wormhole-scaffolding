@@ -29,4 +29,8 @@ pub enum HelloTokenError {
     #[msg("BumpNotFound")]
     /// Bump not found in `bumps` map.
     BumpNotFound,
+
+    #[msg("InvalidForeignContract")]
+    /// Specified foreign contract has a bad chain ID or zero address.
+    InvalidForeignContract,
 }

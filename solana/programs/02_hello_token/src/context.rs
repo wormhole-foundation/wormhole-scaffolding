@@ -5,7 +5,7 @@ use anchor_lang::{
 use wormhole_anchor_sdk::{token_bridge, wormhole};
 
 use super::{
-    state::{Config, TokenBridgeRedeemer, TokenBridgeSender},
+    state::{Config, ForeignContract, TokenBridgeRedeemer, TokenBridgeSender},
     HelloTokenError,
 };
 
@@ -132,6 +132,41 @@ pub struct Initialize<'info> {
     )]
     /// Token Bridge emitter's sequence account.
     pub token_bridge_sequence: Account<'info, wormhole::SequenceTracker>,
+
+    /// System program.
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(chain: u16)]
+pub struct RegisterForeignContract<'info> {
+    /// Owner of the program set in the [`Config`] account.
+    #[account(mut)]
+    pub owner: Signer<'info>,
+
+    #[account(
+        has_one = owner @ HelloTokenError::OwnerOnly,
+        seeds = [Config::SEED_PREFIX],
+        bump
+    )]
+    /// Config account. This program requires that the `owner` specified in the
+    /// context equals the pubkey specified in this account. Read-only.
+    pub config: Account<'info, Config>,
+
+    #[account(
+        init_if_needed,
+        payer = owner,
+        seeds = [
+            ForeignContract::SEED_PREFIX,
+            &chain.to_le_bytes()[..]
+        ],
+        bump,
+        space = ForeignContract::MAXIMUM_SIZE
+    )]
+    /// Foreign Contract account. Create this account if an emitter has not been
+    /// registered yet for this Wormhole chain ID. If there already is a
+    /// contract address saved in this account, overwrite it.
+    pub foreign_contract: Account<'info, ForeignContract>,
 
     /// System program.
     pub system_program: Program<'info, System>,

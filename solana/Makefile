@@ -1,6 +1,6 @@
 include testing.env
 
-.PHONY: dependencies test unit-test integration-test clean build-wormhole-repo all
+.PHONY: dependencies test cargo-test unit-test integration-test clean build-wormhole-repo all
 
 all: test
 
@@ -21,10 +21,13 @@ dependencies/wormhole.so: build-wormhole-repo
 build-wormhole-repo:
 	bash shell-scripts/build_wormhole_repo_bpfs.sh
 
-.PHONY: unit-test
-unit-test:
+.PHONY: cargo-test
+cargo-test:
 	cargo clippy
 	cargo test
+
+.PHONY: unit-test
+unit-test: cargo-test
 
 .PHONY: integration-test
 integration-test: dependencies
