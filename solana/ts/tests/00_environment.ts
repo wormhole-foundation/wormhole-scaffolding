@@ -11,6 +11,8 @@ import * as tokenBridge from "@certusone/wormhole-sdk/lib/cjs/solana/tokenBridge
 import {
   GUARDIAN_PRIVATE_KEY,
   LOCALHOST,
+  MINT,
+  MINT_PRIVATE_KEY,
   PAYER_PRIVATE_KEY,
   TOKEN_BRIDGE_ADDRESS,
   WORMHOLE_ADDRESS,
@@ -20,6 +22,13 @@ import {
   signSendAndConfirmTransaction,
 } from "@certusone/wormhole-sdk/lib/cjs/solana";
 import { LAMPORTS_PER_SOL } from "@solana/web3.js";
+import {
+  createMint,
+  getAccount,
+  getAssociatedTokenAddressSync,
+  getOrCreateAssociatedTokenAccount,
+  mintTo,
+} from "@solana/spl-token";
 
 describe(" 0: Wormhole", () => {
   const connection = new web3.Connection(LOCALHOST, "confirmed");
@@ -31,10 +40,68 @@ describe(" 0: Wormhole", () => {
       .then((tx) => connection.confirmTransaction(tx));
   });
 
+  describe("Environment", () => {
+    it("Variables", () => {
+      expect(process.env.TESTING_WORMHOLE_ADDRESS).is.not.undefined;
+      expect(process.env.TESTING_TOKEN_BRIDGE_ADDRESS).is.not.undefined;
+      expect(process.env.TESTING_HELLO_WORLD_ADDRESS).is.not.undefined;
+      expect(process.env.TESTING_HELLO_TOKEN_ADDRESS).is.not.undefined;
+    });
+  });
+
   describe("Verify Local Validator", () => {
     it("Balance", async () => {
       const balance = await connection.getBalance(wallet.key());
       expect(balance).to.equal(1000 * web3.LAMPORTS_PER_SOL);
+    });
+
+    it("Create SPL", async () => {
+      const decimals = 9;
+      const mint = await createMint(
+        connection,
+        wallet.signer(),
+        wallet.key(),
+        null, // freezeAuthority
+        decimals,
+        web3.Keypair.fromSecretKey(MINT_PRIVATE_KEY)
+      );
+      expect(mint.equals(MINT)).is.true;
+    });
+
+    it("Mint to Wallet's ATA", async () => {
+      {
+        const amount = await getOrCreateAssociatedTokenAccount(
+          connection,
+          wallet.signer(),
+          MINT,
+          wallet.key()
+        ).then((account) => {
+          return account.amount;
+        });
+        expect(amount).equals(0n);
+      }
+
+      const mintAmount = 69420000n * 1000000000n;
+      const destination = getAssociatedTokenAddressSync(MINT, wallet.key());
+
+      const mintTx = await mintTo(
+        connection,
+        wallet.signer(),
+        MINT,
+        destination,
+        wallet.signer(),
+        mintAmount
+      ).catch((reason) => {
+        // should not happen
+        console.log(reason);
+        return null;
+      });
+      expect(mintTx).is.not.null;
+
+      const amount = await getAccount(connection, destination).then(
+        (account) => account.amount
+      );
+      expect(amount).equals(mintAmount);
     });
   });
 

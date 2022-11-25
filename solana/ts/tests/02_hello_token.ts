@@ -3,6 +3,7 @@ import * as web3 from "@solana/web3.js";
 import {
   deriveAddress,
   getTokenBridgeDerivedAccounts,
+  getTransferNativeWithPayloadCpiAccounts,
   NodeWallet,
   postVaaSolana,
 } from "@certusone/wormhole-sdk/lib/cjs/solana";
@@ -14,6 +15,7 @@ import { parseVaa } from "@certusone/wormhole-sdk";
 import {
   createInitializeInstruction,
   createRegisterForeignContractInstruction,
+  createSendNativeTokensWithPayloadInstruction,
   getConfigData,
   getForeignContractData,
 } from "../sdk/02_hello_token";
@@ -21,11 +23,13 @@ import {
   GUARDIAN_PRIVATE_KEY,
   HELLO_TOKEN_ADDRESS,
   LOCALHOST,
+  MINT,
   PAYER_PRIVATE_KEY,
   TOKEN_BRIDGE_ADDRESS,
   WORMHOLE_ADDRESS,
 } from "./helpers/consts";
 import { errorExistsInLog } from "./helpers/error";
+import { getAccount, getAssociatedTokenAddressSync } from "@solana/spl-token";
 
 describe(" 2: Hello Token", () => {
   const connection = new web3.Connection(LOCALHOST, "confirmed");
@@ -147,6 +151,29 @@ describe(" 2: Hello Token", () => {
 
   describe("Register Foreign Emitter", () => {
     describe("Expect Failure", () => {
+      it("Cannot Register Chain ID == 0", async () => {
+        const registerForeignEmitterTx =
+          await createRegisterForeignContractInstruction(
+            connection,
+            HELLO_TOKEN_ADDRESS,
+            wallet.key(),
+            0, // chain
+            foreignContractAddress
+          )
+            .then((ix) =>
+              web3.sendAndConfirmTransaction(
+                connection,
+                new web3.Transaction().add(ix),
+                [wallet.signer()]
+              )
+            )
+            .catch((reason) => {
+              expect(errorExistsInLog(reason, "InvalidForeignContract"));
+              return null;
+            });
+        expect(registerForeignEmitterTx).is.null;
+      });
+
       it("Cannot Register Chain ID == 1", async () => {
         const registerForeignEmitterTx =
           await createRegisterForeignContractInstruction(
@@ -292,6 +319,201 @@ describe(" 2: Hello Token", () => {
         expect(
           Buffer.compare(contractAddress, foreignContractData.address)
         ).to.equal(0);
+      });
+    });
+  });
+
+  describe("Send Tokens With Payload", () => {
+    describe("Expect Failure", () => {
+      it("Cannot Send Amount Less Than Bridgeable", async () => {
+        const batchId = 69;
+        const recipientAddress = Buffer.alloc(32, "deadbeef", "hex");
+        const recipientChain = 2;
+        const sendTokensTx = await createSendNativeTokensWithPayloadInstruction(
+          connection,
+          HELLO_TOKEN_ADDRESS,
+          wallet.key(),
+          TOKEN_BRIDGE_ADDRESS,
+          WORMHOLE_ADDRESS,
+          MINT,
+          {
+            batchId,
+            amount: 9n,
+            recipientAddress,
+            recipientChain,
+          }
+        )
+          .then((ix) =>
+            web3.sendAndConfirmTransaction(
+              connection,
+              new web3.Transaction().add(ix),
+              [wallet.signer()]
+            )
+          )
+          .catch((reason) => {
+            expect(errorExistsInLog(reason, "ZeroBridgeAmount"));
+            return null;
+          });
+        expect(sendTokensTx).is.null;
+      });
+
+      it("Cannot Send To Chain ID == 0", async () => {
+        const batchId = 69;
+        const amount = 42069n;
+        const recipientAddress = Buffer.alloc(32, "deadbeef", "hex");
+        const sendTokensTx = await createSendNativeTokensWithPayloadInstruction(
+          connection,
+          HELLO_TOKEN_ADDRESS,
+          wallet.key(),
+          TOKEN_BRIDGE_ADDRESS,
+          WORMHOLE_ADDRESS,
+          MINT,
+          {
+            batchId,
+            amount,
+            recipientAddress,
+            recipientChain: 0,
+          }
+        )
+          .then((ix) =>
+            web3.sendAndConfirmTransaction(
+              connection,
+              new web3.Transaction().add(ix),
+              [wallet.signer()]
+            )
+          )
+          .catch((reason) => {
+            expect(errorExistsInLog(reason, "InvalidRecipient"));
+            return null;
+          });
+        expect(sendTokensTx).is.null;
+      });
+
+      it("Cannot Send To Chain ID == 1", async () => {
+        const batchId = 69;
+        const amount = 42069n;
+        const recipientAddress = Buffer.alloc(32, "deadbeef", "hex");
+        const sendTokensTx = await createSendNativeTokensWithPayloadInstruction(
+          connection,
+          HELLO_TOKEN_ADDRESS,
+          wallet.key(),
+          TOKEN_BRIDGE_ADDRESS,
+          WORMHOLE_ADDRESS,
+          MINT,
+          {
+            batchId,
+            amount,
+            recipientAddress,
+            recipientChain: 1,
+          }
+        )
+          .then((ix) =>
+            web3.sendAndConfirmTransaction(
+              connection,
+              new web3.Transaction().add(ix),
+              [wallet.signer()]
+            )
+          )
+          .catch((reason) => {
+            expect(errorExistsInLog(reason, "InvalidRecipient"));
+            return null;
+          });
+        expect(sendTokensTx).is.null;
+      });
+
+      it("Cannot Send To Zero Address", async () => {
+        const batchId = 69;
+        const amount = 42069n;
+        const recipientChain = 2;
+        const sendTokensTx = await createSendNativeTokensWithPayloadInstruction(
+          connection,
+          HELLO_TOKEN_ADDRESS,
+          wallet.key(),
+          TOKEN_BRIDGE_ADDRESS,
+          WORMHOLE_ADDRESS,
+          MINT,
+          {
+            batchId,
+            amount,
+            recipientAddress: Buffer.alloc(32),
+            recipientChain,
+          }
+        )
+          .then((ix) =>
+            web3.sendAndConfirmTransaction(
+              connection,
+              new web3.Transaction().add(ix),
+              [wallet.signer()]
+            )
+          )
+          .catch((reason) => {
+            expect(errorExistsInLog(reason, "InvalidRecipient"));
+            return null;
+          });
+        expect(sendTokensTx).is.null;
+      });
+    });
+
+    describe("Finally Send Tokens With Payload", () => {
+      it("Instruction: send_native_tokens_with_payload", async () => {
+        const tokenAccount = getAssociatedTokenAddressSync(MINT, wallet.key());
+
+        const walletBalanceBefore = await getAccount(
+          connection,
+          tokenAccount
+        ).then((account) => account.amount);
+
+        const batchId = 69;
+        const amount = 42069n;
+        const recipientAddress = Buffer.alloc(32, "deadbeef", "hex");
+        const recipientChain = 2;
+        const sendTokensTx = await createSendNativeTokensWithPayloadInstruction(
+          connection,
+          HELLO_TOKEN_ADDRESS,
+          wallet.key(),
+          TOKEN_BRIDGE_ADDRESS,
+          WORMHOLE_ADDRESS,
+          MINT,
+          {
+            batchId,
+            amount,
+            recipientAddress,
+            recipientChain,
+          }
+        )
+          .then((ix) =>
+            web3.sendAndConfirmTransaction(
+              connection,
+              new web3.Transaction().add(ix),
+              [wallet.signer()]
+            )
+          )
+          .catch((reason) => {
+            // should not happen
+            console.log(reason);
+            return null;
+          });
+        expect(sendTokensTx).is.not.null;
+
+        const walletBalanceAfter = await getAccount(
+          connection,
+          tokenAccount
+        ).then((account) => account.amount);
+
+        // check balance change
+        expect(walletBalanceBefore - walletBalanceAfter).to.equal(
+          (amount / 10n) * 10n
+        );
+
+        // tmp_token_account should not exist
+        const tmpTokenAccount = await getAccount(
+          connection,
+          deriveAddress(
+            [Buffer.from("tmp"), MINT.toBuffer(), wallet.key().toBuffer()],
+            HELLO_TOKEN_ADDRESS
+          )
+        ).catch((reason) => null);
+        expect(tmpTokenAccount).is.null;
       });
     });
   });

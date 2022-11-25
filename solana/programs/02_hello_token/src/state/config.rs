@@ -51,6 +51,8 @@ impl TokenBridgeAddresses {
 pub struct Config {
     /// Program's owner.
     pub owner: Pubkey,
+    /// PDA bump.
+    pub bump: u8,
     /// Token Bridge program's relevant addresses.
     pub token_bridge: TokenBridgeAddresses,
     /// Wormhole program's relevant addresses.
@@ -59,14 +61,19 @@ pub struct Config {
     /// AKA consistency level. u8 representation of Solana's
     /// [Finality](wormhole_anchor_sdk::wormhole::Finality).
     pub finality: u8,
+
+    /// Relayer Fee
+    pub relayer_fee: u32,
 }
 
 impl Config {
     pub const MAXIMUM_SIZE: usize = 8 // discriminator
         + 32 // owner
+        + 1 // bump
         + TokenBridgeAddresses::LEN
         + WormholeAddresses::LEN
         + 1 // finality
+        + 4 // relayer_fee
         
     ;
     /// AKA `b"config"`.
@@ -81,7 +88,7 @@ pub mod test {
     fn test_config() -> Result<()> {
         assert_eq!(TokenBridgeAddresses::LEN, 258, "TokenBridgeAddresses::LEN wrong value");
         assert_eq!(WormholeAddresses::LEN, 64, "WormholeAddress::LEN wrong value");
-        assert_eq!(Config::MAXIMUM_SIZE, 363, "Config::MAXIMUM_SIZE wrong value");
+        assert_eq!(Config::MAXIMUM_SIZE, 368, "Config::MAXIMUM_SIZE wrong value");
 
         Ok(())
     }

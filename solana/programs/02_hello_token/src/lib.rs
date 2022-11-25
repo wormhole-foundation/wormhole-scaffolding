@@ -16,7 +16,7 @@ declare_id!("GDch61JmJpTo9npwenypnk3KdofmozK1hNaTdbYRkNPb");
 #[program]
 pub mod hello_token {
     use super::*;
-    use wormhole_anchor_sdk::wormhole;
+    use wormhole_anchor_sdk::{token_bridge, wormhole};
 
     /// This instruction can be used to generate your program's config.
     /// And for convenience, we will store Wormhole-related PDAs in the
@@ -27,6 +27,10 @@ pub mod hello_token {
 
         // Set the owner of the config (effectively the owner of the program)
         config.owner = ctx.accounts.owner.key();
+        config.bump = *ctx
+            .bumps
+            .get("config")
+            .ok_or(HelloTokenError::BumpNotFound)?;
 
         // Set Token Bridge related addresses
         let token_bridge = &mut config.token_bridge;
@@ -86,6 +90,138 @@ pub mod hello_token {
         let emitter = &mut ctx.accounts.foreign_contract;
         emitter.chain = chain;
         emitter.address = address;
+
+        // Done.
+        Ok(())
+    }
+
+    pub fn send_native_tokens_with_payload(
+        ctx: Context<SendNativeTokensWithPayload>,
+        batch_id: u32,
+        amount: u64,
+        recipient_address: [u8; 32],
+        recipient_chain: u16,
+    ) -> Result<()> {
+        // Token Bridge program truncates amounts to 8 decimals, so there will
+        // be a residual amount if decimals of SPL is >8. We need to take into
+        // account how much will actually be bridged.
+        let truncated_amount = {
+            let truncate_by = 10u64.pow(std::cmp::max(8, ctx.accounts.mint.decimals as u32) - 8);
+            (amount / truncate_by) * truncate_by
+        };
+        require!(truncated_amount > 0, HelloTokenError::ZeroBridgeAmount);
+        require!(
+            recipient_chain > 0
+                && recipient_chain != wormhole::CHAIN_ID_SOLANA
+                && !recipient_address.iter().all(|&x| x == 0),
+            HelloTokenError::InvalidRecipient,
+        );
+
+        let config_seeds = &[Config::SEED_PREFIX.as_ref(), &[ctx.accounts.config.bump]];
+
+        // First transfer tokens from payer to tmp_token_account.
+        anchor_spl::token::transfer(
+            CpiContext::new(
+                ctx.accounts.token_program.to_account_info(),
+                anchor_spl::token::Transfer {
+                    from: ctx.accounts.from_token_account.to_account_info(),
+                    to: ctx.accounts.tmp_token_account.to_account_info(),
+                    authority: ctx.accounts.payer.to_account_info(),
+                },
+            ),
+            truncated_amount,
+        )?;
+
+        // Delegate spending to Token Bridge program's authority signer.
+        anchor_spl::token::approve(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                anchor_spl::token::Approve {
+                    to: ctx.accounts.tmp_token_account.to_account_info(),
+                    delegate: ctx.accounts.token_bridge_authority_signer.to_account_info(),
+                    authority: ctx.accounts.config.to_account_info(),
+                },
+                &[&config_seeds[..]],
+            ),
+            truncated_amount,
+        )?;
+
+        // Bridge native token.
+        token_bridge::transfer_native_with_payload(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_bridge_program.to_account_info(),
+                token_bridge::TransferNativeWithPayload {
+                    payer: ctx.accounts.payer.to_account_info(),
+                    config: ctx.accounts.token_bridge_config.to_account_info(),
+                    from: ctx.accounts.tmp_token_account.to_account_info(),
+                    mint: ctx.accounts.mint.to_account_info(),
+                    custody: ctx.accounts.token_bridge_custody.to_account_info(),
+                    authority_signer: ctx.accounts.token_bridge_authority_signer.to_account_info(),
+                    custody_signer: ctx.accounts.token_bridge_custody_signer.to_account_info(),
+                    wormhole_bridge: ctx.accounts.wormhole_bridge.to_account_info(),
+                    wormhole_message: ctx.accounts.wormhole_message.to_account_info(),
+                    wormhole_emitter: ctx.accounts.token_bridge_emitter.to_account_info(),
+                    wormhole_sequence: ctx.accounts.token_bridge_sequence.to_account_info(),
+                    wormhole_fee_collector: ctx.accounts.wormhole_fee_collector.to_account_info(),
+                    clock: ctx.accounts.clock.to_account_info(),
+                    sender: ctx.accounts.token_bridge_sender.to_account_info(),
+                    rent: ctx.accounts.rent.to_account_info(),
+                    system_program: ctx.accounts.system_program.to_account_info(),
+                    token_program: ctx.accounts.token_program.to_account_info(),
+                    wormhole_program: ctx.accounts.wormhole_program.to_account_info(),
+                },
+                &[
+                    &config_seeds[..],
+                    &[
+                        TokenBridgeSender::SEED_PREFIX.as_ref(),
+                        &[ctx.accounts.config.token_bridge.sender_bump],
+                    ],
+                    &[
+                        SEED_PREFIX_BRIDGED,
+                        &ctx.accounts
+                            .token_bridge_sequence
+                            .next_value()
+                            .to_le_bytes()[..],
+                        &[*ctx
+                            .bumps
+                            .get("wormhole_message")
+                            .ok_or(HelloTokenError::BumpNotFound)?],
+                    ],
+                ],
+            ),
+            batch_id,
+            truncated_amount,
+            recipient_address,
+            recipient_chain,
+            HelloTokenMessage::Hello {
+                recipient: recipient_address,
+                relayer_fee: ctx.accounts.config.relayer_fee,
+            }
+            .try_to_vec()?,
+            &ctx.program_id.key(),
+        )?;
+
+        // Keep track of how many native transfers we've made just cuz.
+        ctx.accounts.token_bridge_sender.num_transfer_native += 1;
+
+        // Finish instruction by closing tmp_token_account.
+        anchor_spl::token::close_account(CpiContext::new_with_signer(
+            ctx.accounts.token_program.to_account_info(),
+            anchor_spl::token::CloseAccount {
+                account: ctx.accounts.tmp_token_account.to_account_info(),
+                destination: ctx.accounts.payer.to_account_info(),
+                authority: ctx.accounts.config.to_account_info(),
+            },
+            &[&config_seeds[..]],
+        ))
+    }
+
+    pub fn send_wrapped_tokens_with_payload(
+        _ctx: Context<SendWrappedTokensWithPayload>,
+        _batch_id: u32,
+        _message: Vec<u8>,
+    ) -> Result<()> {
+        // TODO
 
         // Done.
         Ok(())

@@ -32,3 +32,14 @@ export const HELLO_WORLD_ADDRESS = new PublicKey(
 export const HELLO_TOKEN_ADDRESS = new PublicKey(
   process.env.TESTING_HELLO_TOKEN_ADDRESS!
 );
+
+// mints
+export const MINT_PRIVATE_KEY = Uint8Array.from([
+  98, 139, 243, 120, 236, 152, 36, 219, 202, 42, 72, 178, 107, 155, 181, 134,
+  120, 36, 55, 108, 253, 218, 96, 139, 80, 99, 85, 54, 116, 145, 94, 40, 227,
+  10, 159, 48, 118, 75, 67, 84, 239, 36, 177, 138, 6, 214, 73, 149, 26, 100,
+  255, 28, 218, 167, 251, 229, 93, 236, 25, 225, 152, 104, 223, 54,
+]);
+export const MINT = new PublicKey(
+  "GHGwbrTCsynp7yJ9keowy2Roe5DzxFbayAaAwLyAvRKj"
+);

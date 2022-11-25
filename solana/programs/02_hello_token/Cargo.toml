@@ -17,4 +17,5 @@ default = []
 
 [dependencies]
 anchor-lang = { version="0.25.0", features = ["init-if-needed"]}
+anchor-spl = { version = "0.25.0" }
 wormhole-anchor-sdk = { path = "../../modules/wormhole-anchor-sdk", features = ["mainnet", "token-bridge"]}
