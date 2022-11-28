@@ -6,7 +6,7 @@ import {
 } from "@solana/web3.js";
 import { getTokenBridgeDerivedAccounts } from "@certusone/wormhole-sdk/lib/cjs/solana";
 import { createHelloTokenProgramInterface } from "../program";
-import { deriveSenderConfigKey } from "../accounts";
+import { deriveSenderConfigKey, deriveRedeemerConfigKey } from "../accounts";
 
 export async function createInitializeInstruction(
   connection: Connection,
@@ -26,6 +26,7 @@ export async function createInitializeInstruction(
     .accounts({
       owner: new PublicKey(payer),
       senderConfig: deriveSenderConfigKey(programId),
+      redeemerConfig: deriveRedeemerConfigKey(programId),
       tokenBridgeProgram: new PublicKey(tokenBridgeProgramId),
       wormholeProgram: new PublicKey(wormholeProgramId),
       ...tokenBridgeAccounts,

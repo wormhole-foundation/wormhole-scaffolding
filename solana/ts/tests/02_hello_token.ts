@@ -20,6 +20,7 @@ import {
   getForeignContractData,
   deriveTmpTokenAccountKey,
   deriveTokenTransferMessageKey,
+  getRedeemerConfigData,
 } from "../sdk/02_hello_token";
 import {
   GUARDIAN_PRIVATE_KEY,
@@ -48,6 +49,7 @@ describe(" 2: Hello Token", () => {
   describe("Initialize Program", () => {
     describe("Finally Set Up Program", () => {
       it("Instruction: initialize", async () => {
+        const relayerFee = 0;
         const initializeTx = await createInitializeInstruction(
           connection,
           HELLO_TOKEN_ADDRESS,
@@ -75,6 +77,7 @@ describe(" 2: Hello Token", () => {
           HELLO_TOKEN_ADDRESS
         );
         expect(senderConfigData.owner.equals(wallet.key())).is.true;
+        expect(senderConfigData.relayerFee).equals(relayerFee);
         expect(senderConfigData.finality).to.equal(0);
 
         const tokenBridgeAccounts = getTokenBridgeDerivedAccounts(
@@ -118,7 +121,26 @@ describe(" 2: Hello Token", () => {
           )
         ).is.true;
 
-        // TODO
+        const redeemerConfigData = await getRedeemerConfigData(
+          connection,
+          HELLO_TOKEN_ADDRESS
+        );
+        expect(redeemerConfigData.owner.equals(wallet.key())).is.true;
+        expect(
+          redeemerConfigData.tokenBridge.config.equals(
+            tokenBridgeAccounts.tokenBridgeConfig
+          )
+        ).is.true;
+        expect(
+          redeemerConfigData.tokenBridge.custodySigner.equals(
+            tokenBridgeAccounts.tokenBridgeCustodySigner
+          )
+        ).is.true;
+        expect(
+          redeemerConfigData.tokenBridge.mintAuthority.equals(
+            tokenBridgeAccounts.tokenBridgeMintAuthority
+          )
+        ).is.true;
       });
 
       it("Cannot Call Instruction Again: initialize", async () => {

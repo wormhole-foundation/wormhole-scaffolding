@@ -64,8 +64,8 @@ pub mod test {
 
     #[test]
     fn test_config() -> Result<()> {
-        assert_eq!(OutboundTokenBridgeAddresses::LEN, 224, "TokenBridgeAddresses::LEN wrong value");
-        assert_eq!(SenderConfig::MAXIMUM_SIZE, 262, "Config::MAXIMUM_SIZE wrong value");
+        assert_eq!(OutboundTokenBridgeAddresses::LEN, 224, "OutboundTokenBridgeAddresses::LEN wrong value");
+        assert_eq!(SenderConfig::MAXIMUM_SIZE, 270, "SenderConfig::MAXIMUM_SIZE wrong value");
 
         Ok(())
     }

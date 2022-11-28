@@ -22,27 +22,49 @@ pub mod hello_token {
     /// And for convenience, we will store Wormhole-related PDAs in the
     /// config so we can verify these accounts with a simple == constraint.
     pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
-        // Initialize program config
+        // Initialize program's sender config
         let sender_config = &mut ctx.accounts.sender_config;
 
-        // Set the owner of the config (effectively the owner of the program)
+        // Set the owner of the sender config (effectively the owner of the
+        // program).
         sender_config.owner = ctx.accounts.owner.key();
         sender_config.bump = *ctx
             .bumps
             .get("sender_config")
             .ok_or(HelloTokenError::BumpNotFound)?;
 
-        // Set Token Bridge related addresses
-        let token_bridge = &mut sender_config.token_bridge;
-        token_bridge.config = ctx.accounts.token_bridge_config.key();
-        token_bridge.authority_signer = ctx.accounts.token_bridge_authority_signer.key();
-        token_bridge.custody_signer = ctx.accounts.token_bridge_custody_signer.key();
-        token_bridge.emitter = ctx.accounts.token_bridge_emitter.key();
-        token_bridge.sequence = ctx.accounts.token_bridge_sequence.key();
-        token_bridge.wormhole_bridge = ctx.accounts.wormhole_bridge.key();
-        token_bridge.wormhole_fee_collector = ctx.accounts.wormhole_fee_collector.key();
+        // Set Token Bridge related addresses.
+        {
+            let token_bridge = &mut sender_config.token_bridge;
+            token_bridge.config = ctx.accounts.token_bridge_config.key();
+            token_bridge.authority_signer = ctx.accounts.token_bridge_authority_signer.key();
+            token_bridge.custody_signer = ctx.accounts.token_bridge_custody_signer.key();
+            token_bridge.emitter = ctx.accounts.token_bridge_emitter.key();
+            token_bridge.sequence = ctx.accounts.token_bridge_sequence.key();
+            token_bridge.wormhole_bridge = ctx.accounts.wormhole_bridge.key();
+            token_bridge.wormhole_fee_collector = ctx.accounts.wormhole_fee_collector.key();
+        }
 
-        // Done
+        // Initialize program's redeemer config
+        let redeemer_config = &mut ctx.accounts.redeemer_config;
+
+        // Set the owner of the redeemer config (effectively the owner of the
+        // program).
+        redeemer_config.owner = ctx.accounts.owner.key();
+        redeemer_config.bump = *ctx
+            .bumps
+            .get("redeemer_config")
+            .ok_or(HelloTokenError::BumpNotFound)?;
+
+        // Set Token Bridge related addresses.
+        {
+            let token_bridge = &mut redeemer_config.token_bridge;
+            token_bridge.config = ctx.accounts.token_bridge_config.key();
+            token_bridge.custody_signer = ctx.accounts.token_bridge_custody_signer.key();
+            token_bridge.mint_authority = ctx.accounts.token_bridge_mint_authority.key();
+        }
+
+        // Done.
         Ok(())
     }
 

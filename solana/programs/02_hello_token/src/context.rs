@@ -9,7 +9,7 @@ use anchor_spl::{
 use wormhole_anchor_sdk::{token_bridge, wormhole};
 
 use super::{
-    state::{ForeignContract, SenderConfig},
+    state::{ForeignContract, RedeemerConfig, SenderConfig},
     HelloTokenError,
 };
 
@@ -34,6 +34,18 @@ pub struct Initialize<'info> {
     /// Also saves the payer of the [`initialize`](crate::initialize) instruction
     /// as the program's owner.
     pub sender_config: Account<'info, SenderConfig>,
+
+    #[account(
+        init,
+        payer = owner,
+        seeds = [RedeemerConfig::SEED_PREFIX],
+        bump,
+        space = RedeemerConfig::MAXIMUM_SIZE,
+    )]
+    /// Sender Config account, which saves program data useful for other instructions.
+    /// Also saves the payer of the [`initialize`](crate::initialize) instruction
+    /// as the program's owner.
+    pub redeemer_config: Account<'info, RedeemerConfig>,
 
     /// Wormhole program.
     pub wormhole_program: Program<'info, wormhole::program::Wormhole>,
@@ -165,6 +177,7 @@ pub struct RegisterForeignContract<'info> {
     recipient_address: [u8; 32],
     recipient_chain: u16,
 )]
+
 pub struct SendNativeTokensWithPayload<'info> {
     /// Payer will pay Wormhole fee to transfer tokens and create temporary
     /// token account.

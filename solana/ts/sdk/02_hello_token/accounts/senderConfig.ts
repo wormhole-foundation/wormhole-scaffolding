@@ -21,7 +21,7 @@ export interface OutboundTokenBridgeAddresses {
   wormholeFeeCollector: PublicKey;
 }
 
-export interface ConfigData {
+export interface SenderConfigData {
   owner: PublicKey;
   bump: number;
   tokenBridge: OutboundTokenBridgeAddresses;
@@ -33,7 +33,7 @@ export async function getSenderConfigData(
   connection: Connection,
   programId: PublicKeyInitData,
   commitment?: Commitment
-): Promise<ConfigData> {
+): Promise<SenderConfigData> {
   return createHelloTokenProgramInterface(
     connection,
     programId
