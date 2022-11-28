@@ -11,7 +11,10 @@ import {
   getTransferNativeWithPayloadCpiAccounts,
 } from "@certusone/wormhole-sdk/lib/cjs/solana";
 import { createHelloTokenProgramInterface } from "../program";
-import { deriveConfigKey, deriveTokenTransferMessageKey } from "../accounts";
+import {
+  deriveSenderConfigKey,
+  deriveTokenTransferMessageKey,
+} from "../accounts";
 import { getProgramSequenceTracker } from "@certusone/wormhole-sdk/lib/cjs/solana/wormhole";
 import { getAssociatedTokenAddressSync } from "@solana/spl-token";
 import { SendTokensParams } from "./types";
@@ -67,7 +70,7 @@ export async function createSendNativeTokensWithPayloadInstruction(
           params.recipientChain
         )
         .accounts({
-          config: deriveConfigKey(programId),
+          config: deriveSenderConfigKey(programId),
           tmpTokenAccount,
           tokenBridgeProgram: new PublicKey(tokenBridgeProgramId),
           ...tokenBridgeAccounts,

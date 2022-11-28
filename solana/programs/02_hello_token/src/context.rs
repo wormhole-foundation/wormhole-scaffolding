@@ -9,7 +9,7 @@ use anchor_spl::{
 use wormhole_anchor_sdk::{token_bridge, wormhole};
 
 use super::{
-    state::{Config, ForeignContract, TokenBridgeRedeemer, TokenBridgeSender},
+    state::{ForeignContract, SenderConfig},
     HelloTokenError,
 };
 
@@ -26,15 +26,14 @@ pub struct Initialize<'info> {
     #[account(
         init,
         payer = owner,
-        seeds = [Config::SEED_PREFIX],
+        seeds = [SenderConfig::SEED_PREFIX],
         bump,
-        space = Config::MAXIMUM_SIZE,
-
+        space = SenderConfig::MAXIMUM_SIZE,
     )]
-    /// Config account, which saves program data useful for other instructions.
+    /// Sender Config account, which saves program data useful for other instructions.
     /// Also saves the payer of the [`initialize`](crate::initialize) instruction
     /// as the program's owner.
-    pub config: Account<'info, Config>,
+    pub sender_config: Account<'info, SenderConfig>,
 
     /// Wormhole program.
     pub wormhole_program: Program<'info, wormhole::program::Wormhole>,
@@ -81,26 +80,6 @@ pub struct Initialize<'info> {
     /// data; it is purely just a PDA, used as the mint authority for Token
     /// Bridge wrapped assets.
     pub token_bridge_mint_authority: UncheckedAccount<'info>,
-
-    #[account(
-        init,
-        payer = owner,
-        seeds = [TokenBridgeSender::SEED_PREFIX],
-        bump,
-        space = TokenBridgeSender::MAXIMUM_SIZE,
-    )]
-    /// Token Bridge sender.
-    pub token_bridge_sender: Account<'info, TokenBridgeSender>,
-
-    #[account(
-        init,
-        payer = owner,
-        seeds = [TokenBridgeRedeemer::SEED_PREFIX],
-        bump,
-        space = TokenBridgeRedeemer::MAXIMUM_SIZE,
-    )]
-    /// Token Bridge redeemer.
-    pub token_bridge_redeemer: Account<'info, TokenBridgeRedeemer>,
 
     #[account(
         seeds = [wormhole::BridgeData::SEED_PREFIX],
@@ -153,12 +132,12 @@ pub struct RegisterForeignContract<'info> {
 
     #[account(
         has_one = owner @ HelloTokenError::OwnerOnly,
-        seeds = [Config::SEED_PREFIX],
+        seeds = [SenderConfig::SEED_PREFIX],
         bump
     )]
-    /// Config account. This program requires that the `owner` specified in the
-    /// context equals the pubkey specified in this account. Read-only.
-    pub config: Account<'info, Config>,
+    /// Sender Config account. This program requires that the `owner` specified
+    /// in the context equals the pubkey specified in this account. Read-only.
+    pub config: Account<'info, SenderConfig>,
 
     #[account(
         init_if_needed,
@@ -187,12 +166,12 @@ pub struct SendNativeTokensWithPayload<'info> {
     pub payer: Signer<'info>,
 
     #[account(
-        seeds = [Config::SEED_PREFIX],
+        mut,
+        seeds = [SenderConfig::SEED_PREFIX],
         bump
     )]
-    /// Config account. This program requires that the `owner` specified in the
-    /// context equals the pubkey specified in this account. Read-only.
-    pub config: Box<Account<'info, Config>>,
+    /// Sender Config account. Acts as the Token Bridge sender PDA. Mutable.
+    pub config: Box<Account<'info, SenderConfig>>,
 
     #[account(mut)]
     /// Mint info. This is the SPL token that will be bridged over to the
@@ -259,7 +238,7 @@ pub struct SendNativeTokensWithPayload<'info> {
 
     #[account(
         mut,
-        address = config.wormhole.bridge @ HelloTokenError::InvalidWormholeBridge,
+        address = config.token_bridge.wormhole_bridge @ HelloTokenError::InvalidWormholeBridge,
     )]
     /// Wormhole bridge data. Mutable.
     pub wormhole_bridge: Box<Account<'info, wormhole::BridgeData>>,
@@ -292,17 +271,10 @@ pub struct SendNativeTokensWithPayload<'info> {
 
     #[account(
         mut,
-        address = config.wormhole.fee_collector @ HelloTokenError::InvalidWormholeFeeCollector
+        address = config.token_bridge.wormhole_fee_collector @ HelloTokenError::InvalidWormholeFeeCollector
     )]
     /// Wormhole fee collector. Mutable.
     pub wormhole_fee_collector: Account<'info, wormhole::FeeCollector>,
-
-    #[account(
-        mut,
-        address = config.token_bridge.sender @ HelloTokenError::InvalidTokenBridgeSender
-    )]
-    /// Token Bridge sender.
-    pub token_bridge_sender: Box<Account<'info, TokenBridgeSender>>,
 
     /// System program.
     pub system_program: Program<'info, System>,

@@ -16,7 +16,7 @@ import {
   createInitializeInstruction,
   createRegisterForeignContractInstruction,
   createSendNativeTokensWithPayloadInstruction,
-  getConfigData,
+  getSenderConfigData,
   getForeignContractData,
 } from "../sdk/02_hello_token";
 import {
@@ -64,9 +64,12 @@ describe(" 2: Hello Token", () => {
         expect(initializeTx).is.not.null;
 
         // verify account data
-        const configData = await getConfigData(connection, HELLO_TOKEN_ADDRESS);
-        expect(configData.owner.equals(wallet.key())).is.true;
-        expect(configData.finality).to.equal(0);
+        const senderConfigData = await getSenderConfigData(
+          connection,
+          HELLO_TOKEN_ADDRESS
+        );
+        expect(senderConfigData.owner.equals(wallet.key())).is.true;
+        expect(senderConfigData.finality).to.equal(0);
 
         const tokenBridgeAccounts = getTokenBridgeDerivedAccounts(
           HELLO_TOKEN_ADDRESS,
@@ -74,50 +77,37 @@ describe(" 2: Hello Token", () => {
           WORMHOLE_ADDRESS
         );
         expect(
-          configData.tokenBridge.config.equals(
+          senderConfigData.tokenBridge.config.equals(
             tokenBridgeAccounts.tokenBridgeConfig
           )
         ).is.true;
         expect(
-          configData.tokenBridge.authoritySigner.equals(
+          senderConfigData.tokenBridge.authoritySigner.equals(
             tokenBridgeAccounts.tokenBridgeAuthoritySigner
           )
         ).is.true;
         expect(
-          configData.tokenBridge.custodySigner.equals(
+          senderConfigData.tokenBridge.custodySigner.equals(
             tokenBridgeAccounts.tokenBridgeCustodySigner
           )
         ).is.true;
         expect(
-          configData.tokenBridge.mintAuthority.equals(
-            tokenBridgeAccounts.tokenBridgeMintAuthority
+          senderConfigData.tokenBridge.wormholeBridge.equals(
+            tokenBridgeAccounts.wormholeBridge
           )
-        ).is.true;
-        expect(
-          configData.tokenBridge.sender.equals(
-            tokenBridgeAccounts.tokenBridgeSender
-          )
-        ).is.true;
-        expect(
-          configData.tokenBridge.redeemer.equals(
-            tokenBridgeAccounts.tokenBridgeRedeemer
-          )
-        ).is.true;
-        expect(
-          configData.wormhole.bridge.equals(tokenBridgeAccounts.wormholeBridge)
         ).to.be.true;
         expect(
-          configData.tokenBridge.emitter.equals(
+          senderConfigData.tokenBridge.emitter.equals(
             tokenBridgeAccounts.tokenBridgeEmitter
           )
         ).is.true;
         expect(
-          configData.wormhole.feeCollector.equals(
+          senderConfigData.tokenBridge.wormholeFeeCollector.equals(
             tokenBridgeAccounts.wormholeFeeCollector
           )
         ).is.true;
         expect(
-          configData.tokenBridge.sequence.equals(
+          senderConfigData.tokenBridge.sequence.equals(
             tokenBridgeAccounts.tokenBridgeSequence
           )
         ).is.true;

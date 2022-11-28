@@ -5,7 +5,7 @@ import {
   TransactionInstruction,
 } from "@solana/web3.js";
 import { createHelloTokenProgramInterface } from "../program";
-import { deriveConfigKey, deriveForeignContractKey } from "../accounts";
+import { deriveSenderConfigKey, deriveForeignContractKey } from "../accounts";
 
 export async function createRegisterForeignContractInstruction(
   connection: Connection,
@@ -19,7 +19,7 @@ export async function createRegisterForeignContractInstruction(
     .registerForeignContract(chain, [...contractAddress])
     .accounts({
       owner: new PublicKey(payer),
-      config: deriveConfigKey(program.programId),
+      config: deriveSenderConfigKey(program.programId),
       foreignContract: deriveForeignContractKey(program.programId, chain),
     })
     .instruction();
