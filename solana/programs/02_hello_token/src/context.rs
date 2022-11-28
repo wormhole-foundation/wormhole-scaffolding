@@ -159,6 +159,12 @@ pub struct RegisterForeignContract<'info> {
 }
 
 #[derive(Accounts)]
+#[instruction(
+    batch_id: u32,
+    amount: u64,
+    recipient_address: [u8; 32],
+    recipient_chain: u16,
+)]
 pub struct SendNativeTokensWithPayload<'info> {
     /// Payer will pay Wormhole fee to transfer tokens and create temporary
     /// token account.
@@ -172,6 +178,16 @@ pub struct SendNativeTokensWithPayload<'info> {
     )]
     /// Sender Config account. Acts as the Token Bridge sender PDA. Mutable.
     pub config: Box<Account<'info, SenderConfig>>,
+
+    #[account(
+        seeds = [
+            ForeignContract::SEED_PREFIX,
+            &recipient_chain.to_le_bytes()[..]
+        ],
+        bump,
+    )]
+    /// Foreign Contract account. Send tokens to this contract.
+    pub foreign_contract: Account<'info, ForeignContract>,
 
     #[account(mut)]
     /// Mint info. This is the SPL token that will be bridged over to the

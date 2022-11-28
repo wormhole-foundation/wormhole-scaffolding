@@ -12,6 +12,7 @@ import {
 } from "@certusone/wormhole-sdk/lib/cjs/solana";
 import { createHelloTokenProgramInterface } from "../program";
 import {
+  deriveForeignContractKey,
   deriveSenderConfigKey,
   deriveTokenTransferMessageKey,
 } from "../accounts";
@@ -71,6 +72,10 @@ export async function createSendNativeTokensWithPayloadInstruction(
         )
         .accounts({
           config: deriveSenderConfigKey(programId),
+          foreignContract: deriveForeignContractKey(
+            programId,
+            params.recipientChain
+          ),
           tmpTokenAccount,
           tokenBridgeProgram: new PublicKey(tokenBridgeProgramId),
           ...tokenBridgeAccounts,

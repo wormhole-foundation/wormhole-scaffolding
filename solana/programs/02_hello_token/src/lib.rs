@@ -173,7 +173,7 @@ pub mod hello_token {
             ),
             batch_id,
             truncated_amount,
-            recipient_address,
+            ctx.accounts.foreign_contract.address,
             recipient_chain,
             HelloTokenMessage::Hello {
                 recipient: recipient_address,
