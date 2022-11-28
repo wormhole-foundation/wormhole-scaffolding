@@ -93,6 +93,14 @@ pub mod hello_token {
             (amount / truncate_by) * truncate_by
         };
         require!(truncated_amount > 0, HelloTokenError::ZeroBridgeAmount);
+        if truncated_amount != amount {
+            msg!(
+                "SendNativeTokensWithPayload :: truncating amount {} to {}",
+                amount,
+                truncated_amount
+            );
+        }
+
         require!(
             recipient_chain > 0
                 && recipient_chain != wormhole::CHAIN_ID_SOLANA
@@ -100,6 +108,11 @@ pub mod hello_token {
             HelloTokenError::InvalidRecipient,
         );
 
+        // These seeds are used to:
+        // 1.  Sign the Sender Config's token account to delegate approval
+        //     of truncated_amount.
+        // 2.  Sign Token Bridge program's transfer_native instruction.
+        // 3.  Close tmp_token_account.
         let config_seeds = &[
             SenderConfig::SEED_PREFIX.as_ref(),
             &[ctx.accounts.config.bump],
@@ -132,7 +145,16 @@ pub mod hello_token {
             truncated_amount,
         )?;
 
-        // Bridge native token.
+        // Serialize HelloTokenMessage as encoded payload for Token Bridge
+        // transfer.
+        let payload = HelloTokenMessage::Hello {
+            recipient: recipient_address,
+            relayer_fee: ctx.accounts.config.relayer_fee,
+            token_account: ctx.accounts.tmp_token_account.key(),
+        }
+        .try_to_vec()?;
+
+        // Bridge native token with encoded payload.
         token_bridge::transfer_native_with_payload(
             CpiContext::new_with_signer(
                 ctx.accounts.token_bridge_program.to_account_info(),
@@ -175,11 +197,7 @@ pub mod hello_token {
             truncated_amount,
             ctx.accounts.foreign_contract.address,
             recipient_chain,
-            HelloTokenMessage::Hello {
-                recipient: recipient_address,
-                relayer_fee: ctx.accounts.config.relayer_fee,
-            }
-            .try_to_vec()?,
+            payload,
             &ctx.program_id.key(),
         )?;
 

@@ -11,7 +11,7 @@ import {
   MockEmitter,
   MockGuardians,
 } from "@certusone/wormhole-sdk/lib/cjs/mock";
-import { parseVaa } from "@certusone/wormhole-sdk";
+import { parseTokenTransferPayload, parseVaa } from "@certusone/wormhole-sdk";
 import {
   createInitializeInstruction,
   createRegisterForeignContractInstruction,
@@ -19,6 +19,7 @@ import {
   getSenderConfigData,
   getForeignContractData,
   deriveTmpTokenAccountKey,
+  deriveTokenTransferMessageKey,
 } from "../sdk/02_hello_token";
 import {
   GUARDIAN_PRIVATE_KEY,
@@ -31,6 +32,10 @@ import {
 } from "./helpers/consts";
 import { errorExistsInLog } from "./helpers/error";
 import { getAccount, getAssociatedTokenAddressSync } from "@solana/spl-token";
+import {
+  getPostedMessage,
+  getProgramSequenceTracker,
+} from "@certusone/wormhole-sdk/lib/cjs/solana/wormhole";
 
 describe(" 2: Hello Token", () => {
   const connection = new web3.Connection(LOCALHOST, "confirmed");
@@ -316,9 +321,42 @@ describe(" 2: Hello Token", () => {
 
   describe("Send Tokens With Payload", () => {
     describe("Expect Failure", () => {
+      it("Cannot Send To Unregistered Foreign Contract", async () => {
+        const batchId = 69;
+        const amount = 42069n;
+        const recipientAddress = Buffer.alloc(32, "1337beef", "hex");
+        const recipientChain = 6;
+        const sendTokensTx = await createSendNativeTokensWithPayloadInstruction(
+          connection,
+          HELLO_TOKEN_ADDRESS,
+          wallet.key(),
+          TOKEN_BRIDGE_ADDRESS,
+          WORMHOLE_ADDRESS,
+          MINT,
+          {
+            batchId,
+            amount,
+            recipientAddress,
+            recipientChain,
+          }
+        )
+          .then((ix) =>
+            web3.sendAndConfirmTransaction(
+              connection,
+              new web3.Transaction().add(ix),
+              [wallet.signer()]
+            )
+          )
+          .catch((reason) => {
+            expect(errorExistsInLog(reason, "AccountNotInitialized"));
+            return null;
+          });
+        expect(sendTokensTx).is.null;
+      });
+
       it("Cannot Send Amount Less Than Bridgeable", async () => {
         const batchId = 69;
-        const recipientAddress = Buffer.alloc(32, "deadbeef", "hex");
+        const recipientAddress = Buffer.alloc(32, "1337beef", "hex");
         const recipientChain = 2;
         const sendTokensTx = await createSendNativeTokensWithPayloadInstruction(
           connection,
@@ -351,7 +389,7 @@ describe(" 2: Hello Token", () => {
       it("Cannot Send To Chain ID == 0", async () => {
         const batchId = 69;
         const amount = 42069n;
-        const recipientAddress = Buffer.alloc(32, "deadbeef", "hex");
+        const recipientAddress = Buffer.alloc(32, "1337beef", "hex");
         const sendTokensTx = await createSendNativeTokensWithPayloadInstruction(
           connection,
           HELLO_TOKEN_ADDRESS,
@@ -383,7 +421,7 @@ describe(" 2: Hello Token", () => {
       it("Cannot Send To Chain ID == 1", async () => {
         const batchId = 69;
         const amount = 42069n;
-        const recipientAddress = Buffer.alloc(32, "deadbeef", "hex");
+        const recipientAddress = Buffer.alloc(32, "1337beef", "hex");
         const sendTokensTx = await createSendNativeTokensWithPayloadInstruction(
           connection,
           HELLO_TOKEN_ADDRESS,
@@ -449,14 +487,22 @@ describe(" 2: Hello Token", () => {
       it("Instruction: send_native_tokens_with_payload", async () => {
         const tokenAccount = getAssociatedTokenAddressSync(MINT, wallet.key());
 
+        // will be used for balance change later
         const walletBalanceBefore = await getAccount(
           connection,
           tokenAccount
         ).then((account) => account.amount);
 
+        // save message count to grab posted message later
+        const sequence = await getProgramSequenceTracker(
+          connection,
+          TOKEN_BRIDGE_ADDRESS,
+          WORMHOLE_ADDRESS
+        ).then((sequenceTracker) => sequenceTracker.value() + 1n);
+
         const batchId = 69;
         const amount = 42069n;
-        const recipientAddress = Buffer.alloc(32, "deadbeef", "hex");
+        const recipientAddress = Buffer.alloc(32, "1337beef", "hex");
         const recipientChain = 2;
         const sendTokensTx = await createSendNativeTokensWithPayloadInstruction(
           connection,
@@ -497,11 +543,36 @@ describe(" 2: Hello Token", () => {
         );
 
         // tmp_token_account should not exist
+        const tmpTokenAccountKey = deriveTmpTokenAccountKey(
+          HELLO_TOKEN_ADDRESS,
+          MINT
+        );
         const tmpTokenAccount = await getAccount(
           connection,
-          deriveTmpTokenAccountKey(HELLO_TOKEN_ADDRESS, MINT)
+          tmpTokenAccountKey
         ).catch((reason) => null);
         expect(tmpTokenAccount).is.null;
+
+        // verify wormhole message
+        const payload = await getPostedMessage(
+          connection,
+          deriveTokenTransferMessageKey(HELLO_TOKEN_ADDRESS, sequence)
+        ).then(
+          (posted) =>
+            parseTokenTransferPayload(posted.message.payload)
+              .tokenTransferPayload
+        );
+
+        expect(payload.readUint8(0)).to.equal(1); // payload ID
+        expect(
+          Buffer.compare(payload.subarray(1, 33), recipientAddress)
+        ).to.equal(0);
+        expect(payload.readUint32BE(33)).to.equal(0); // relayer fee
+        expect(
+          new web3.PublicKey(payload.subarray(37, 69)).equals(
+            tmpTokenAccountKey
+          )
+        ).is.true;
       });
     });
   });
