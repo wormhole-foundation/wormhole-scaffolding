@@ -6,15 +6,13 @@ import {
   TransactionInstruction,
 } from "@solana/web3.js";
 import { BN } from "@project-serum/anchor";
-import {
-  deriveAddress,
-  getTransferNativeWithPayloadCpiAccounts,
-} from "@certusone/wormhole-sdk/lib/cjs/solana";
+import { getTransferNativeWithPayloadCpiAccounts } from "@certusone/wormhole-sdk/lib/cjs/solana";
 import { createHelloTokenProgramInterface } from "../program";
 import {
   deriveForeignContractKey,
   deriveSenderConfigKey,
   deriveTokenTransferMessageKey,
+  deriveTmpTokenAccountKey,
 } from "../accounts";
 import { getProgramSequenceTracker } from "@certusone/wormhole-sdk/lib/cjs/solana/wormhole";
 import { getAssociatedTokenAddressSync } from "@solana/spl-token";
@@ -42,17 +40,11 @@ export async function createSendNativeTokensWithPayloadInstruction(
       deriveTokenTransferMessageKey(programId, tracker.sequence + 1n)
     )
     .then((message) => {
-      const payerPubkey = new PublicKey(payer);
-      const mintPubkey = new PublicKey(mint);
-
       const fromTokenAccount = getAssociatedTokenAddressSync(
-        mintPubkey,
-        payerPubkey
+        new PublicKey(mint),
+        new PublicKey(payer)
       );
-      const tmpTokenAccount = deriveAddress(
-        [Buffer.from("tmp"), mintPubkey.toBuffer(), payerPubkey.toBuffer()],
-        programId
-      );
+      const tmpTokenAccount = deriveTmpTokenAccountKey(programId, mint);
       const tokenBridgeAccounts = getTransferNativeWithPayloadCpiAccounts(
         programId,
         tokenBridgeProgramId,

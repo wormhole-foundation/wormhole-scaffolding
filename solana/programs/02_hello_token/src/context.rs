@@ -207,7 +207,6 @@ pub struct SendNativeTokensWithPayload<'info> {
         seeds = [
             b"tmp",
             mint.key().as_ref(),
-            payer.key().as_ref(),
         ],
         bump,
         token::mint = mint,

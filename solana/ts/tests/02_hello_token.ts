@@ -18,6 +18,7 @@ import {
   createSendNativeTokensWithPayloadInstruction,
   getSenderConfigData,
   getForeignContractData,
+  deriveTmpTokenAccountKey,
 } from "../sdk/02_hello_token";
 import {
   GUARDIAN_PRIVATE_KEY,
@@ -498,10 +499,7 @@ describe(" 2: Hello Token", () => {
         // tmp_token_account should not exist
         const tmpTokenAccount = await getAccount(
           connection,
-          deriveAddress(
-            [Buffer.from("tmp"), MINT.toBuffer(), wallet.key().toBuffer()],
-            HELLO_TOKEN_ADDRESS
-          )
+          deriveTmpTokenAccountKey(HELLO_TOKEN_ADDRESS, MINT)
         ).catch((reason) => null);
         expect(tmpTokenAccount).is.null;
       });
