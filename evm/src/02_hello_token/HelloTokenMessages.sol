@@ -17,8 +17,7 @@ contract HelloTokenMessages is HelloTokenStructs {
         encodedMessage = abi.encodePacked(
             parsedMessage.payloadID, // payloadID = 1
             parsedMessage.targetRecipient,
-            parsedMessage.relayerFee,
-            parsedMessage.isNative ? uint8(1) : uint8(0)
+            parsedMessage.relayerFee
         );
     }
 
@@ -42,10 +41,6 @@ contract HelloTokenMessages is HelloTokenStructs {
         // relayer fee percentage
         parsedMessage.relayerFee = encodedMessage.toUint32(index);
         index += 4;
-
-        // boolean value for transfer type (native or token)
-        parsedMessage.isNative = encodedMessage.toUint8(index) != 0;
-        index += 1;
 
         // confirm that the payload was the expected size
         require(index == encodedMessage.length, "invalid payload length");

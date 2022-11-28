@@ -7,6 +7,5 @@ contract HelloTokenStructs {
         uint8 payloadID;
         bytes32 targetRecipient;
         uint32 relayerFee;
-        bool isNative;
     }
 }

@@ -185,6 +185,12 @@ contract WormholeSimulator {
         vm_.emitterChainId = emitterChainId;
         vm_.emitterAddress = bytes32(uint256(uint160(emitterAddress)));
 
+        return encodeAndSignMessage(vm_);
+    }
+
+    function encodeAndSignMessage(
+        IWormhole.VM memory vm_
+    ) public returns (bytes memory signedMessage) {
         // Compute the hash of the body
         bytes memory body = encodeObservation(vm_);
         vm_.hash = doubleKeccak256(body);
