@@ -26,16 +26,27 @@ pub struct RedeemerConfig {
     pub bump: u8,
     /// Token Bridge program's relevant addresses.
     pub token_bridge: InboundTokenBridgeAddresses,
+
+    /// Relayer Fee
+    pub relayer_fee: u32,
+    pub relayer_fee_precision: u32,
 }
 
 impl RedeemerConfig {
     pub const MAXIMUM_SIZE: usize = 8 // discriminator
         + 32 // owner
         + 1 // bump
-        + InboundTokenBridgeAddresses::LEN;
+        + InboundTokenBridgeAddresses::LEN
+        + 4 // relayer_fee
+        + 4 // relayer_fee_precision
+        ;
 
     /// AKA `b"redeemer"`.
     pub const SEED_PREFIX: &'static [u8; 8] = token_bridge::SEED_PREFIX_REDEEMER;
+
+    pub fn compute_relayer_amount(&self, amount: u64) -> u64 {
+        (amount * self.relayer_fee as u64) / self.relayer_fee_precision as u64
+    }
 }
 
 #[cfg(test)]
@@ -51,7 +62,7 @@ pub mod test {
         );
         assert_eq!(
             RedeemerConfig::MAXIMUM_SIZE,
-            137,
+            145,
             "RedeemerConfig::MAXIMUM_SIZE wrong value"
         );
 

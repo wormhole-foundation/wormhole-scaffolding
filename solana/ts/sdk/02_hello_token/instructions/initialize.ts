@@ -7,13 +7,16 @@ import {
 import { getTokenBridgeDerivedAccounts } from "@certusone/wormhole-sdk/lib/cjs/solana";
 import { createHelloTokenProgramInterface } from "../program";
 import { deriveSenderConfigKey, deriveRedeemerConfigKey } from "../accounts";
+import { BN } from "@project-serum/anchor";
 
 export async function createInitializeInstruction(
   connection: Connection,
   programId: PublicKeyInitData,
   payer: PublicKeyInitData,
   tokenBridgeProgramId: PublicKeyInitData,
-  wormholeProgramId: PublicKeyInitData
+  wormholeProgramId: PublicKeyInitData,
+  relayerFee: number,
+  relayerFeePrecision: number
 ): Promise<TransactionInstruction> {
   const program = createHelloTokenProgramInterface(connection, programId);
   const tokenBridgeAccounts = getTokenBridgeDerivedAccounts(
@@ -22,7 +25,7 @@ export async function createInitializeInstruction(
     wormholeProgramId
   );
   return program.methods
-    .initialize()
+    .initialize(relayerFee, relayerFeePrecision)
     .accounts({
       owner: new PublicKey(payer),
       senderConfig: deriveSenderConfigKey(programId),

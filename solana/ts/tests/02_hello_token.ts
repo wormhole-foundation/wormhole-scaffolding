@@ -1,17 +1,14 @@
 import { expect } from "chai";
 import * as web3 from "@solana/web3.js";
+import { getAccount, getAssociatedTokenAddressSync } from "@solana/spl-token";
+import * as wormhole from "@certusone/wormhole-sdk/lib/cjs/solana/wormhole";
+import * as mock from "@certusone/wormhole-sdk/lib/cjs/mock";
 import {
-  deriveAddress,
   getTokenBridgeDerivedAccounts,
-  getTransferNativeWithPayloadCpiAccounts,
   NodeWallet,
   postVaaSolana,
 } from "@certusone/wormhole-sdk/lib/cjs/solana";
-import {
-  MockEmitter,
-  MockGuardians,
-} from "@certusone/wormhole-sdk/lib/cjs/mock";
-import { parseTokenTransferPayload, parseVaa } from "@certusone/wormhole-sdk";
+import { parseTokenTransferPayload } from "@certusone/wormhole-sdk";
 import {
   createInitializeInstruction,
   createRegisterForeignContractInstruction,
@@ -21,8 +18,13 @@ import {
   deriveTmpTokenAccountKey,
   deriveTokenTransferMessageKey,
   getRedeemerConfigData,
+  createHelloTokenProgramInterface,
+  deriveSenderConfigKey,
+  deriveForeignContractKey,
+  createRedeemNativeTransferWithPayloadInstruction,
 } from "../sdk/02_hello_token";
 import {
+  ETHEREUM_TOKEN_BRIDGE_ADDRESS,
   GUARDIAN_PRIVATE_KEY,
   HELLO_TOKEN_ADDRESS,
   LOCALHOST,
@@ -30,32 +32,42 @@ import {
   PAYER_PRIVATE_KEY,
   TOKEN_BRIDGE_ADDRESS,
   WORMHOLE_ADDRESS,
-} from "./helpers/consts";
-import { errorExistsInLog } from "./helpers/error";
-import { getAccount, getAssociatedTokenAddressSync } from "@solana/spl-token";
-import {
-  getPostedMessage,
-  getProgramSequenceTracker,
-} from "@certusone/wormhole-sdk/lib/cjs/solana/wormhole";
+  deriveMaliciousTokenBridgeEndpointKey,
+  errorExistsInLog,
+} from "./helpers";
 
 describe(" 2: Hello Token", () => {
   const connection = new web3.Connection(LOCALHOST, "confirmed");
   const wallet = NodeWallet.fromSecretKey(PAYER_PRIVATE_KEY);
 
-  // foreign emitter info
+  // foreign contract info
   const foreignChain = 2;
   const foreignContractAddress = Buffer.alloc(32, "deadbeef", "hex");
+
+  // foreign token bridge
+  const ethereumTokenBridge = new mock.MockEthereumTokenBridge(
+    ETHEREUM_TOKEN_BRIDGE_ADDRESS,
+    200
+  );
+
+  // guardians
+  const guardians = new mock.MockGuardians(0, [GUARDIAN_PRIVATE_KEY]);
 
   describe("Initialize Program", () => {
     describe("Finally Set Up Program", () => {
       it("Instruction: initialize", async () => {
-        const relayerFee = 0;
+        // we are configuring the relayer fee to be 0.1%, so that means the
+        // relayer fee precision must be 1000x the relayer fee
+        const relayerFee = 100_000;
+        const relayerFeePrecision = 100_000_000;
         const initializeTx = await createInitializeInstruction(
           connection,
           HELLO_TOKEN_ADDRESS,
           wallet.key(),
           TOKEN_BRIDGE_ADDRESS,
-          WORMHOLE_ADDRESS
+          WORMHOLE_ADDRESS,
+          relayerFee,
+          relayerFeePrecision
         )
           .then((ix) =>
             web3.sendAndConfirmTransaction(
@@ -77,7 +89,6 @@ describe(" 2: Hello Token", () => {
           HELLO_TOKEN_ADDRESS
         );
         expect(senderConfigData.owner.equals(wallet.key())).is.true;
-        expect(senderConfigData.relayerFee).equals(relayerFee);
         expect(senderConfigData.finality).to.equal(0);
 
         const tokenBridgeAccounts = getTokenBridgeDerivedAccounts(
@@ -126,6 +137,10 @@ describe(" 2: Hello Token", () => {
           HELLO_TOKEN_ADDRESS
         );
         expect(redeemerConfigData.owner.equals(wallet.key())).is.true;
+        expect(redeemerConfigData.relayerFee).equals(relayerFee);
+        expect(redeemerConfigData.relayerFeePrecision).equals(
+          relayerFeePrecision
+        );
         expect(
           redeemerConfigData.tokenBridge.config.equals(
             tokenBridgeAccounts.tokenBridgeConfig
@@ -149,7 +164,9 @@ describe(" 2: Hello Token", () => {
           HELLO_TOKEN_ADDRESS,
           wallet.key(),
           TOKEN_BRIDGE_ADDRESS,
-          WORMHOLE_ADDRESS
+          WORMHOLE_ADDRESS,
+          0, // relayerFee
+          1 // relayerFeePrecision
         )
           .then((ix) =>
             web3.sendAndConfirmTransaction(
@@ -170,48 +187,78 @@ describe(" 2: Hello Token", () => {
   describe("Register Foreign Emitter", () => {
     describe("Expect Failure", () => {
       it("Cannot Register Chain ID == 0", async () => {
-        const registerForeignEmitterTx =
-          await createRegisterForeignContractInstruction(
-            connection,
-            HELLO_TOKEN_ADDRESS,
-            wallet.key(),
-            0, // chain
-            foreignContractAddress
-          )
-            .then((ix) =>
-              web3.sendAndConfirmTransaction(
-                connection,
-                new web3.Transaction().add(ix),
-                [wallet.signer()]
-              )
+        const bogusChain = 0;
+        const registerForeignEmitterTx = await createHelloTokenProgramInterface(
+          connection,
+          HELLO_TOKEN_ADDRESS
+        )
+          .methods.registerForeignContract(bogusChain, [
+            ...foreignContractAddress,
+          ])
+          .accounts({
+            owner: wallet.key(),
+            config: deriveSenderConfigKey(HELLO_TOKEN_ADDRESS),
+            foreignContract: deriveForeignContractKey(
+              HELLO_TOKEN_ADDRESS,
+              bogusChain
+            ),
+            tokenBridgeForeignEndpoint: deriveMaliciousTokenBridgeEndpointKey(
+              TOKEN_BRIDGE_ADDRESS,
+              bogusChain,
+              Buffer.alloc(32)
+            ),
+            tokenBridgeProgram: new web3.PublicKey(TOKEN_BRIDGE_ADDRESS),
+          })
+          .instruction()
+          .then((ix) =>
+            web3.sendAndConfirmTransaction(
+              connection,
+              new web3.Transaction().add(ix),
+              [wallet.signer()]
             )
-            .catch((reason) => {
-              expect(errorExistsInLog(reason, "InvalidForeignContract"));
-              return null;
-            });
+          )
+          .catch((reason) => {
+            expect(errorExistsInLog(reason, "InvalidForeignContract"));
+            return null;
+          });
         expect(registerForeignEmitterTx).is.null;
       });
 
       it("Cannot Register Chain ID == 1", async () => {
-        const registerForeignEmitterTx =
-          await createRegisterForeignContractInstruction(
-            connection,
-            HELLO_TOKEN_ADDRESS,
-            wallet.key(),
-            1, // chain
-            foreignContractAddress
-          )
-            .then((ix) =>
-              web3.sendAndConfirmTransaction(
-                connection,
-                new web3.Transaction().add(ix),
-                [wallet.signer()]
-              )
+        const bogusChain = 1;
+        const registerForeignEmitterTx = await createHelloTokenProgramInterface(
+          connection,
+          HELLO_TOKEN_ADDRESS
+        )
+          .methods.registerForeignContract(bogusChain, [
+            ...foreignContractAddress,
+          ])
+          .accounts({
+            owner: wallet.key(),
+            config: deriveSenderConfigKey(HELLO_TOKEN_ADDRESS),
+            foreignContract: deriveForeignContractKey(
+              HELLO_TOKEN_ADDRESS,
+              bogusChain
+            ),
+            tokenBridgeForeignEndpoint: deriveMaliciousTokenBridgeEndpointKey(
+              TOKEN_BRIDGE_ADDRESS,
+              bogusChain,
+              Buffer.alloc(32)
+            ),
+            tokenBridgeProgram: new web3.PublicKey(TOKEN_BRIDGE_ADDRESS),
+          })
+          .instruction()
+          .then((ix) =>
+            web3.sendAndConfirmTransaction(
+              connection,
+              new web3.Transaction().add(ix),
+              [wallet.signer()]
             )
-            .catch((reason) => {
-              expect(errorExistsInLog(reason, "InvalidForeignContract"));
-              return null;
-            });
+          )
+          .catch((reason) => {
+            expect(errorExistsInLog(reason, "InvalidForeignContract"));
+            return null;
+          });
         expect(registerForeignEmitterTx).is.null;
       });
 
@@ -221,8 +268,10 @@ describe(" 2: Hello Token", () => {
             connection,
             HELLO_TOKEN_ADDRESS,
             wallet.key(),
+            TOKEN_BRIDGE_ADDRESS,
             foreignChain,
-            Buffer.alloc(32) // contractAddress
+            Buffer.alloc(32), // contractAddress
+            ETHEREUM_TOKEN_BRIDGE_ADDRESS
           )
             .then((ix) =>
               web3.sendAndConfirmTransaction(
@@ -244,8 +293,10 @@ describe(" 2: Hello Token", () => {
             connection,
             HELLO_TOKEN_ADDRESS,
             wallet.key(),
+            TOKEN_BRIDGE_ADDRESS,
             foreignChain,
-            Buffer.alloc(31, "deadbeef", "hex") // contractAddress
+            Buffer.alloc(31, "deadbeef", "hex"), // contractAddress
+            ETHEREUM_TOKEN_BRIDGE_ADDRESS
           )
             .then((ix) =>
               web3.sendAndConfirmTransaction(
@@ -272,8 +323,10 @@ describe(" 2: Hello Token", () => {
             connection,
             HELLO_TOKEN_ADDRESS,
             wallet.key(),
+            TOKEN_BRIDGE_ADDRESS,
             chain,
-            contractAddress
+            contractAddress,
+            ETHEREUM_TOKEN_BRIDGE_ADDRESS
           )
             .then((ix) =>
               web3.sendAndConfirmTransaction(
@@ -310,8 +363,10 @@ describe(" 2: Hello Token", () => {
             connection,
             HELLO_TOKEN_ADDRESS,
             wallet.key(),
+            TOKEN_BRIDGE_ADDRESS,
             chain,
-            contractAddress
+            contractAddress,
+            ETHEREUM_TOKEN_BRIDGE_ADDRESS
           )
             .then((ix) =>
               web3.sendAndConfirmTransaction(
@@ -516,11 +571,13 @@ describe(" 2: Hello Token", () => {
         ).then((account) => account.amount);
 
         // save message count to grab posted message later
-        const sequence = await getProgramSequenceTracker(
-          connection,
-          TOKEN_BRIDGE_ADDRESS,
-          WORMHOLE_ADDRESS
-        ).then((sequenceTracker) => sequenceTracker.value() + 1n);
+        const sequence = await wormhole
+          .getProgramSequenceTracker(
+            connection,
+            TOKEN_BRIDGE_ADDRESS,
+            WORMHOLE_ADDRESS
+          )
+          .then((sequenceTracker) => sequenceTracker.value() + 1n);
 
         const batchId = 69;
         const amount = 42069n;
@@ -576,25 +633,158 @@ describe(" 2: Hello Token", () => {
         expect(tmpTokenAccount).is.null;
 
         // verify wormhole message
-        const payload = await getPostedMessage(
-          connection,
-          deriveTokenTransferMessageKey(HELLO_TOKEN_ADDRESS, sequence)
-        ).then(
-          (posted) =>
-            parseTokenTransferPayload(posted.message.payload)
-              .tokenTransferPayload
-        );
+        const payload = await wormhole
+          .getPostedMessage(
+            connection,
+            deriveTokenTransferMessageKey(HELLO_TOKEN_ADDRESS, sequence)
+          )
+          .then(
+            (posted) =>
+              parseTokenTransferPayload(posted.message.payload)
+                .tokenTransferPayload
+          );
 
         expect(payload.readUint8(0)).to.equal(1); // payload ID
         expect(
           Buffer.compare(payload.subarray(1, 33), recipientAddress)
         ).to.equal(0);
-        expect(payload.readUint32BE(33)).to.equal(0); // relayer fee
-        expect(
-          new web3.PublicKey(payload.subarray(37, 69)).equals(
-            tmpTokenAccountKey
+      });
+    });
+  });
+
+  describe("Receive Tokens With Payload", () => {
+    describe("Finally Receive Tokens With Payload", () => {
+      const tokenAccount = getAssociatedTokenAddressSync(MINT, wallet.key());
+
+      const tokenAddress = MINT.toBuffer().toString("hex");
+      const amount = 42060n;
+      const tokenTransferPayload = (() => {
+        const buf = Buffer.alloc(33);
+        buf.writeUInt8(1, 0); // payload ID
+        buf.write(tokenAccount.toBuffer().toString("hex"), 1, "hex");
+        return buf;
+      })();
+      const batchId = 69;
+
+      const published = ethereumTokenBridge.publishTransferTokensWithPayload(
+        tokenAddress,
+        1, // tokenChain
+        amount / 10n,
+        1, // recipientChain
+        HELLO_TOKEN_ADDRESS.toBuffer().toString("hex"),
+        Buffer.alloc(32, "deadbeef", "hex"),
+        tokenTransferPayload,
+        batchId
+      );
+      published[51] = 3;
+
+      const signedWormholeMessage = guardians.addSignatures(published, [0]);
+
+      it("Post Wormhole Message", async () => {
+        const response = await postVaaSolana(
+          connection,
+          wallet.signTransaction,
+          WORMHOLE_ADDRESS,
+          wallet.key(),
+          signedWormholeMessage
+        ).catch((reason) => null);
+        expect(response).is.not.null;
+      });
+
+      it("Instruction: redeem_native_transfer_with_payload", async () => {
+        // will be used for balance change later
+        const walletBalanceBefore = await getAccount(
+          connection,
+          tokenAccount
+        ).then((account) => account.amount);
+
+        const redeemTransferTx =
+          await createRedeemNativeTransferWithPayloadInstruction(
+            connection,
+            HELLO_TOKEN_ADDRESS,
+            wallet.key(),
+            TOKEN_BRIDGE_ADDRESS,
+            WORMHOLE_ADDRESS,
+            signedWormholeMessage,
+            tokenAccount
           )
-        ).is.true;
+            .then((ix) =>
+              web3.sendAndConfirmTransaction(
+                connection,
+                new web3.Transaction().add(ix),
+                [wallet.signer()]
+              )
+            )
+            .catch((reason) => {
+              // should not happen
+              console.log(reason);
+              return null;
+            });
+        expect(redeemTransferTx).is.not.null;
+
+        const walletBalanceAfter = await getAccount(
+          connection,
+          tokenAccount
+        ).then((account) => account.amount);
+
+        // check balance change
+        expect(walletBalanceAfter - walletBalanceBefore).to.equal(amount);
+
+        // tmp_token_account should not exist
+        const tmpTokenAccountKey = deriveTmpTokenAccountKey(
+          HELLO_TOKEN_ADDRESS,
+          MINT
+        );
+        const tmpTokenAccount = await getAccount(
+          connection,
+          tmpTokenAccountKey
+        ).catch((reason) => null);
+        expect(tmpTokenAccount).is.null;
+
+        // // verify wormhole message
+        // const payload = await wormhole.getPostedMessage(
+        //   connection,
+        //   deriveTokenTransferMessageKey(HELLO_TOKEN_ADDRESS, sequence)
+        // ).then(
+        //   (posted) =>
+        //     parseTokenTransferPayload(posted.message.payload)
+        //       .tokenTransferPayload
+        // );
+
+        // expect(payload.readUint8(0)).to.equal(1); // payload ID
+        // expect(
+        //   Buffer.compare(payload.subarray(1, 33), recipientAddress)
+        // ).to.equal(0);
+        // expect(payload.readUint32BE(33)).to.equal(0); // relayer fee
+        // expect(
+        //   new web3.PublicKey(payload.subarray(37, 69)).equals(
+        //     tmpTokenAccountKey
+        //   )
+        // ).is.true;
+      });
+
+      it("Cannot Redeem Same Transfer", async () => {
+        const redeemTransferTx =
+          await createRedeemNativeTransferWithPayloadInstruction(
+            connection,
+            HELLO_TOKEN_ADDRESS,
+            wallet.key(),
+            TOKEN_BRIDGE_ADDRESS,
+            WORMHOLE_ADDRESS,
+            signedWormholeMessage,
+            tokenAccount
+          )
+            .then((ix) =>
+              web3.sendAndConfirmTransaction(
+                connection,
+                new web3.Transaction().add(ix),
+                [wallet.signer()]
+              )
+            )
+            .catch((reason) => {
+              return null;
+            });
+        expect(redeemTransferTx).is.null;
       });
     });
   });

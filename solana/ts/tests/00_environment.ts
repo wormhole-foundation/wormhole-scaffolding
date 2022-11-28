@@ -1,26 +1,5 @@
-import { web3 } from "@project-serum/anchor";
 import { expect } from "chai";
-import { Wallet } from "ethers";
-import {
-  transferFromSolana,
-  transferNativeSol,
-  tryNativeToHexString,
-} from "@certusone/wormhole-sdk";
-import * as wormhole from "@certusone/wormhole-sdk/lib/cjs/solana/wormhole";
-import * as tokenBridge from "@certusone/wormhole-sdk/lib/cjs/solana/tokenBridge";
-import {
-  GUARDIAN_PRIVATE_KEY,
-  LOCALHOST,
-  MINT,
-  MINT_PRIVATE_KEY,
-  PAYER_PRIVATE_KEY,
-  TOKEN_BRIDGE_ADDRESS,
-  WORMHOLE_ADDRESS,
-} from "./helpers/consts";
-import {
-  NodeWallet,
-  signSendAndConfirmTransaction,
-} from "@certusone/wormhole-sdk/lib/cjs/solana";
+import { web3 } from "@project-serum/anchor";
 import { LAMPORTS_PER_SOL } from "@solana/web3.js";
 import {
   createMint,
@@ -29,10 +8,44 @@ import {
   getOrCreateAssociatedTokenAccount,
   mintTo,
 } from "@solana/spl-token";
+import { ethers } from "ethers";
+import {
+  transferNativeSol,
+  tryNativeToHexString,
+} from "@certusone/wormhole-sdk";
+import * as wormhole from "@certusone/wormhole-sdk/lib/cjs/solana/wormhole";
+import * as tokenBridge from "@certusone/wormhole-sdk/lib/cjs/solana/tokenBridge";
+import * as mock from "@certusone/wormhole-sdk/lib/cjs/mock";
+import {
+  NodeWallet,
+  postVaaSolana,
+  signSendAndConfirmTransaction,
+} from "@certusone/wormhole-sdk/lib/cjs/solana";
+import {
+  ETHEREUM_TOKEN_BRIDGE_ADDRESS,
+  GOVERNANCE_EMITTER_ADDRESS,
+  GUARDIAN_PRIVATE_KEY,
+  LOCALHOST,
+  MINT,
+  MINT_PRIVATE_KEY,
+  PAYER_PRIVATE_KEY,
+  TOKEN_BRIDGE_ADDRESS,
+  WORMHOLE_ADDRESS,
+  createMaliciousRegisterChainInstruction,
+} from "./helpers";
 
 describe(" 0: Wormhole", () => {
   const connection = new web3.Connection(LOCALHOST, "confirmed");
   const wallet = NodeWallet.fromSecretKey(PAYER_PRIVATE_KEY);
+
+  // for signing wormhole messages
+  const guardians = new mock.MockGuardians(0, [GUARDIAN_PRIVATE_KEY]);
+
+  // for governance actions to modify programs
+  const governance = new mock.GovernanceEmitter(
+    GOVERNANCE_EMITTER_ADDRESS.toBuffer().toString("hex"),
+    20
+  );
 
   before("Airdrop", async () => {
     await connection
@@ -42,8 +55,6 @@ describe(" 0: Wormhole", () => {
 
   describe("Environment", () => {
     it("Variables", () => {
-      expect(process.env.TESTING_WORMHOLE_ADDRESS).is.not.undefined;
-      expect(process.env.TESTING_TOKEN_BRIDGE_ADDRESS).is.not.undefined;
       expect(process.env.TESTING_HELLO_WORLD_ADDRESS).is.not.undefined;
       expect(process.env.TESTING_HELLO_TOKEN_ADDRESS).is.not.undefined;
     });
@@ -112,7 +123,7 @@ describe(" 0: Wormhole", () => {
       const fee = 100n;
 
       const devnetGuardian = Buffer.from(
-        new Wallet(GUARDIAN_PRIVATE_KEY).address.substring(2),
+        new ethers.Wallet(GUARDIAN_PRIVATE_KEY).address.substring(2),
         "hex"
       );
       const initialGuardians = [devnetGuardian];
@@ -184,14 +195,150 @@ describe(" 0: Wormhole", () => {
         });
       expect(initializeTx).is.not.null;
 
-      const accounts = await connection.getProgramAccounts(WORMHOLE_ADDRESS);
-      expect(accounts).has.length(2);
+      const accounts = await connection.getProgramAccounts(
+        TOKEN_BRIDGE_ADDRESS
+      );
+      expect(accounts).has.length(1);
+    });
+
+    it("Register Foreign Endpoint (Ethereum)", async () => {
+      const message = governance.publishTokenBridgeRegisterChain(
+        0, // timestamp
+        2,
+        ETHEREUM_TOKEN_BRIDGE_ADDRESS
+      );
+      const signedWormholeMessage = guardians.addSignatures(message, [0]);
+
+      const response = await postVaaSolana(
+        connection,
+        wallet.signTransaction,
+        WORMHOLE_ADDRESS,
+        wallet.key(),
+        signedWormholeMessage
+      ).catch((reason) => null);
+      expect(response).is.not.null;
+
+      const registerChainTx = await web3
+        .sendAndConfirmTransaction(
+          connection,
+          new web3.Transaction().add(
+            tokenBridge.createRegisterChainInstruction(
+              TOKEN_BRIDGE_ADDRESS,
+              WORMHOLE_ADDRESS,
+              wallet.key(),
+              signedWormholeMessage
+            )
+          ),
+          [wallet.signer()]
+        )
+        .catch((reason) => {
+          // should not happen
+          console.log(reason);
+          return null;
+        });
+      expect(registerChainTx).is.not.null;
+
+      const accounts = await connection.getProgramAccounts(
+        TOKEN_BRIDGE_ADDRESS
+      );
+      expect(accounts).has.length(3);
+    });
+
+    // This shouldn't be allowed, but we're doing it just to prove the safety
+    // of the scaffold programs.
+    it("Register Bogus Foreign Endpoint (Chain ID == 0)", async () => {
+      const message = governance.publishTokenBridgeRegisterChain(
+        0, // timestamp
+        1,
+        web3.PublicKey.default.toString()
+      );
+      message.writeUInt16BE(0, 86);
+      const signedWormholeMessage = guardians.addSignatures(message, [0]);
+
+      const response = await postVaaSolana(
+        connection,
+        wallet.signTransaction,
+        WORMHOLE_ADDRESS,
+        wallet.key(),
+        signedWormholeMessage
+      ).catch((reason) => null);
+      expect(response).is.not.null;
+
+      const registerChainTx = await web3
+        .sendAndConfirmTransaction(
+          connection,
+          new web3.Transaction().add(
+            createMaliciousRegisterChainInstruction(
+              TOKEN_BRIDGE_ADDRESS,
+              WORMHOLE_ADDRESS,
+              wallet.key(),
+              signedWormholeMessage
+            )
+          ),
+          [wallet.signer()]
+        )
+        .catch((reason) => {
+          // should not happen
+          console.log(reason);
+          return null;
+        });
+      expect(registerChainTx).is.not.null;
+
+      const accounts = await connection.getProgramAccounts(
+        TOKEN_BRIDGE_ADDRESS
+      );
+      expect(accounts).has.length(5);
+    });
+
+    // This shouldn't be allowed, but we're doing it just to prove the safety
+    // of the scaffold programs.
+    it("Register Bogus Foreign Endpoint (Chain ID == 1)", async () => {
+      const message = governance.publishTokenBridgeRegisterChain(
+        0, // timestamp
+        1,
+        web3.PublicKey.default.toString()
+      );
+      const signedWormholeMessage = guardians.addSignatures(message, [0]);
+
+      const response = await postVaaSolana(
+        connection,
+        wallet.signTransaction,
+        WORMHOLE_ADDRESS,
+        wallet.key(),
+        signedWormholeMessage
+      ).catch((reason) => null);
+      expect(response).is.not.null;
+
+      const registerChainTx = await web3
+        .sendAndConfirmTransaction(
+          connection,
+          new web3.Transaction().add(
+            createMaliciousRegisterChainInstruction(
+              TOKEN_BRIDGE_ADDRESS,
+              WORMHOLE_ADDRESS,
+              wallet.key(),
+              signedWormholeMessage
+            )
+          ),
+          [wallet.signer()]
+        )
+        .catch((reason) => {
+          // should not happen
+          console.log(reason);
+          return null;
+        });
+      expect(registerChainTx).is.not.null;
+
+      const accounts = await connection.getProgramAccounts(
+        TOKEN_BRIDGE_ADDRESS
+      );
+      expect(accounts).has.length(7);
     });
 
     it("Outbound Transfer Native", async () => {
       const amount = BigInt(1 * LAMPORTS_PER_SOL); // explicitly sending 1 SOL
       const targetAddress = Buffer.alloc(32, "deadbeef", "hex");
-      const transferResponse = transferNativeSol(
+      const transferResponse = await transferNativeSol(
         connection,
         WORMHOLE_ADDRESS,
         TOKEN_BRIDGE_ADDRESS,
@@ -214,6 +361,15 @@ describe(" 0: Wormhole", () => {
           return null;
         });
       expect(transferResponse).is.not.null;
+
+      const sequence = await wormhole
+        .getProgramSequenceTracker(
+          connection,
+          TOKEN_BRIDGE_ADDRESS,
+          WORMHOLE_ADDRESS
+        )
+        .then((account) => account.sequence);
+      expect(sequence).to.equal(1n);
     });
   });
 

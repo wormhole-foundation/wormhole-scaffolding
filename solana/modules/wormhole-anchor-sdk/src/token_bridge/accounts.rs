@@ -97,3 +97,32 @@ impl Owner for WrappedMeta {
         ID
     }
 }
+
+#[derive(Default, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq)]
+pub struct EndpointDerivation {
+    pub emitter_chain: u16,
+    pub emitter_address: [u8; 32],
+}
+
+impl AccountDeserialize for EndpointDerivation {
+    fn try_deserialize(buf: &mut &[u8]) -> Result<Self> {
+        Self::try_deserialize_unchecked(buf)
+    }
+
+    fn try_deserialize_unchecked(buf: &mut &[u8]) -> Result<Self> {
+        Self::deserialize(buf).map_err(Into::into)
+    }
+}
+
+impl AccountSerialize for EndpointDerivation {
+    fn try_serialize<W: io::Write>(&self, _writer: &mut W) -> Result<()> {
+        // no-op
+        Ok(())
+    }
+}
+
+impl Owner for EndpointDerivation {
+    fn owner() -> Pubkey {
+        ID
+    }
+}

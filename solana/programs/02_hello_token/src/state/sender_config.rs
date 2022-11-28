@@ -40,9 +40,6 @@ pub struct SenderConfig {
     /// AKA consistency level. u8 representation of Solana's
     /// [Finality](wormhole_anchor_sdk::wormhole::Finality).
     pub finality: u8,
-
-    /// Relayer Fee
-    pub relayer_fee: u32,
 }
 
 impl SenderConfig {
@@ -51,7 +48,6 @@ impl SenderConfig {
         + 1 // bump
         + OutboundTokenBridgeAddresses::LEN
         + 1 // finality
-        + 4 // relayer_fee
         
     ;
     /// AKA `b"sender"`.
@@ -65,7 +61,7 @@ pub mod test {
     #[test]
     fn test_config() -> Result<()> {
         assert_eq!(OutboundTokenBridgeAddresses::LEN, 224, "OutboundTokenBridgeAddresses::LEN wrong value");
-        assert_eq!(SenderConfig::MAXIMUM_SIZE, 270, "SenderConfig::MAXIMUM_SIZE wrong value");
+        assert_eq!(SenderConfig::MAXIMUM_SIZE, 266, "SenderConfig::MAXIMUM_SIZE wrong value");
 
         Ok(())
     }

@@ -10,7 +10,7 @@ use wormhole_anchor_sdk::{token_bridge, wormhole};
 
 use super::{
     state::{ForeignContract, RedeemerConfig, SenderConfig},
-    HelloTokenError,
+    HelloTokenError, PostedHelloTokenMessage,
 };
 
 /// AKA `b"bridged"`.
@@ -166,6 +166,22 @@ pub struct RegisterForeignContract<'info> {
     /// contract address saved in this account, overwrite it.
     pub foreign_contract: Account<'info, ForeignContract>,
 
+    #[account(
+        seeds = [
+            &chain.to_be_bytes(),
+            token_bridge_foreign_endpoint.emitter_address.as_ref()
+        ],
+        bump,
+        seeds::program = token_bridge_program
+    )]
+    /// CHECK: Token Bridge foreign endpoint. This account should really be
+    /// one endpoint per chain, but the PDA allows for multiple endpoints for
+    /// each chain! We store the proper endpoint for the emitter chain.
+    pub token_bridge_foreign_endpoint: Account<'info, token_bridge::EndpointDerivation>,
+
+    /// Token Bridge program.
+    pub token_bridge_program: Program<'info, token_bridge::program::TokenBridge>,
+
     /// System program.
     pub system_program: Program<'info, System>,
 }
@@ -318,6 +334,147 @@ pub struct SendNativeTokensWithPayload<'info> {
     )]
     /// CHECK: Clock sysvar (see [`clock::id()`]). Read-only.
     pub clock: UncheckedAccount<'info>,
+
+    #[account(
+        address = rent::id() @ HelloTokenError::InvalidSysvar
+    )]
+    /// CHECK: Rent sysvar (see [`rent::id()`]). Read-only.
+    pub rent: UncheckedAccount<'info>,
+}
+
+#[derive(Accounts)]
+#[instruction(vaa_hash: [u8; 32])]
+pub struct RedeemNativeTransferWithPayload<'info> {
+    /// Payer will pay Wormhole fee to transfer tokens and create temporary
+    /// token account.
+    #[account(mut)]
+    pub payer: Signer<'info>,
+
+    #[account(
+        mut,
+        constraint = payer.key() == recipient.key() || payer_token_account.key() == anchor_spl::associated_token::get_associated_token_address(&payer.key(), &mint.key()) @ HelloTokenError::InvalidPayerAta
+    )]
+    /// CHECK: Payer's token account. If payer != recipient, must be an
+    /// associated token account.
+    pub payer_token_account: UncheckedAccount<'info>,
+
+    #[account(
+        mut,
+        seeds = [RedeemerConfig::SEED_PREFIX],
+        bump
+    )]
+    /// Redeemer Config account. Acts as the Token Bridge redeemer PDA.
+    /// Mutable.
+    pub config: Box<Account<'info, RedeemerConfig>>,
+
+    #[account(
+        seeds = [
+            ForeignContract::SEED_PREFIX,
+            &vaa.emitter_chain().to_le_bytes()[..]
+        ],
+        bump,
+        constraint = foreign_contract.verify(&vaa) @ HelloTokenError::InvalidForeignContract
+    )]
+    /// Foreign Contract account. Send tokens to this contract.
+    pub foreign_contract: Account<'info, ForeignContract>,
+
+    #[account(
+        address = vaa.data().mint()
+    )]
+    /// Mint info. This is the SPL token that will be bridged over to the
+    /// foreign contract. Mutable.
+    pub mint: Box<Account<'info, Mint>>,
+
+    #[account(
+        mut,
+        associated_token::mint = mint,
+        associated_token::authority = recipient
+    )]
+    pub recipient_token_account: Box<Account<'info, TokenAccount>>,
+
+    #[account(mut)]
+    /// CHECK: recipient may differ from payer if a relayer paid for this
+    /// transaction.
+    pub recipient: UncheckedAccount<'info>,
+
+    #[account(
+        init,
+        payer = payer,
+        seeds = [
+            b"tmp",
+            mint.key().as_ref(),
+        ],
+        bump,
+        token::mint = mint,
+        token::authority = config
+    )]
+    pub tmp_token_account: Box<Account<'info, TokenAccount>>,
+
+    /// Wormhole program.
+    pub wormhole_program: Program<'info, wormhole::program::Wormhole>,
+
+    /// Token Bridge program.
+    pub token_bridge_program: Program<'info, token_bridge::program::TokenBridge>,
+
+    #[account(
+        address = config.token_bridge.config @ HelloTokenError::InvalidTokenBridgeConfig
+    )]
+    /// Token Bridge config. Read-only.
+    pub token_bridge_config: Account<'info, token_bridge::Config>,
+
+    #[account(
+        seeds = [
+            wormhole::SEED_PREFIX_POSTED_VAA,
+            &vaa_hash
+        ],
+        bump,
+        seeds::program = wormhole_program,
+        constraint = vaa.data().to() == *program_id || vaa.data().to() == config.key() @ HelloTokenError::InvalidTransferToAddress,
+        constraint = vaa.data().to_chain() == wormhole::CHAIN_ID_SOLANA @ HelloTokenError::InvalidTransferToChain,
+        constraint = vaa.data().token_chain() == wormhole::CHAIN_ID_SOLANA @ HelloTokenError::InvalidTransferTokenChain
+    )]
+    /// Verified Wormhole message account. The Wormhole program verified
+    /// signatures and posted the account data here. Read-only.
+    pub vaa: Box<Account<'info, PostedHelloTokenMessage>>,
+
+    #[account(mut)]
+    /// CHECK: Token Bridge claim account. It stores a boolean, whose value
+    /// is true if the bridged assets have been claimed. If the transfer has
+    /// not been redeemed, this account will not exist yet.
+    pub token_bridge_claim: UncheckedAccount<'info>,
+
+    #[account(
+        address = foreign_contract.token_bridge_foreign_endpoint @ HelloTokenError::InvalidTokenBridgeForeignEndpoint
+    )]
+    /// CHECK: Token Bridge foreign endpoint. This account should really be
+    /// one endpoint per chain, but the PDA allows for multiple endpoints for
+    /// each chain! We store the proper endpoint for the emitter chain.
+    pub token_bridge_foreign_endpoint: Account<'info, token_bridge::EndpointDerivation>,
+
+    #[account(
+        mut,
+        seeds = [mint.key().as_ref()],
+        bump,
+        seeds::program = token_bridge_program
+    )]
+    /// CHECK: Token Bridge custody. This is the Token Bridge program's token
+    /// account that holds this mint's balance.
+    pub token_bridge_custody: Account<'info, TokenAccount>,
+
+    #[account(
+        address = config.token_bridge.custody_signer @ HelloTokenError::InvalidTokenBridgeCustodySigner
+    )]
+    /// CHECK: Token Bridge custody signer. Read-only.
+    pub token_bridge_custody_signer: UncheckedAccount<'info>,
+
+    /// System program.
+    pub system_program: Program<'info, System>,
+
+    /// Token program.
+    pub token_program: Program<'info, Token>,
+
+    /// Associated Token program.
+    pub associated_token_program: Program<'info, AssociatedToken>,
 
     #[account(
         address = rent::id() @ HelloTokenError::InvalidSysvar

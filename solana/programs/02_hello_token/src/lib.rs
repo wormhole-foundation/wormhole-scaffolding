@@ -21,7 +21,16 @@ pub mod hello_token {
     /// This instruction can be used to generate your program's config.
     /// And for convenience, we will store Wormhole-related PDAs in the
     /// config so we can verify these accounts with a simple == constraint.
-    pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
+    pub fn initialize(
+        ctx: Context<Initialize>,
+        relayer_fee: u32,
+        relayer_fee_precision: u32,
+    ) -> Result<()> {
+        require!(
+            relayer_fee < relayer_fee_precision,
+            HelloTokenError::InvalidRelayerFee,
+        );
+
         // Initialize program's sender config
         let sender_config = &mut ctx.accounts.sender_config;
 
@@ -55,6 +64,8 @@ pub mod hello_token {
             .bumps
             .get("redeemer_config")
             .ok_or(HelloTokenError::BumpNotFound)?;
+        redeemer_config.relayer_fee = relayer_fee;
+        redeemer_config.relayer_fee_precision = relayer_fee_precision;
 
         // Set Token Bridge related addresses.
         {
@@ -95,6 +106,7 @@ pub mod hello_token {
         let emitter = &mut ctx.accounts.foreign_contract;
         emitter.chain = chain;
         emitter.address = address;
+        emitter.token_bridge_foreign_endpoint = ctx.accounts.token_bridge_foreign_endpoint.key();
 
         // Done.
         Ok(())
@@ -171,8 +183,6 @@ pub mod hello_token {
         // transfer.
         let payload = HelloTokenMessage::Hello {
             recipient: recipient_address,
-            relayer_fee: ctx.accounts.config.relayer_fee,
-            token_account: ctx.accounts.tmp_token_account.key(),
         }
         .try_to_vec()?;
 
@@ -222,6 +232,117 @@ pub mod hello_token {
             payload,
             &ctx.program_id.key(),
         )?;
+
+        // Finish instruction by closing tmp_token_account.
+        anchor_spl::token::close_account(CpiContext::new_with_signer(
+            ctx.accounts.token_program.to_account_info(),
+            anchor_spl::token::CloseAccount {
+                account: ctx.accounts.tmp_token_account.to_account_info(),
+                destination: ctx.accounts.payer.to_account_info(),
+                authority: ctx.accounts.config.to_account_info(),
+            },
+            &[&config_seeds[..]],
+        ))
+    }
+
+    pub fn redeem_native_transfer_with_payload(
+        ctx: Context<RedeemNativeTransferWithPayload>,
+        _vaa_hash: [u8; 32],
+    ) -> Result<()> {
+        // The Token Bridge program's claim account is only initialized when
+        // a transfer is redeemed (and the boolean value `true` is written as
+        // its data).
+        //
+        // The Token Bridge program will automatically fail if this transfer
+        // is redeemed again. But we choose to short-circuit the failure as the
+        // first evaluation of this instruction.
+        require!(
+            ctx.accounts.token_bridge_claim.data_len() == 0,
+            HelloTokenError::AlreadyRedeemed
+        );
+
+        // These seeds are used to:
+        // 1.  Sign the Sender Config's token account to delegate approval
+        //     of truncated_amount.
+        // 2.  Sign Token Bridge program's transfer_native instruction.
+        // 3.  Close tmp_token_account.
+        let config_seeds = &[
+            RedeemerConfig::SEED_PREFIX.as_ref(),
+            &[ctx.accounts.config.bump],
+        ];
+
+        // Redeem the token transfer.
+        token_bridge::complete_transfer_native_with_payload(CpiContext::new_with_signer(
+            ctx.accounts.token_bridge_program.to_account_info(),
+            token_bridge::CompleteTransferNativeWithPayload {
+                payer: ctx.accounts.payer.to_account_info(),
+                config: ctx.accounts.token_bridge_config.to_account_info(),
+                vaa: ctx.accounts.vaa.to_account_info(),
+                claim: ctx.accounts.token_bridge_claim.to_account_info(),
+                foreign_endpoint: ctx.accounts.token_bridge_foreign_endpoint.to_account_info(),
+                to: ctx.accounts.tmp_token_account.to_account_info(),
+                redeemer: ctx.accounts.config.to_account_info(),
+                custody: ctx.accounts.token_bridge_custody.to_account_info(),
+                mint: ctx.accounts.mint.to_account_info(),
+                custody_signer: ctx.accounts.token_bridge_custody_signer.to_account_info(),
+                rent: ctx.accounts.rent.to_account_info(),
+                system_program: ctx.accounts.system_program.to_account_info(),
+                token_program: ctx.accounts.token_program.to_account_info(),
+                wormhole_program: ctx.accounts.wormhole_program.to_account_info(),
+            },
+            &[&config_seeds[..]],
+        ))?;
+
+        let amount = ctx.accounts.vaa.data().amount()
+            * 10u64.pow(std::cmp::max(8, ctx.accounts.mint.decimals as u32) - 8);
+
+        // If this instruction were executed by a relayer, send some of the
+        // token amount (determined by the relayer fee) to the payer's token
+        // account.
+        if ctx.accounts.payer.key() != ctx.accounts.recipient.key() {
+            // Pay the relayer.
+            let relayer_amount = ctx.accounts.config.compute_relayer_amount(amount);
+            anchor_spl::token::transfer(
+                CpiContext::new_with_signer(
+                    ctx.accounts.token_program.to_account_info(),
+                    anchor_spl::token::Transfer {
+                        from: ctx.accounts.tmp_token_account.to_account_info(),
+                        to: ctx.accounts.payer_token_account.to_account_info(),
+                        authority: ctx.accounts.config.to_account_info(),
+                    },
+                    &[&config_seeds[..]],
+                ),
+                relayer_amount,
+            )?;
+
+            // Transfer tokens from tmp_token_account to recipient.
+            anchor_spl::token::transfer(
+                CpiContext::new_with_signer(
+                    ctx.accounts.token_program.to_account_info(),
+                    anchor_spl::token::Transfer {
+                        from: ctx.accounts.tmp_token_account.to_account_info(),
+                        to: ctx.accounts.recipient_token_account.to_account_info(),
+                        authority: ctx.accounts.config.to_account_info(),
+                    },
+                    &[&config_seeds[..]],
+                ),
+                amount - relayer_amount,
+            )?;
+        } else {
+            // Transfer tokens from tmp_token_account to recipient.
+            anchor_spl::token::transfer(
+                CpiContext::new_with_signer(
+                    ctx.accounts.token_program.to_account_info(),
+                    anchor_spl::token::Transfer {
+                        from: ctx.accounts.tmp_token_account.to_account_info(),
+                        to: ctx.accounts.recipient_token_account.to_account_info(),
+                        authority: ctx.accounts.config.to_account_info(),
+                    },
+                    &[&config_seeds[..]],
+                ),
+                amount,
+            )?;
+        }
 
         // Finish instruction by closing tmp_token_account.
         anchor_spl::token::close_account(CpiContext::new_with_signer(

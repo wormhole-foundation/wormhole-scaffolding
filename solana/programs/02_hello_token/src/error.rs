@@ -65,4 +65,38 @@ pub enum HelloTokenError {
     #[msg("InvalidRecipient")]
     /// Specified recipient has a bad chain ID or zero address.
     InvalidRecipient,
+
+    #[msg("InvalidTransferTokenAccount")]
+    /// Deserialized token account from Token Bridge's Wormhole message does
+    /// not match token account.
+    InvalidTransferTokenAccount,
+
+    #[msg("InvalidTransferTokenChain")]
+    /// Deserialized token chain is not CHAIN_ID_SOLANA.
+    InvalidTransferToChain,
+
+    #[msg("InvalidTransferTokenChain")]
+    /// Deserialized recipient chain is not CHAIN_ID_SOLANA.
+    InvalidTransferTokenChain,
+
+    #[msg("InvalidRelayerFee")]
+    /// Specified relayer fee must be less than its precision.
+    InvalidRelayerFee,
+
+    #[msg("InvalidPayerAta")]
+    /// To redeem transfers, the relayer (payer) must pass an associated token
+    /// account.
+    InvalidPayerAta,
+
+    #[msg("InvalidTransferToAddress")]
+    /// Deserialized recipient must be this program or the redeemer PDA.
+    InvalidTransferToAddress,
+
+    #[msg("AlreadyRedeemed")]
+    /// Token Bridge program's transfer is already redeemed.
+    AlreadyRedeemed,
+
+    #[msg("InvalidTokenBridgeForeignEndpoint")]
+    /// Token Bridge program's foreign endpoint disagrees with registered one.
+    InvalidTokenBridgeForeignEndpoint,
 }

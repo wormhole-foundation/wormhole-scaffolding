@@ -1,9 +1,10 @@
-use anchor_lang::{prelude::Pubkey, AnchorDeserialize, AnchorSerialize};
+use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 use std::io;
+use wormhole_anchor_sdk::token_bridge;
 
 const PAYLOAD_ID_HELLO: u8 = 1;
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 /// Expected message types for this program. Only valid payloads are:
 /// * `Hello`: Payload ID == 1. Emitted when
 /// [`send_native_tokens_with_payload`](crate::send_native_tokens_with_payload)
@@ -11,25 +12,15 @@ const PAYLOAD_ID_HELLO: u8 = 1;
 ///
 /// Payload IDs are encoded as u8.
 pub enum HelloTokenMessage {
-    Hello {
-        recipient: [u8; 32],
-        relayer_fee: u32,
-        token_account: Pubkey,
-    },
+    Hello { recipient: [u8; 32] },
 }
 
 impl AnchorSerialize for HelloTokenMessage {
     fn serialize<W: io::Write>(&self, writer: &mut W) -> io::Result<()> {
         match self {
-            HelloTokenMessage::Hello {
-                recipient,
-                relayer_fee,
-                token_account,
-            } => {
+            HelloTokenMessage::Hello { recipient } => {
                 PAYLOAD_ID_HELLO.serialize(writer)?;
-                recipient.serialize(writer)?;
-                relayer_fee.to_be_bytes().serialize(writer)?;
-                token_account.serialize(writer)
+                recipient.serialize(writer)
             }
         }
     }
@@ -38,20 +29,15 @@ impl AnchorSerialize for HelloTokenMessage {
 impl AnchorDeserialize for HelloTokenMessage {
     fn deserialize(buf: &mut &[u8]) -> io::Result<Self> {
         match buf[0] {
-            PAYLOAD_ID_HELLO => {
-                let relayer_fee = {
-                    let mut out = [0u8; 4];
-                    out.copy_from_slice(&buf[32..36]);
-                    u32::from_be_bytes(out)
-                };
-
-                Ok(HelloTokenMessage::Hello {
-                    recipient: <[u8; 32]>::deserialize(&mut &buf[..32])?,
-                    relayer_fee,
-                    token_account: Pubkey::deserialize(&mut &buf[36..68])?,
-                })
-            }
-            _ => Err(io::Error::new(io::ErrorKind::Other, "invalid payload ID")),
+            PAYLOAD_ID_HELLO => Ok(HelloTokenMessage::Hello {
+                recipient: <[u8; 32]>::deserialize(&mut &buf[1..33])?,
+            }),
+            _ => Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "invalid payload ID",
+            )),
         }
     }
 }
+
+pub type PostedHelloTokenMessage = token_bridge::PostedTransferWith<HelloTokenMessage>;

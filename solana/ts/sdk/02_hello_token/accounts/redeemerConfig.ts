@@ -21,6 +21,8 @@ export interface RedeemerConfigData {
   owner: PublicKey;
   bump: number;
   tokenBridge: InboundTokenBridgeAddresses;
+  relayerFee: number;
+  relayerFeePrecision: number;
 }
 
 export async function getRedeemerConfigData(

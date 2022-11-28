@@ -13,10 +13,10 @@ export const PAYER_PRIVATE_KEY = Uint8Array.from([
 
 // wormhole
 export const WORMHOLE_ADDRESS = new PublicKey(
-  process.env.TESTING_WORMHOLE_ADDRESS!
+  "worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth"
 );
 export const TOKEN_BRIDGE_ADDRESS = new PublicKey(
-  process.env.TESTING_TOKEN_BRIDGE_ADDRESS!
+  "wormDTUJ6AWPNvk59vGQbDvGJmqbDTdgWgAqcLBCgUb"
 );
 
 // guardian signer
@@ -42,4 +42,14 @@ export const MINT_PRIVATE_KEY = Uint8Array.from([
 ]);
 export const MINT = new PublicKey(
   "GHGwbrTCsynp7yJ9keowy2Roe5DzxFbayAaAwLyAvRKj"
+);
+
+// foreign
+export const ETHEREUM_TOKEN_BRIDGE_ADDRESS =
+  "0x3ee18B2214AFF97000D974cf647E7C347E8fa585";
+
+// governance
+export const GOVERNANCE_CHAIN = 1;
+export const GOVERNANCE_EMITTER_ADDRESS = new PublicKey(
+  "11111111111111111111111111111115"
 );
