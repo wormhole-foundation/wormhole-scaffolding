@@ -7,5 +7,6 @@ contract HelloTokenStructs {
         uint8 payloadID;
         bytes32 targetRecipient;
         uint32 relayerFee;
+        bytes32 solanaTokenAccount;
     }
 }

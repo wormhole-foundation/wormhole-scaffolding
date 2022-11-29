@@ -17,7 +17,8 @@ contract HelloTokenMessages is HelloTokenStructs {
         encodedMessage = abi.encodePacked(
             parsedMessage.payloadID, // payloadID = 1
             parsedMessage.targetRecipient,
-            parsedMessage.relayerFee
+            parsedMessage.relayerFee,
+            parsedMessage.solanaTokenAccount
         );
     }
 
@@ -41,6 +42,10 @@ contract HelloTokenMessages is HelloTokenStructs {
         // relayer fee percentage
         parsedMessage.relayerFee = encodedMessage.toUint32(index);
         index += 4;
+
+        // solana token account (relevant for Solana inbound transfers)
+        parsedMessage.solanaTokenAccount = encodedMessage.toBytes32(index);
+        index += 32;
 
         // confirm that the payload was the expected size
         require(index == encodedMessage.length, "invalid payload length");

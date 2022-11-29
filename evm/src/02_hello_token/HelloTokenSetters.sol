@@ -36,8 +36,7 @@ contract HelloTokenSetters is HelloTokenState {
         _state.relayerFee = relayerFee_;
     }
 
-    function consumeMessage(bytes32 hash, string memory message) internal {
-        _state.receivedMessages[hash] = message;
-        _state.consumedMessages[hash] = true;
+    function setSolanaTokenAccount(address token, bytes32 account) internal {
+        _state.solanaTokenAccounts[token] = account;
     }
 }

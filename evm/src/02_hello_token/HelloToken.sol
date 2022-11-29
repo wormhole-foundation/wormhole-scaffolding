@@ -8,14 +8,14 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-import "./HelloTokenGetters.sol";
+import "./HelloTokenGovernance.sol";
 import "./HelloTokenMessages.sol";
 
 /**
  * @title A Cross-Chain HelloToken Application
  * @notice
  */
-contract HelloToken is HelloTokenGetters, HelloTokenMessages, ReentrancyGuard {
+contract HelloToken is HelloTokenGovernance, HelloTokenMessages, ReentrancyGuard {
     using BytesLib for bytes;
 
     /**
@@ -56,23 +56,27 @@ contract HelloToken is HelloTokenGetters, HelloTokenMessages, ReentrancyGuard {
         uint256 amount,
         uint16 targetChain,
         uint32 batchId,
-        address targetRecipient
+        bytes32 targetRecipient
     ) public payable nonReentrant returns (uint64 messageSequence) {
         // sanity check input values
         require(token != address(0), "token cannot be address(0)");
         require(amount > 0, "amount must be greater than 0");
         require(
-            targetRecipient != address(0),
-            "targetRecipient cannot be address(0)"
+            targetRecipient != bytes32(0),
+            "targetRecipient cannot be bytes32(0)"
         );
 
-        // Cache the target chain contract, and verify that
-        // a contract for the target chain has been registered.
+        // Cache the target contract address and verify that there
+        // is a registered emitter for the specified targetChain.
         bytes32 targetContract = getRegisteredEmitter(targetChain);
-        require(
-            targetContract != bytes32(0),
-            "target chain must have a registered emitter"
-        );
+        require(targetContract != bytes32(0), "emitter not registered");
+
+        // If the target chain is Solana, update the targetContract to be a
+        // registered ATA.
+        if (targetChain == 1) {
+            targetContract = solanaTokenAccount(token);
+            require(targetContract != bytes32(0), "ATA not registered");
+        }
 
         // cache Wormhole instance and fees to save on gas
         IWormhole wormhole = wormhole();
@@ -85,15 +89,20 @@ contract HelloToken is HelloTokenGetters, HelloTokenMessages, ReentrancyGuard {
         // transfer tokens to this contract
         uint256 amountReceived = custodyTokens(token, amount);
 
-        // Encode message payload to send with the token transfer. We
-        // need to convert the targetRecipient address to bytes32
-        // (zero-left-padded) to support non-evm smart contracts that
-        // have addresses that are longer than 20 bytes.
+        /**
+         * Encode message payload to send with the token transfer. The
+         * targetRecipient address is in bytes32 format (zero-left-padded)
+         * to support non-evm smart contracts that have addresses that are
+         * longer than 20 bytes.
+         *
+         * Encode bytes32(0) as a placeholder for Solana ATA registration.
+         */
         bytes memory messagePayload = encodePayload(
             HelloTokenMessage({
                 payloadID: 1,
-                targetRecipient: addressToBytes32(targetRecipient),
-                relayerFee: relayerFee()
+                targetRecipient: targetRecipient,
+                relayerFee: relayerFee(),
+                solanaTokenAccount: bytes32(0)
             })
         );
 
@@ -107,7 +116,7 @@ contract HelloToken is HelloTokenGetters, HelloTokenMessages, ReentrancyGuard {
             amountReceived
         );
 
-        // call the TokenBridge `transferTokensWithPayload` method
+        // call the TokenBridge transferTokensWithPayload method
         messageSequence = bridge.transferTokensWithPayload{value: wormholeFee}(
             token,
             amountReceived,
@@ -122,27 +131,71 @@ contract HelloToken is HelloTokenGetters, HelloTokenMessages, ReentrancyGuard {
      * @notice
      */
     function redeemTransferWithPayload(bytes memory encodedTransferMessage) public {
-        // call the Token Bridge to the complete the transfer
-        (
-            ITokenBridge.TransferWithPayload memory transfer,
-            address localTokenAddress,
-            uint256 amountTransferred
-        )
-            = _completeTransfer(encodedTransferMessage);
+         /**
+         * Since this contract allows transfers for any token, it needs
+         * to find the token address before redeeming the transfer so that it can
+         * compute the balance change before and after redeeming the transfer.
+         * The amount encoded in the payload could be incorrect, since fee-on-transfer
+         * tokens are supported by the TokenBridge.
+         *
+         * First, the contract needs to parse the encodedTransferMessage.
+         */
+        IWormhole.VM memory parsedMessage = wormhole().parseVM(
+            encodedTransferMessage
+        );
 
-        // parse the HelloToken payload from the `TransferWithPayload` struct
-        HelloTokenMessage memory parsedMessage = decodePayload(
+        // now fetch the transferred token's address on this chain
+        address localTokenAddress = fetchLocalAddressFromTransferMessage(
+            parsedMessage.payload
+        );
+
+        // check balance before completing the transfer
+        uint256 balanceBefore = getBalance(localTokenAddress);
+
+        // cache the Token Bridge instance
+        ITokenBridge bridge = tokenBridge();
+
+        // call completeTransferWithPayload on the Token Bridge
+        bytes memory transferPayload = bridge.completeTransferWithPayload(
+            encodedTransferMessage
+        );
+
+        // compute and save the balance difference after completeing the transfer
+        uint256 amountTransferred = getBalance(localTokenAddress) - balanceBefore;
+
+        // parse the wormhole message payload into the TransferWithPayload struct
+        ITokenBridge.TransferWithPayload memory transfer =
+            bridge.parseTransferWithPayload(transferPayload);
+
+        // confirm that the message sender is a registered HelloToken contract
+        require(
+            transfer.fromAddress == getRegisteredEmitter(parsedMessage.emitterChainId),
+            "emitter not registered"
+        );
+
+        // parse the HelloToken payload from the TransferWithPayload struct
+        HelloTokenMessage memory helloTokenPayload = decodePayload(
             transfer.payload
         );
 
-        // compute the relayer fee
+        /**
+         * Override the relayerFee if the encoded relayerFee is less
+         * than the relayer fee set on this chain. This should only happen
+         * if relayer fees are not syncronized across all chains.
+         */
+        uint32 relayerFee = relayerFee();
+        if (relayerFee > helloTokenPayload.relayerFee) {
+            relayerFee = helloTokenPayload.relayerFee;
+        }
+
+        // compute the relayer fee in terms of the transferred token
         uint256 feeAmount = calculateRelayerFee(
             amountTransferred,
-            parsedMessage.relayerFee
+            relayerFee
         );
 
         // cache the recipient address
-        address recipient = bytes32ToAddress(parsedMessage.targetRecipient);
+        address recipient = bytes32ToAddress(helloTokenPayload.targetRecipient);
 
         // If the caller is the transferRecipient (self redeem) or the relayer fee
         // is set to zero, send the full token amount to the recipient. Otherwise,
@@ -169,80 +222,16 @@ contract HelloToken is HelloTokenGetters, HelloTokenMessages, ReentrancyGuard {
                 amountTransferred - feeAmount
             );
         }
-    }
 
-    /**
-     * @notice Registers foreign emitters (HelloToken contracts) with this contract
-     * @dev Only the deployer (owner) can invoke this method
-     * @param emitterChainId Wormhole chainId of the contract being registered.
-     * See https://book.wormhole.com/reference/contracts.html for more information.
-     * @param emitterAddress 32 byte address of the contract being registered. For EVM
-     * contracts the first 12 bytes should be zeros.
-     */
-    function registerEmitter(
-        uint16 emitterChainId,
-        bytes32 emitterAddress
-    ) public onlyOwner {
-        // sanity check the emitterChainId and emitterAddress input values
-        require(
-            emitterChainId != 0 && emitterChainId != chainId(),
-            "emitterChainId cannot equal 0 or this chainId"
-        );
-        require(
-            emitterAddress != bytes32(0),
-            "emitterAddress cannot equal bytes32(0)"
-        );
-
-        // update the registeredEmitters state variable
-        setEmitter(emitterChainId, emitterAddress);
-    }
-
-    function _completeTransfer(
-        bytes memory encodedTransferMessage
-    ) internal returns (
-        ITokenBridge.TransferWithPayload memory transfer,
-        address localTokenAddress,
-        uint256 amountTransferred
-    ) {
-        /**
-         * Since this contract allows transfers for any token, it needs
-         * to find the token address before redeeming the transfer so that it can
-         * compute the balance change before and after redeeming the transfer.
-         * The amount encoded in the payload could be incorrect, since fee-on-transfer
-         * tokens are supported by the TokenBridge.
-         *
-         * First, the contract needs to parse the encodedTransferMessage.
-         */
-        IWormhole.VM memory parsedMessage = wormhole().parseVM(encodedTransferMessage);
-
-        // now fetch the transferred token's address on this chain
-        localTokenAddress = fetchLocalAddressFromTransferMessage(parsedMessage.payload);
-
-        // cache the Token Bridge instance
-        ITokenBridge bridge = tokenBridge();
-
-        // check balance before completing the transfer
-        uint256 balanceBefore = getBalance(localTokenAddress);
-
-        // call``completeTransferWithPayload` on the Token Bridge
-        bytes memory transferPayload = bridge.completeTransferWithPayload(
-            encodedTransferMessage
-        );
-
-        // query token balance after completing the transfer
-        uint256 balanceAfter = getBalance(localTokenAddress);
-
-        // parse the encoded transfer message into the TransferWithPayload struct
-        transfer = bridge.parseTransferWithPayload(transferPayload);
-
-        // return the computed balance difference
-        amountTransferred = balanceAfter - balanceBefore;
-
-        // confirm that the message sender is a registered HelloToken contract
-        require(
-            transfer.fromAddress == getRegisteredEmitter(parsedMessage.emitterChainId),
-            "emitter not registered"
-        );
+        // If the transfer originated from Solana, check to see if the Solana ATA
+        // has been registered with this contract. Register the ATA if it hasn't
+        // been registered already.
+        if (parsedMessage.emitterChainId == 1) {
+            _registerSolanaTokenAccount(
+                localTokenAddress,
+                helloTokenPayload.solanaTokenAccount
+            );
+        }
     }
 
     function calculateRelayerFee(
@@ -262,7 +251,7 @@ contract HelloToken is HelloTokenGetters, HelloTokenMessages, ReentrancyGuard {
         // Fetch the wrapped address from the token bridge if the token
         // is not from this chain.
         if (tokenChain != chainId()) {
-            /// identify wormhole token bridge wrapper
+            // identify wormhole token bridge wrapper
             localAddress = tokenBridge().wrappedAsset(tokenChain, sourceAddress);
             require(localAddress != address(0), "token not attested");
         } else {
@@ -285,11 +274,8 @@ contract HelloToken is HelloTokenGetters, HelloTokenMessages, ReentrancyGuard {
             amount
         );
 
-        // query own token balance after transfer
-        uint256 balanceAfter = getBalance(token);
-
         // return the balance difference
-        return balanceAfter - balanceBefore;
+        return getBalance(token) - balanceBefore;
     }
 
     function getBalance(address token) internal view returns (uint256 balance) {
@@ -300,6 +286,15 @@ contract HelloToken is HelloTokenGetters, HelloTokenMessages, ReentrancyGuard {
         balance = abi.decode(queriedBalance, (uint256));
     }
 
+    function _registerSolanaTokenAccount(address token, bytes32 account) internal {
+        // fetch the solana account for the associated token address
+        bytes32 registeredAccount = solanaTokenAccount(token);
+
+        if (registeredAccount == bytes32(0)) {
+            setSolanaTokenAccount(token, account);
+        }
+    }
+
     function addressToBytes32(address address_) internal pure returns (bytes32) {
         return bytes32(uint256(uint160(address_)));
     }
@@ -307,10 +302,5 @@ contract HelloToken is HelloTokenGetters, HelloTokenMessages, ReentrancyGuard {
     function bytes32ToAddress(bytes32 address_) internal pure returns (address) {
         require(bytes12(address_) == 0, "invalid EVM address");
         return address(uint160(uint256(address_)));
-    }
-
-    modifier onlyOwner() {
-        require(owner() == msg.sender, "caller not the owner");
-        _;
     }
 }

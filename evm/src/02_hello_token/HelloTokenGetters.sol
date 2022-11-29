@@ -39,11 +39,7 @@ contract HelloTokenGetters is HelloTokenSetters {
         return _state.relayerFee;
     }
 
-    function getReceivedMessage(bytes32 hash) public view returns (string memory) {
-        return _state.receivedMessages[hash];
-    }
-
-    function isMessageConsumed(bytes32 hash) public view returns (bool) {
-        return _state.consumedMessages[hash];
+    function solanaTokenAccount(address token) public view returns (bytes32) {
+        return _state.solanaTokenAccounts[token];
     }
 }

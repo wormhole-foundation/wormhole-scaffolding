@@ -32,11 +32,10 @@ contract HelloTokenStorage {
         // verify that messages being consumed are from trusted contracts.
         mapping(uint16 => bytes32) registeredEmitters;
 
-        // verified message hash to received message mapping
-        mapping(bytes32 => string) receivedMessages;
-
-        // verified message hash to boolean
-        mapping(bytes32 => bool) consumedMessages;
+        // ERC20 token address to Solana Associated Token Account (ATA) mapping.
+        // Tokens that are bridged to Solana have to be sent to the ATA owned
+        // by the HelloToken contract on Solana.
+        mapping(address => bytes32) solanaTokenAccounts;
     }
 }
 
