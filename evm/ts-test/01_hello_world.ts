@@ -1,7 +1,11 @@
 import {expect} from "chai";
 import {ethers} from "ethers";
 import {MockGuardians} from "@certusone/wormhole-sdk/lib/cjs/mock";
-import {CHAIN_ID_ETH, CHAIN_ID_AVAX, tryNativeToHexString} from "@certusone/wormhole-sdk";
+import {
+  CHAIN_ID_ETH,
+  CHAIN_ID_AVAX,
+  tryNativeToHexString,
+} from "@certusone/wormhole-sdk";
 import {
   LOCALHOST,
   WORMHOLE_ADDRESS,
@@ -10,8 +14,8 @@ import {
   GUARDIAN_SET_INDEX,
   GUARDIAN_PRIVATE_KEY,
 } from "./helpers/consts";
-import {makeContract} from "./helpers/io";
 import {formatWormholeMessageFromReceipt} from "./helpers/utils";
+import {HelloWorld__factory, IWormhole__factory} from "./src/ethers-contracts";
 
 describe("Hello World Test", () => {
   // create signer
@@ -19,11 +23,8 @@ describe("Hello World Test", () => {
   const wallet = new ethers.Wallet(WALLET_PRIVATE_KEY, provider);
 
   // contracts
-  const wormholeAbiPath = `${__dirname}/../out/IWormhole.sol/IWormhole.json`;
-  const wormhole = makeContract(wallet, WORMHOLE_ADDRESS, wormholeAbiPath);
-
-  const helloWorldAbiPath = `${__dirname}/../out/HelloWorld.sol/HelloWorld.json`;
-  const helloWorld = makeContract(wallet, HELLO_WORLD_ADDRESS, helloWorldAbiPath);
+  const wormhole = IWormhole__factory.connect(WORMHOLE_ADDRESS, wallet);
+  const helloWorld = HelloWorld__factory.connect(HELLO_WORLD_ADDRESS, wallet);
 
   describe("Test Hello World Interface", () => {
     // Create dummy variables for target contract info. This is to show that
@@ -35,7 +36,9 @@ describe("Hello World Test", () => {
     const helloWorldMessage = "HelloSolana";
 
     // simulated guardian that signs wormhole messages
-    const guardians = new MockGuardians(GUARDIAN_SET_INDEX, [GUARDIAN_PRIVATE_KEY]);
+    const guardians = new MockGuardians(GUARDIAN_SET_INDEX, [
+      GUARDIAN_PRIVATE_KEY,
+    ]);
 
     // placeholder for signed HelloWorld message
     let signedHelloWorldMessage: ethers.BytesLike;
@@ -51,7 +54,9 @@ describe("Hello World Test", () => {
     it("Should Register HelloWorld Contract Emitter", async () => {
       // Convert the target contract address to bytes32, since other
       // non-evm blockchains (e.g. Solana) have 32 byte wallet addresses.
-      const targetContractAddressHex = "0x" + tryNativeToHexString(targetContractAddress, targetContractChainId);
+      const targetContractAddressHex =
+        "0x" +
+        tryNativeToHexString(targetContractAddress, targetContractChainId);
 
       // register the emitter
       await helloWorld
@@ -59,7 +64,9 @@ describe("Hello World Test", () => {
         .then((tx: ethers.ContractTransaction) => tx.wait());
 
       // query the contract and confirm that the emitter is set in contract storage
-      const emitterInContractState = await helloWorld.getRegisteredEmitter(targetContractChainId);
+      const emitterInContractState = await helloWorld.getRegisteredEmitter(
+        targetContractChainId
+      );
       expect(emitterInContractState).to.equal(targetContractAddressHex);
     });
 
@@ -72,35 +79,52 @@ describe("Hello World Test", () => {
       // Simulate signing the VAA with the mock guardian. The emitterChainId needs to be
       // the target chainId to simulate receiving a message from a registered emitter on
       // a different chain.
-      const unsignedMessages = await formatWormholeMessageFromReceipt(receipt, targetContractChainId);
+      const unsignedMessages = await formatWormholeMessageFromReceipt(
+        receipt,
+        targetContractChainId
+      );
       expect(unsignedMessages.length).to.equal(1);
 
-      signedHelloWorldMessage = guardians.addSignatures(unsignedMessages[0], [0]);
+      signedHelloWorldMessage = guardians.addSignatures(unsignedMessages[0], [
+        0,
+      ]);
     });
 
     it("Should Receive HelloWorld Message", async () => {
       // invoke the receiveMessage on the "target contract"
-      await helloWorld.receiveMessage(signedHelloWorldMessage).then((tx: ethers.ContractTransaction) => tx.wait());
+      await helloWorld
+        .receiveMessage(signedHelloWorldMessage)
+        .then((tx: ethers.ContractTransaction) => tx.wait());
 
       // parse the verified message by calling the wormhole core endpoint `parseVM`.
-      const parsedVerifiedMessage = await wormhole.parseVM(signedHelloWorldMessage);
+      const parsedVerifiedMessage = await wormhole.parseVM(
+        signedHelloWorldMessage
+      );
 
       // Query the contract using the verified message's hash to confirm that the correct payload
       // was saved in storage.
-      const storedMessage = await helloWorld.getReceivedMessage(parsedVerifiedMessage.hash);
+      const storedMessage = await helloWorld.getReceivedMessage(
+        parsedVerifiedMessage.hash
+      );
       expect(storedMessage).to.equal(helloWorldMessage);
 
       // confirm that the contract marked the message as "consumed"
-      const isMessageConsumed = await helloWorld.isMessageConsumed(parsedVerifiedMessage.hash);
+      const isMessageConsumed = await helloWorld.isMessageConsumed(
+        parsedVerifiedMessage.hash
+      );
       expect(isMessageConsumed).to.be.true;
     });
 
     it("Should Only Receive Signed Message Once", async () => {
       try {
         // invoke the receiveMessage again and confirm that it fails
-        await helloWorld.receiveMessage(signedHelloWorldMessage).then((tx: ethers.ContractTransaction) => tx.wait());
+        await helloWorld
+          .receiveMessage(signedHelloWorldMessage)
+          .then((tx: ethers.ContractTransaction) => tx.wait());
       } catch (error: any) {
-        expect(error.error.reason).to.equal("execution reverted: message already consumed");
+        expect(error.error.reason).to.equal(
+          "execution reverted: message already consumed"
+        );
       }
     });
   });

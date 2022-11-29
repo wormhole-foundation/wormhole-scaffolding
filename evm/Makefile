@@ -19,6 +19,7 @@ lib/forge-std:
 
 build: dependencies
 	forge build
+	yarn build-types
 
 .PHONY: unit-test
 unit-test: forge-test
