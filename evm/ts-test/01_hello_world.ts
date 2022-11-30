@@ -7,24 +7,30 @@ import {
   tryNativeToHexString,
 } from "@certusone/wormhole-sdk";
 import {
-  LOCALHOST,
-  WORMHOLE_ADDRESS,
-  HELLO_WORLD_ADDRESS,
+  AVAX_HOST,
+  AVAX_WORMHOLE_ADDRESS,
   WALLET_PRIVATE_KEY,
-  GUARDIAN_SET_INDEX,
+  AVAX_WORMHOLE_GUARDIAN_SET_INDEX,
   GUARDIAN_PRIVATE_KEY,
+  FORK_AVAX_CHAIN_ID,
 } from "./helpers/consts";
-import {formatWormholeMessageFromReceipt} from "./helpers/utils";
+import {
+  formatWormholeMessageFromReceipt,
+  readHelloWorldContractAddress,
+} from "./helpers/utils";
 import {HelloWorld__factory, IWormhole__factory} from "./src/ethers-contracts";
 
 describe("Hello World Test", () => {
   // create signer
-  const provider = new ethers.providers.StaticJsonRpcProvider(LOCALHOST);
+  const provider = new ethers.providers.StaticJsonRpcProvider(AVAX_HOST);
   const wallet = new ethers.Wallet(WALLET_PRIVATE_KEY, provider);
 
+  // HelloWorld contract address
+  const helloWorldAddress = readHelloWorldContractAddress(FORK_AVAX_CHAIN_ID);
+
   // contracts
-  const wormhole = IWormhole__factory.connect(WORMHOLE_ADDRESS, wallet);
-  const helloWorld = HelloWorld__factory.connect(HELLO_WORLD_ADDRESS, wallet);
+  const wormhole = IWormhole__factory.connect(AVAX_WORMHOLE_ADDRESS, wallet);
+  const helloWorld = HelloWorld__factory.connect(helloWorldAddress, wallet);
 
   describe("Test Hello World Interface", () => {
     // Create dummy variables for target contract info. This is to show that
@@ -36,7 +42,7 @@ describe("Hello World Test", () => {
     const helloWorldMessage = "HelloSolana";
 
     // simulated guardian that signs wormhole messages
-    const guardians = new MockGuardians(GUARDIAN_SET_INDEX, [
+    const guardians = new MockGuardians(AVAX_WORMHOLE_GUARDIAN_SET_INDEX, [
       GUARDIAN_PRIVATE_KEY,
     ]);
 
@@ -44,7 +50,7 @@ describe("Hello World Test", () => {
     let signedHelloWorldMessage: ethers.BytesLike;
 
     it("Verify Contract Deployment", async () => {
-      expect(helloWorld.address).to.equal(HELLO_WORLD_ADDRESS);
+      expect(helloWorld.address).to.equal(helloWorldAddress);
 
       // confirm chainId
       const deployedChainId = await helloWorld.chainId();

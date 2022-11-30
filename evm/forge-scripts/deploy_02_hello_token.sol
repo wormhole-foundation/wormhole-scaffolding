@@ -3,26 +3,28 @@
 pragma solidity ^0.8.0;
 
 import "forge-std/Script.sol";
+import "forge-std/console.sol";
 
 import {IWormhole} from "../src/interfaces/IWormhole.sol";
-import {HelloWorld} from "../src/01_hello_world/HelloWorld.sol";
-
-import "forge-std/console.sol";
+import {HelloToken} from "../src/02_hello_token/HelloToken.sol";
 
 contract ContractScript is Script {
     IWormhole wormhole;
-    HelloWorld helloWorld;
+    HelloToken helloToken;
 
     function setUp() public {
         wormhole = IWormhole(vm.envAddress("TESTING_WORMHOLE_ADDRESS"));
     }
 
-    function deployHelloWorld() public {
+    function deployHelloToken() public {
         // deploy the HelloWorld contract
-        helloWorld = new HelloWorld(
+        helloToken = new HelloToken(
             address(wormhole),
+            vm.envAddress("TESTING_BRIDGE_ADDRESS"),
             wormhole.chainId(),
-            1 // wormholeFinality
+            1, // wormholeFinality
+            1e6, // feePrecision
+            10000 // relayerFee (percentage terms)
         );
     }
 
@@ -30,8 +32,8 @@ contract ContractScript is Script {
         // begin sending transactions
         vm.startBroadcast();
 
-        // HelloWorld.sol
-        deployHelloWorld();
+        // HelloToken.sol
+        deployHelloToken();
 
         // finished
         vm.stopBroadcast();

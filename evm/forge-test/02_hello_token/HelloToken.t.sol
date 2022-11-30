@@ -51,14 +51,14 @@ contract HelloTokenTest is Test {
      */
     function setUp() public {
         // verify that we're using the correct fork (AVAX mainnet in this case)
-        require(block.chainid == vm.envUint("TESTING_FORK_CHAINID"), "wrong evm");
+        require(block.chainid == vm.envUint("TESTING_AVAX_FORK_CHAINID"), "wrong evm");
 
         // this will be used to sign Wormhole messages
         guardianSigner = uint256(vm.envBytes32("TESTING_DEVNET_GUARDIAN"));
 
         // set up Wormhole using Wormhole existing on AVAX mainnet
         wormholeSimulator = new WormholeSimulator(
-            vm.envAddress("TESTING_WORMHOLE_ADDRESS"),
+            vm.envAddress("TESTING_AVAX_WORMHOLE_ADDRESS"),
             guardianSigner
         );
 
@@ -67,33 +67,35 @@ contract HelloTokenTest is Test {
 
         // verify Wormhole state from fork
         require(
-            wormhole.chainId() == uint16(vm.envUint("TESTING_WORMHOLE_CHAINID")),
+            wormhole.chainId() == uint16(vm.envUint("TESTING_AVAX_WORMHOLE_CHAINID")),
             "wrong chainId"
         );
         require(
-            wormhole.messageFee() == vm.envUint("TESTING_WORMHOLE_MESSAGE_FEE"),
+            wormhole.messageFee() == vm.envUint("TESTING_AVAX_WORMHOLE_MESSAGE_FEE"),
             "wrong messageFee"
         );
         require(
-            wormhole.getCurrentGuardianSetIndex() == uint32(vm.envUint("TESTING_WORMHOLE_GUARDIAN_SET_INDEX")),
+            wormhole.getCurrentGuardianSetIndex() == uint32(
+                vm.envUint("TESTING_AVAX_WORMHOLE_GUARDIAN_SET_INDEX")
+            ),
             "wrong guardian set index"
         );
 
         // instantiate wavax interface
-        wavax = IWETH(vm.envAddress("TESTING_WETH_ADDRESS"));
+        wavax = IWETH(vm.envAddress("TESTING_WRAPPED_AVAX_ADDRESS"));
 
         // instantiate TokenBridge interface
-        bridge = ITokenBridge(vm.envAddress("TESTING_LOCAL_BRIDGE_ADDRESS"));
+        bridge = ITokenBridge(vm.envAddress("TESTING_AVAX_BRIDGE_ADDRESS"));
 
         // Set the foreign token bridge address and chainId. Set the wavax and
         // wrapped token addresses for the foreign chain.
-        ethereumTokenBridge = vm.envAddress("TESTING_FOREIGN_BRIDGE_ADDRESS");
-        ethereumChainId = uint16(vm.envUint("TESTING_FOREIGN_BRIDGE_CHAIN_ID"));
-        weth = vm.envAddress("TESTING_FOREIGN_WETH_ADDRESS");
+        ethereumTokenBridge = vm.envAddress("TESTING_ETH_BRIDGE_ADDRESS");
+        ethereumChainId = uint16(vm.envUint("TESTING_ETH_WORMHOLE_CHAINID"));
+        weth = vm.envAddress("TESTING_WRAPPED_ETH_ADDRESS");
 
         // set the solana chainId and wsol address
         solanaChainId = 1;
-        wsol = vm.envBytes32("TESTING_FOREIGN_WSOL_ADDRESS");
+        wsol = vm.envBytes32("TESTING_WRAPPED_SOL_ADDRESS");
         solanaTokenBridge = vm.envBytes32("TESTING_SOLANA_BRIDGE_ADDRESS");
 
         // relayer fee and precision
@@ -103,7 +105,7 @@ contract HelloTokenTest is Test {
         // initialize "source chain" HelloToken contract
         helloToken = new HelloToken(
             address(wormhole),
-            vm.envAddress("TESTING_LOCAL_BRIDGE_ADDRESS"),
+            address(bridge),
             wormhole.chainId(),
             uint8(1), // wormhole finality
             feePrecision,

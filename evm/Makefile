@@ -26,7 +26,7 @@ unit-test: forge-test
 
 .PHONY: forge-test
 forge-test: dependencies
-	forge test --fork-url ${TESTING_FORK_RPC} -vv
+	forge test --fork-url ${TESTING_AVAX_FORK_RPC} -vv
 
 .PHONY: integration-test
 integration-test: dependencies build
