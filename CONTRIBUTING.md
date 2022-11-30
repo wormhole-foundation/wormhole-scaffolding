@@ -1,6 +1,6 @@
 # Contributing to Wormhole Scaffolding
 
-:pray: Thank you for spending some time to contribute! :pray:
+:pray: Thank you for spending some of your time to contribute! :pray:
 
 We hope to outline some clear guidelines for contributing. This repository
 hopes to achieve its goal of showcasing many examples of [Wormhole]
