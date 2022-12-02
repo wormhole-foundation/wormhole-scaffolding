@@ -1,37 +1,73 @@
 import {expect} from "chai";
 import {ethers} from "ethers";
-import {tryNativeToHexString} from "@certusone/wormhole-sdk";
+import {
+  CHAIN_ID_AVAX,
+  CHAIN_ID_ETH,
+  tryNativeToHexString,
+} from "@certusone/wormhole-sdk";
+import {MockGuardians} from "@certusone/wormhole-sdk/lib/cjs/mock";
 import {
   FORK_AVAX_CHAIN_ID,
   FORK_ETH_CHAIN_ID,
   GUARDIAN_PRIVATE_KEY,
   AVAX_HOST,
   AVAX_WORMHOLE_ADDRESS,
+  AVAX_BRIDGE_ADDRESS,
   AVAX_WORMHOLE_CHAIN_ID,
   AVAX_WORMHOLE_GUARDIAN_SET_INDEX,
   AVAX_WORMHOLE_MESSAGE_FEE,
   ETH_HOST,
   ETH_WORMHOLE_ADDRESS,
+  ETH_BRIDGE_ADDRESS,
   ETH_WORMHOLE_CHAIN_ID,
   ETH_WORMHOLE_GUARDIAN_SET_INDEX,
   ETH_WORMHOLE_MESSAGE_FEE,
+  WALLET_PRIVATE_KEY,
 } from "./helpers/consts";
-import {makeContract} from "./helpers/io";
+import {
+  formatWormholeMessageFromReceipt,
+  readWormUSDContractAddress,
+} from "./helpers/utils";
+import {IWormhole__factory, IERC20__factory} from "./src/ethers-contracts";
+import {ITokenBridge__factory} from "@certusone/wormhole-sdk/lib/cjs/ethers-contracts";
 
-describe("Fork Test", () => {
+describe("Environment Test", () => {
+  // avax wallet
   const avaxProvider = new ethers.providers.StaticJsonRpcProvider(AVAX_HOST);
-  const ethProvider = new ethers.providers.StaticJsonRpcProvider(ETH_HOST);
+  const avaxWallet = new ethers.Wallet(WALLET_PRIVATE_KEY, avaxProvider);
 
-  const wormholeAbiPath = `${__dirname}/../out/IWormhole.sol/IWormhole.json`;
-  const avaxWormhole = makeContract(
-    avaxProvider,
+  // eth wallet
+  const ethProvider = new ethers.providers.StaticJsonRpcProvider(ETH_HOST);
+  const ethWallet = new ethers.Wallet(WALLET_PRIVATE_KEY, ethProvider);
+
+  // wormhole contract
+  const avaxWormhole = IWormhole__factory.connect(
     AVAX_WORMHOLE_ADDRESS,
-    wormholeAbiPath
+    avaxWallet
   );
-  const ethWormhole = makeContract(
-    ethProvider,
+  const ethWormhole = IWormhole__factory.connect(
     ETH_WORMHOLE_ADDRESS,
-    wormholeAbiPath
+    ethWallet
+  );
+
+  // token bridge contract
+  const avaxBridge = ITokenBridge__factory.connect(
+    AVAX_BRIDGE_ADDRESS,
+    avaxWallet
+  );
+  const ethBridge = ITokenBridge__factory.connect(
+    ETH_BRIDGE_ADDRESS,
+    ethWallet
+  );
+
+  // wormUSD ERC20 contract
+  const avaxWormUsd = IERC20__factory.connect(
+    readWormUSDContractAddress(FORK_AVAX_CHAIN_ID),
+    avaxWallet
+  );
+  const ethWormUsd = IERC20__factory.connect(
+    readWormUSDContractAddress(FORK_ETH_CHAIN_ID),
+    ethWallet
   );
 
   describe("Verify Mainnet Forks", () => {
@@ -202,12 +238,126 @@ describe("Fork Test", () => {
     });
   });
 
+  describe("Verify AVAX Bridge Contract", () => {
+    it("Chain ID", async () => {
+      const chainId = await avaxBridge.chainId();
+      expect(chainId).to.equal(AVAX_WORMHOLE_CHAIN_ID);
+    });
+    it("Wormhole", async () => {
+      const wormhole = await avaxBridge.wormhole();
+      expect(wormhole).to.equal(AVAX_WORMHOLE_ADDRESS);
+    });
+  });
+
+  describe("Verify ETH Bridge Contract", () => {
+    it("Chain ID", async () => {
+      const chainId = await ethBridge.chainId();
+      expect(chainId).to.equal(ETH_WORMHOLE_CHAIN_ID);
+    });
+    it("Wormhole", async () => {
+      const wormhole = await ethBridge.wormhole();
+      expect(wormhole).to.equal(ETH_WORMHOLE_ADDRESS);
+    });
+  });
+
   describe("Check wormhole-sdk", () => {
     it("tryNativeToHexString", async () => {
       const accounts = await avaxProvider.listAccounts();
       expect(tryNativeToHexString(accounts[0], "ethereum")).to.equal(
         "00000000000000000000000090f8bf6a479f320ead074411a4b0e7944ea8c9c1"
       );
+    });
+  });
+
+  describe("Verify AVAX WormUSD", () => {
+    const guardians = new MockGuardians(AVAX_WORMHOLE_GUARDIAN_SET_INDEX, [
+      GUARDIAN_PRIVATE_KEY,
+    ]);
+
+    let signedTokenAttestation: Buffer;
+
+    it("Tokens Minted to Wallet", async () => {
+      // fetch the total supply and confirm it was all minted to the avaxWallet
+      const totalSupply = await avaxWormUsd.totalSupply();
+      const walletBalance = await avaxWormUsd.balanceOf(avaxWallet.address);
+      expect(totalSupply.eq(walletBalance)).is.true;
+    });
+
+    it("Attest Tokens on Avax Bridge", async () => {
+      const receipt: ethers.ContractReceipt = await avaxBridge
+        .attestToken(avaxWormUsd.address, 0) // set nonce to zero
+        .then((tx: ethers.ContractTransaction) => tx.wait());
+
+      // simulate signing the VAA with the mock guardian
+      const unsignedMessages = await formatWormholeMessageFromReceipt(
+        receipt,
+        CHAIN_ID_AVAX
+      );
+      expect(unsignedMessages.length).to.equal(1);
+      signedTokenAttestation = guardians.addSignatures(unsignedMessages[0], [
+        0,
+      ]);
+    });
+
+    it("Create Wrapped Token Contract on ETH", async () => {
+      // create wrapped token on eth using signedTokenAttestation message
+      const receipt: ethers.ContractReceipt = await ethBridge
+        .createWrapped(signedTokenAttestation) // set nonce to zero
+        .then((tx: ethers.ContractTransaction) => tx.wait());
+
+      // confirm that the token contract was created
+      const wrappedAsset = await ethBridge.wrappedAsset(
+        CHAIN_ID_AVAX,
+        "0x" + tryNativeToHexString(avaxWormUsd.address, CHAIN_ID_AVAX)
+      );
+      const isWrapped = await ethBridge.isWrappedAsset(wrappedAsset);
+      expect(isWrapped).is.true;
+    });
+  });
+
+  describe("Verify ETH WormUSD", () => {
+    const guardians = new MockGuardians(ETH_WORMHOLE_GUARDIAN_SET_INDEX, [
+      GUARDIAN_PRIVATE_KEY,
+    ]);
+
+    let signedTokenAttestation: Buffer;
+
+    it("Tokens Minted to Wallet", async () => {
+      // fetch the total supply and confirm it was all minted to the avaxWallet
+      const totalSupply = await ethWormUsd.totalSupply();
+      const walletBalance = await ethWormUsd.balanceOf(ethWallet.address);
+      expect(totalSupply.eq(walletBalance)).is.true;
+    });
+
+    it("Attest Tokens on Avax Bridge", async () => {
+      const receipt: ethers.ContractReceipt = await ethBridge
+        .attestToken(ethWormUsd.address, 0) // set nonce to zero
+        .then((tx: ethers.ContractTransaction) => tx.wait());
+
+      // simulate signing the VAA with the mock guardian
+      const unsignedMessages = await formatWormholeMessageFromReceipt(
+        receipt,
+        CHAIN_ID_ETH
+      );
+      expect(unsignedMessages.length).to.equal(1);
+      signedTokenAttestation = guardians.addSignatures(unsignedMessages[0], [
+        0,
+      ]);
+    });
+
+    it("Create Wrapped Token Contract on AVAX", async () => {
+      // create wrapped token on avax using signedTokenAttestation message
+      const receipt: ethers.ContractReceipt = await avaxBridge
+        .createWrapped(signedTokenAttestation) // set nonce to zero
+        .then((tx: ethers.ContractTransaction) => tx.wait());
+
+      // confirm that the token contract was created
+      const wrappedAsset = await avaxBridge.wrappedAsset(
+        CHAIN_ID_ETH,
+        "0x" + tryNativeToHexString(ethWormUsd.address, CHAIN_ID_ETH)
+      );
+      const isWrapped = await avaxBridge.isWrappedAsset(wrappedAsset);
+      expect(isWrapped).is.true;
     });
   });
 });

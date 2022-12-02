@@ -32,23 +32,12 @@ describe("Hello World Test", () => {
   const wormhole = IWormhole__factory.connect(AVAX_WORMHOLE_ADDRESS, wallet);
   const helloWorld = HelloWorld__factory.connect(helloWorldAddress, wallet);
 
-  describe("Test Hello World Interface", () => {
-    // Create dummy variables for target contract info. This is to show that
-    // the HelloWorld contracts should be registered with contracts on a different chain.
-    const targetContractAddress = helloWorld.address;
-    const targetContractChainId = CHAIN_ID_ETH;
+  // Create dummy variables for target contract info. This is to show that
+  // the HelloWorld contracts should be registered with contracts on a different chain.
+  const targetContractAddress = helloWorld.address;
+  const targetContractChainId = CHAIN_ID_ETH;
 
-    // HelloWorld message to send and receive
-    const helloWorldMessage = "HelloSolana";
-
-    // simulated guardian that signs wormhole messages
-    const guardians = new MockGuardians(AVAX_WORMHOLE_GUARDIAN_SET_INDEX, [
-      GUARDIAN_PRIVATE_KEY,
-    ]);
-
-    // placeholder for signed HelloWorld message
-    let signedHelloWorldMessage: ethers.BytesLike;
-
+  describe("Test Contract Deployment and Emitter Registeration", () => {
     it("Verify Contract Deployment", async () => {
       expect(helloWorld.address).to.equal(helloWorldAddress);
 
@@ -75,6 +64,19 @@ describe("Hello World Test", () => {
       );
       expect(emitterInContractState).to.equal(targetContractAddressHex);
     });
+  });
+
+  describe("Test HelloWorld Interface", () => {
+    // HelloWorld message to send and receive
+    const helloWorldMessage = "HelloSolana";
+
+    // simulated guardian that signs wormhole messages
+    const guardians = new MockGuardians(AVAX_WORMHOLE_GUARDIAN_SET_INDEX, [
+      GUARDIAN_PRIVATE_KEY,
+    ]);
+
+    // placeholder for signed HelloWorld message
+    let signedHelloWorldMessage: ethers.BytesLike;
 
     it("Should Send HelloWorld Message", async () => {
       // invoke the HelloWorld contract to emit the HelloWorld wormhole message

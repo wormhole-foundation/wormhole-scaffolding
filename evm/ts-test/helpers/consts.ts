@@ -21,6 +21,7 @@ export const AVAX_WORMHOLE_MESSAGE_FEE = ethers.BigNumber.from(
 export const AVAX_WORMHOLE_GUARDIAN_SET_INDEX = Number(
   process.env.TESTING_AVAX_WORMHOLE_GUARDIAN_SET_INDEX!
 );
+export const AVAX_BRIDGE_ADDRESS = process.env.TESTING_AVAX_BRIDGE_ADDRESS!;
 
 // Ethereum wormhole variables
 export const ETH_WORMHOLE_ADDRESS = process.env.TESTING_ETH_WORMHOLE_ADDRESS!;
@@ -33,6 +34,7 @@ export const ETH_WORMHOLE_MESSAGE_FEE = ethers.BigNumber.from(
 export const ETH_WORMHOLE_GUARDIAN_SET_INDEX = Number(
   process.env.TESTING_ETH_WORMHOLE_GUARDIAN_SET_INDEX!
 );
+export const ETH_BRIDGE_ADDRESS = process.env.TESTING_ETH_BRIDGE_ADDRESS!;
 
 // signer
 export const GUARDIAN_PRIVATE_KEY = process.env.TESTING_DEVNET_GUARDIAN!;

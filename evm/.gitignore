@@ -4,6 +4,7 @@ cache
 lib
 node_modules
 out
+out.log
 broadcast
 forge-scripts/deploy.out
 ts-test/src/

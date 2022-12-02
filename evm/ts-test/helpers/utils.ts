@@ -21,6 +21,15 @@ export function readHelloTokenContractAddress(chain: number): string {
   ).transactions[0].contractAddress;
 }
 
+export function readWormUSDContractAddress(chain: number): string {
+  return JSON.parse(
+    fs.readFileSync(
+      `${__dirname}/../../broadcast/deploy_wormUSD.sol/${chain}/run-latest.json`,
+      "utf-8"
+    )
+  ).transactions[0].contractAddress;
+}
+
 export async function parseWormholeEventsFromReceipt(
   receipt: ethers.ContractReceipt
 ): Promise<ethers.utils.LogDescription[]> {

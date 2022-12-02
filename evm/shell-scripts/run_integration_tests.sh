@@ -42,6 +42,11 @@ forge script forge-scripts/deploy_02_hello_token.sol \
     --private-key $PRIVATE_KEY \
     --broadcast --slow > forge-scripts/deploy.out 2>&1
 
+forge script forge-scripts/deploy_wormUSD.sol \
+    --rpc-url $AVAX_RPC \
+    --private-key $PRIVATE_KEY \
+    --broadcast --slow > forge-scripts/deploy.out 2>&1
+
 ## override environment variables based on deployment network
 export TESTING_WORMHOLE_ADDRESS=$TESTING_ETH_WORMHOLE_ADDRESS
 export TESTING_BRIDGE_ADDRESS=$TESTING_ETH_BRIDGE_ADDRESS
@@ -53,6 +58,11 @@ forge script forge-scripts/deploy_01_hello_world.sol \
     --broadcast --slow > forge-scripts/deploy.out 2>&1
 
 forge script forge-scripts/deploy_02_hello_token.sol \
+    --rpc-url $ETH_RPC \
+    --private-key $PRIVATE_KEY \
+    --broadcast --slow > forge-scripts/deploy.out 2>&1
+
+forge script forge-scripts/deploy_wormUSD.sol \
     --rpc-url $ETH_RPC \
     --private-key $PRIVATE_KEY \
     --broadcast --slow > forge-scripts/deploy.out 2>&1
