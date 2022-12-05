@@ -1,6 +1,6 @@
 import {ethers} from "ethers";
 import {ChainId, tryNativeToHexString} from "@certusone/wormhole-sdk";
-import {WORMHOLE_MESSAGE_EVENT_ABI} from "./consts";
+import {WORMHOLE_MESSAGE_EVENT_ABI, WORMHOLE_TOPIC} from "./consts";
 import * as fs from "fs";
 
 export function readHelloWorldContractAddress(chain: number): string {
@@ -39,12 +39,12 @@ export async function parseWormholeEventsFromReceipt(
   );
 
   // loop through the logs and parse the events that were emitted
-  const logDescriptions: ethers.utils.LogDescription[] = await Promise.all(
-    receipt.logs.map(async (log) => {
-      return wormholeMessageInterface.parseLog(log);
-    })
-  );
-
+  let logDescriptions: ethers.utils.LogDescription[] = [];
+  for (const log of receipt.logs) {
+    if (log.topics.includes(WORMHOLE_TOPIC)) {
+      logDescriptions.push(wormholeMessageInterface.parseLog(log));
+    }
+  }
   return logDescriptions;
 }
 
@@ -89,4 +89,24 @@ export async function formatWormholeMessageFromReceipt(
   }
 
   return results;
+}
+
+export function tokenBridgeNormalizeAmount(
+  amount: ethers.BigNumber,
+  decimals: number
+): ethers.BigNumber {
+  if (decimals > 8) {
+    amount = amount.div(10 ** (decimals - 8));
+  }
+  return amount;
+}
+
+export function tokenBridgeDenormalizeAmount(
+  amount: ethers.BigNumber,
+  decimals: number
+): ethers.BigNumber {
+  if (decimals > 8) {
+    amount = amount.mul(10 ** (decimals - 8));
+  }
+  return amount;
 }
