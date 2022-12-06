@@ -54,16 +54,12 @@ describe("Hello World Test", () => {
 
   describe("Test Contract Deployment and Emitter Registration", () => {
     it("Verify AVAX Contract Deployment", async () => {
-      expect(avaxHelloWorld.address).to.equal(avaxHelloWorld.address);
-
       // confirm chainId
       const deployedChainId = await avaxHelloWorld.chainId();
       expect(deployedChainId).to.equal(CHAIN_ID_AVAX);
     });
 
     it("Verify ETH Contract Deployment", async () => {
-      expect(ethHelloWorld.address).to.equal(ethHelloWorld.address);
-
       // confirm chainId
       const deployedChainId = await ethHelloWorld.chainId();
       expect(deployedChainId).to.equal(CHAIN_ID_ETH);

@@ -188,6 +188,11 @@ contract WormholeSimulator {
         return encodeAndSignMessage(vm_);
     }
 
+    /**
+     * @notice Signs and preformatted simulated Wormhole message
+     * @param vm_ The preformatted Wormhole message
+     * @return signedMessage Formatted and signed Wormhole message
+     */
     function encodeAndSignMessage(
         IWormhole.VM memory vm_
     ) public returns (bytes memory signedMessage) {

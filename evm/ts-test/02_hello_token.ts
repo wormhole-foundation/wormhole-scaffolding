@@ -72,7 +72,7 @@ describe("Hello Token Test", () => {
     ethWallet
   );
 
-  // wormUSD ERC20 contract
+  // WormUSD ERC20 contract
   const wormUsdAbi = `${__dirname}/../out/WormUSD.sol/WormUSD.json`;
   const avaxWormUsd = makeContract(
     avaxWallet,
@@ -97,16 +97,12 @@ describe("Hello Token Test", () => {
 
   describe("Test Contract Deployment and Emitter Registration", () => {
     it("Verify AVAX Contract Deployment", async () => {
-      expect(avaxHelloToken.address).to.equal(avaxHelloToken.address);
-
       // confirm chainId
       const deployedChainId = await avaxHelloToken.chainId();
       expect(deployedChainId).to.equal(CHAIN_ID_AVAX);
     });
 
     it("Verify ETH Contract Deployment", async () => {
-      expect(ethHelloToken.address).to.equal(ethHelloToken.address);
-
       // confirm chainId
       const deployedChainId = await ethHelloToken.chainId();
       expect(deployedChainId).to.equal(CHAIN_ID_ETH);
@@ -192,7 +188,7 @@ describe("Hello Token Test", () => {
       // grab token balance before performing the transfer
       const balanceBefore = await ethWormUsd.balanceOf(ethWallet.address);
 
-      // call transferTokensWithPayload
+      // call sendTokensWithPayload
       const receipt = await ethHelloToken
         .sendTokensWithPayload(
           ethWormUsd.address,
@@ -259,7 +255,7 @@ describe("Hello Token Test", () => {
       // encoded Wormhole message. Invoke this method using the avaxRelayerWallet
       // to confirm that the contract handles relayer payouts correctly.
       const receipt = await avaxHelloToken
-        .connect(avaxRelayerWallet)
+        .connect(avaxRelayerWallet) // change signer
         .redeemTransferWithPayload(localVariables.signedTransferMessage)
         .then(async (tx: ethers.ContractTransaction) => {
           const receipt = await tx.wait();
@@ -320,7 +316,7 @@ describe("Hello Token Test", () => {
     });
 
     it("Should Transfer Wrapped wormUSD Tokens From AVAX to ETH", async () => {
-      // Increase allowance of the wrapped wormUsd token for the avax wallet
+      // increase allowance of the wrapped wormUsd token for the avax wallet
       {
         const receipt = await localVariables.wrappedTokenContract
           .approve(
@@ -341,7 +337,7 @@ describe("Hello Token Test", () => {
         avaxWallet.address
       );
 
-      // call transferTokensWithPayload
+      // call sendTokensWithPayload
       const receipt = await avaxHelloToken
         .sendTokensWithPayload(
           localVariables.wrappedTokenContract.address,
@@ -405,7 +401,7 @@ describe("Hello Token Test", () => {
       // encoded Wormhole message. Invoke this method using the avaxRelayerWallet
       // to confirm that the contract handles relayer payouts correctly.
       const receipt = await ethHelloToken
-        .connect(ethRelayerWallet)
+        .connect(ethRelayerWallet) // change signer
         .redeemTransferWithPayload(localVariables.signedTransferMessage)
         .then(async (tx: ethers.ContractTransaction) => {
           const receipt = await tx.wait();
@@ -498,7 +494,7 @@ describe("Hello Token Test", () => {
       // grab token balance before performing the transfer
       const balanceBefore = await weth.balanceOf(ethWallet.address);
 
-      // call transferTokensWithPayload
+      // call sendTokensWithPayload
       const receipt = await ethHelloToken
         .sendTokensWithPayload(
           weth.address,
@@ -545,8 +541,8 @@ describe("Hello Token Test", () => {
         "0x" + tryNativeToHexString(localVariables.wethAddress, CHAIN_ID_ETH)
       );
 
-      // Create token contract for the wrapped WETH. We can reuse the wormUsdAbi
-      // since won't need any of the WETH-specific functionality to use the
+      // Create a token contract for the wrapped WETH. We can reuse the wormUsdAbi
+      // since don't need any of the WETH-specific functionality to use the
       // wrapped version.
       const wrappedWethContract = makeContract(
         avaxWallet,

@@ -17,9 +17,9 @@ contract HelloWorldTest is Test {
 
     // contract instances
     IWormhole wormhole;
-    WormholeSimulator public wormholeSimulator;
-    HelloWorld public helloWorldSource;
-    HelloWorld public helloWorldTarget;
+    WormholeSimulator wormholeSimulator;
+    HelloWorld helloWorldSource;
+    HelloWorld helloWorldTarget;
 
     /**
      * @notice Sets up the wormholeSimulator contracts and deploys HelloWorld
