@@ -35,8 +35,4 @@ contract HelloTokenSetters is HelloTokenState {
     function setRelayerFeePercentage(uint32 relayerFeePercentage_) internal {
         _state.relayerFeePercentage = relayerFeePercentage_;
     }
-
-    function setSolanaTokenAccount(address token, bytes32 account) internal {
-        _state.solanaTokenAccounts[token] = account;
-    }
 }

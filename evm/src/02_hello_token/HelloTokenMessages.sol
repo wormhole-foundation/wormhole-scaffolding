@@ -18,8 +18,7 @@ contract HelloTokenMessages is HelloTokenStructs {
     ) public pure returns (bytes memory encodedMessage) {
         encodedMessage = abi.encodePacked(
             parsedMessage.payloadID, // payloadID = 1
-            parsedMessage.targetRecipient,
-            parsedMessage.solanaTokenAccount
+            parsedMessage.targetRecipient
         );
     }
 
@@ -43,10 +42,6 @@ contract HelloTokenMessages is HelloTokenStructs {
 
         // target wallet recipient
         parsedMessage.targetRecipient = encodedMessage.toBytes32(index);
-        index += 32;
-
-        // solana token account (relevant for Solana inbound transfers)
-        parsedMessage.solanaTokenAccount = encodedMessage.toBytes32(index);
         index += 32;
 
         // confirm that the payload was the expected size

@@ -33,13 +33,6 @@ contract HelloTokenStorage {
          * verify that messages being consumed are from trusted contracts.
          */
         mapping(uint16 => bytes32) registeredEmitters;
-
-        /**
-         * ERC20 token address to Solana Associated Token Account (ATA) mapping.
-         * Tokens that are bridged to Solana have to be sent to the ATA owned
-         * by the HelloToken contract on Solana.
-         */
-        mapping(address => bytes32) solanaTokenAccounts;
     }
 }
 

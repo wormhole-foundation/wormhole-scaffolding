@@ -10,10 +10,5 @@ contract HelloTokenStructs {
          * format (zero-left-padded if less than 20 bytes).
          */
         bytes32 targetRecipient;
-        /**
-         * Bytes32 associated token account for the bridged token. This field
-         * will be empty (bytes32(0)) for outbound EVM transfers.
-         */
-        bytes32 solanaTokenAccount;
     }
 }

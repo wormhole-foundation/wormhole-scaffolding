@@ -21,11 +21,6 @@ contract HelloTokenTest is Test {
     // guardian private key for simulated signing of Wormhole messages
     uint256 guardianSigner;
 
-    // solana test info
-    uint16 solanaChainId;
-    bytes32 solanaTokenBridge;
-    bytes32 wsol;
-
     // ethereum test info
     uint16 ethereumChainId;
     address ethereumTokenBridge;
@@ -92,11 +87,6 @@ contract HelloTokenTest is Test {
         ethereumTokenBridge = vm.envAddress("TESTING_ETH_BRIDGE_ADDRESS");
         ethereumChainId = uint16(vm.envUint("TESTING_ETH_WORMHOLE_CHAINID"));
         weth = vm.envAddress("TESTING_WRAPPED_ETH_ADDRESS");
-
-        // set the solana token bridge, chainId, and WSOL addresses
-        solanaChainId = 1;
-        wsol = vm.envBytes32("TESTING_WRAPPED_SOL_ADDRESS");
-        solanaTokenBridge = vm.envBytes32("TESTING_SOLANA_BRIDGE_ADDRESS");
 
         // relayer fee percentage and precision
         uint32 feePrecision = 1e6;
@@ -166,7 +156,7 @@ contract HelloTokenTest is Test {
         decimals = abi.decode(queriedDecimals, (uint8));
     }
 
-    function getTransferTokensWithPayloadMessage(
+    function getTransferWithPayloadMessage(
         ITokenBridge.TransferWithPayload memory transfer,
         uint16 emitterChainId,
         bytes32 emitterAddress
@@ -200,8 +190,7 @@ contract HelloTokenTest is Test {
         bytes memory encodedMessage = helloToken.encodePayload(
             HelloTokenStructs.HelloTokenMessage({
                 payloadID: uint8(1),
-                targetRecipient: targetRecipient,
-                solanaTokenAccount: bytes32(0)
+                targetRecipient: targetRecipient
             })
         );
 
@@ -212,7 +201,6 @@ contract HelloTokenTest is Test {
         // verify the parsed output
         assertEq(results.payloadID, 1);
         assertEq(results.targetRecipient, targetRecipient);
-        assertEq(results.solanaTokenAccount, bytes32(0));
     }
 
     /**
@@ -227,8 +215,7 @@ contract HelloTokenTest is Test {
         bytes memory encodedMessage = helloToken.encodePayload(
             HelloTokenStructs.HelloTokenMessage({
                 payloadID: uint8(2), // encode wrong payloadID
-                targetRecipient: targetRecipient,
-                solanaTokenAccount: bytes32(0)
+                targetRecipient: targetRecipient
             })
         );
 
@@ -249,8 +236,7 @@ contract HelloTokenTest is Test {
         bytes memory encodedMessage = helloToken.encodePayload(
             HelloTokenStructs.HelloTokenMessage({
                 payloadID: uint8(1),
-                targetRecipient: targetRecipient,
-                solanaTokenAccount: bytes32(0)
+                targetRecipient: targetRecipient
             })
         );
 
@@ -305,46 +291,6 @@ contract HelloTokenTest is Test {
         // expect the registerEmitter call to revert
         vm.expectRevert("caller not the owner");
         helloToken.registerEmitter(newEmitterChainId, newEmitterAddress);
-    }
-
-    /**
-     * @notice This test confirms that the owner can correctly register a Solana ATA
-     * with the HelloToken contracts.
-     */
-    function testRegisterSolanaTokenAccount(
-        address token,
-        bytes32 solanaTokenAccount
-    ) public {
-        vm.assume(token != address(0));
-        vm.assume(bytes12(solanaTokenAccount) != 0);
-
-        // register the emitter with the owner's wallet
-        helloToken.registerSolanaTokenAccount(token, solanaTokenAccount);
-
-        // verify that the contract state was updated correctly
-        bytes32 registeredSolanaTokenAccount = helloToken.solanaTokenAccount(
-            token
-        );
-        assertEq(solanaTokenAccount, registeredSolanaTokenAccount);
-    }
-
-    /**
-     * @notice This test confirms that ONLY the owner can register a Solana ATA
-     * with the HelloToken contracts.
-     */
-    function testRegisterSolanaTokenAccountNotOwner(
-        address token,
-        bytes32 solanaTokenAccount
-    ) public {
-        vm.assume(token != address(0));
-        vm.assume(bytes12(solanaTokenAccount) != 0);
-
-        // prank the caller address to something different than the owner's address
-        vm.prank(address(wormholeSimulator));
-
-        // expect the registerSolanaTokenAccount call to revert
-        vm.expectRevert("caller not the owner");
-        helloToken.registerSolanaTokenAccount(token, solanaTokenAccount);
     }
 
     /**
@@ -481,113 +427,6 @@ contract HelloTokenTest is Test {
 
         assertEq(message.payloadID, 1);
         assertEq(message.targetRecipient, targetRecipient);
-        assertEq(message.solanaTokenAccount, bytes32(0));
-    }
-
-    /**
-     * @notice This test confirms that the `sendTokensWithPayload` method correctly sends
-     * a token with an addtional payload to Solana.
-     */
-    function testSendTokensWithPayloadToSolana(
-        uint256 amount,
-        bytes32 targetRecipient,
-        bytes32 solanaTokenAccount,
-        bytes32 solanaForeignEmitter
-    ) public {
-        vm.assume(amount > 1e8 && amount < type(uint96).max);
-        vm.assume(targetRecipient != bytes32(0));
-        vm.assume(bytes12(solanaTokenAccount) != 0);
-        vm.assume(bytes12(solanaForeignEmitter) != 0);
-
-        // wrap some wavax
-        wrapAvax(amount);
-
-        // register the emitter on the source contract
-        helloToken.registerEmitter(solanaChainId, solanaForeignEmitter);
-
-        // register the Solana ATA on the source contract
-        helloToken.registerSolanaTokenAccount(
-            address(wavax),
-            solanaTokenAccount
-        );
-
-        // start listening to events
-        vm.recordLogs();
-
-        // approve the HelloToken contract to spend wavax
-        SafeERC20.safeApprove(
-            IERC20(address(wavax)),
-            address(helloToken),
-            amount
-        );
-
-        // call the HelloToken contract to transfer tokens
-        uint64 sequence = helloToken.sendTokensWithPayload(
-            address(wavax),
-            amount,
-            solanaChainId,
-            0, // opt out of batching
-            targetRecipient
-        );
-
-        // record the emitted Wormhole message
-        Vm.Log[] memory logs = vm.getRecordedLogs();
-        require(logs.length > 0, "no events recorded");
-
-        // find published wormhole messages from log
-        Vm.Log[] memory publishedMessages =
-            wormholeSimulator.fetchWormholeMessageFromLog(logs, 1);
-
-        // simulate signing the Wormhole message
-        // NOTE: in the wormhole-sdk, signed Wormhole messages are referred to as signed VAAs
-        bytes memory encodedMessage = wormholeSimulator.fetchSignedMessageFromLogs(
-            publishedMessages[0],
-            helloToken.chainId(),
-            address(helloToken)
-        );
-
-        // parse and verify the message
-        (
-            IWormhole.VM memory wormholeMessage,
-            bool valid,
-            string memory reason
-        ) = wormhole.parseAndVerifyVM(encodedMessage);
-        require(valid, reason);
-
-        // call the token bridge to parse the TransferWithPayload message
-        ITokenBridge.TransferWithPayload memory transfer =
-            bridge.parseTransferWithPayload(wormholeMessage.payload);
-
-        /**
-         * The token bridge normalizes the transfer amount to support
-         * blockchains that don't support type uint256. We need to normalize the
-         * amount we passed to the contract to compare the value against what
-         * is encoded in the payload.
-         */
-        assertEq(
-            transfer.amount,
-            normalizeAmount(amount, getDecimals(address(wavax)))
-        );
-
-        // verify the remaining TransferWithPayload values
-        assertEq(transfer.tokenAddress, addressToBytes32(address(wavax)));
-        assertEq(transfer.tokenChain, helloToken.chainId());
-        assertEq(transfer.to, solanaTokenAccount);
-        assertEq(transfer.toChain, solanaChainId);
-        assertEq(transfer.fromAddress, addressToBytes32(address(helloToken)));
-
-        // verify VAA values
-        assertEq(wormholeMessage.sequence, sequence);
-        assertEq(wormholeMessage.nonce, 0); // batchID
-        assertEq(wormholeMessage.consistencyLevel, helloToken.wormholeFinality());
-
-        // parse additional payload and verify the values
-        HelloTokenStructs.HelloTokenMessage memory message =
-            helloToken.decodePayload(transfer.payload);
-
-        assertEq(message.payloadID, 1);
-        assertEq(message.targetRecipient, targetRecipient);
-        assertEq(message.solanaTokenAccount, bytes32(0));
     }
 
     /**
@@ -671,29 +510,6 @@ contract HelloTokenTest is Test {
     }
 
     /**
-     * @notice This test confirms that the `sendTokensWithPayload` method reverts when
-     * the specified token doesn't have a registered ATA and the target chain is Solana.
-     */
-    function testSendTokensWithPayloadInvalidSolanaTokenAccount() public {
-        uint256 amount = 1e18;
-        bytes32 targetRecipient = addressToBytes32(address(this));
-        bytes32 solanaForeignEmitter = solanaTokenBridge; // random emitter address
-
-        // register the emitter on the source contract
-        helloToken.registerEmitter(solanaChainId, solanaForeignEmitter);
-
-        // call `sendTokensWithPayload` should revert
-        vm.expectRevert("ATA not registered");
-        helloToken.sendTokensWithPayload(
-            address(wavax),
-            amount,
-            solanaChainId,
-            0, // opt out of batching
-            targetRecipient
-        );
-    }
-
-    /**
      * @notice This test confirms that HelloToken correctly redeems wrapped
      * tokens to the encoded recipient and handles relayer payments correctly.
      */
@@ -726,8 +542,7 @@ contract HelloTokenTest is Test {
         bytes memory encodedHelloTokenMessage = helloToken.encodePayload(
             HelloTokenStructs.HelloTokenMessage({
                 payloadID: uint8(1),
-                targetRecipient: addressToBytes32(address(this)),
-                solanaTokenAccount: bytes32(0)
+                targetRecipient: addressToBytes32(address(this))
             })
         );
 
@@ -747,7 +562,7 @@ contract HelloTokenTest is Test {
 
         // Encode the TransferWithPayload struct and simulate signing
         // the message with the devnet guardian key.
-        bytes memory signedMessage = getTransferTokensWithPayloadMessage(
+        bytes memory signedMessage = getTransferWithPayloadMessage(
             transfer,
             ethereumChainId,
             addressToBytes32(ethereumTokenBridge)
@@ -815,8 +630,7 @@ contract HelloTokenTest is Test {
         bytes memory encodedHelloTokenMessage = helloToken.encodePayload(
             HelloTokenStructs.HelloTokenMessage({
                 payloadID: uint8(1),
-                targetRecipient: addressToBytes32(address(this)),
-                solanaTokenAccount: bytes32(0)
+                targetRecipient: addressToBytes32(address(this))
             })
         );
 
@@ -841,7 +655,7 @@ contract HelloTokenTest is Test {
 
         // Encode the TransferWithPayload struct and simulate signing
         // the message with the devnet guardian key.
-        bytes memory signedMessage = getTransferTokensWithPayloadMessage(
+        bytes memory signedMessage = getTransferWithPayloadMessage(
             transfer,
             ethereumChainId,
             addressToBytes32(ethereumTokenBridge)
@@ -881,7 +695,7 @@ contract HelloTokenTest is Test {
     /**
      * @notice This test confirms that HelloToken correctly redeems wrapped
      * tokens to the encoded recipient and handles relayer payments correctly.
-     * This test explicitly sets the relayerFeePercentage to zero to confrim
+     * This test explicitly sets the relayerFeePercentage to zero to confirm
      * that the recipient receives the full amount when relayer fees are
      * disabled.
      */
@@ -916,8 +730,7 @@ contract HelloTokenTest is Test {
         bytes memory encodedHelloTokenMessage = helloToken.encodePayload(
             HelloTokenStructs.HelloTokenMessage({
                 payloadID: uint8(1),
-                targetRecipient: addressToBytes32(address(this)),
-                solanaTokenAccount: bytes32(0)
+                targetRecipient: addressToBytes32(address(this))
             })
         );
 
@@ -937,7 +750,7 @@ contract HelloTokenTest is Test {
 
         // Encode the TransferWithPayload struct and simulate signing
         // the message with the devnet guardian key.
-        bytes memory signedMessage = getTransferTokensWithPayloadMessage(
+        bytes memory signedMessage = getTransferWithPayloadMessage(
             transfer,
             ethereumChainId,
             addressToBytes32(ethereumTokenBridge)
@@ -979,220 +792,6 @@ contract HelloTokenTest is Test {
 
     /**
      * @notice This test confirms that HelloToken correctly redeems wrapped
-     * Solana tokens to the encoded recipient and handles relayer payments correctly.
-     */
-    function testRedeemTransferWithPayloadFromSolana(
-        uint256 amount,
-        bytes32 solanaTokenAccount,
-        bytes32 solanaForeignEmitter
-    ) public {
-        vm.assume(
-            amount > 1e10 &&
-            amount < type(uint256).max / helloToken.relayerFeePercentage()
-        );
-        vm.assume(bytes12(solanaTokenAccount) != 0);
-        vm.assume(bytes12(solanaForeignEmitter) != 0);
-
-        // fetch the wrapped SOL contract address on AVAX
-        address wrappedAsset = bridge.wrappedAsset(
-            solanaChainId,
-            wsol
-        );
-        uint8 tokenDecimals = getDecimals(wrappedAsset);
-
-        // Normalize and denormalize the transfer amount the same way the
-        // token bridge does.
-        uint256 normalizedAmount = normalizeAmount(amount, tokenDecimals);
-        uint256 denormalizedAmount = denormalizeAmount(normalizedAmount, tokenDecimals);
-
-        /**
-         * Encode the message by calling the encodePayload method. Add the
-         * solanaTokenAccount argument to the solanaTokenAccount field to test
-         * registering Solana ATAs on inbound transfers.
-         */
-        bytes memory encodedHelloTokenMessage = helloToken.encodePayload(
-            HelloTokenStructs.HelloTokenMessage({
-                payloadID: uint8(1),
-                targetRecipient: addressToBytes32(address(this)),
-                solanaTokenAccount: solanaTokenAccount
-            })
-        );
-
-        // Create a simulated version of the wormhole message that the
-        // Solana HelloToken contract will emit.
-        ITokenBridge.TransferWithPayload memory transfer =
-            ITokenBridge.TransferWithPayload({
-                payloadID: uint8(3), // payload3 transfer
-                amount: normalizedAmount,
-                tokenAddress: wsol,
-                tokenChain: solanaChainId,
-                to: addressToBytes32(address(helloToken)),
-                toChain: helloToken.chainId(),
-                fromAddress: solanaForeignEmitter,
-                payload: encodedHelloTokenMessage
-            });
-
-        // Encode the TransferWithPayload struct and simulate signing
-        // the message with the devnet guardian key.
-        bytes memory signedMessage = getTransferTokensWithPayloadMessage(
-            transfer,
-            solanaChainId,
-            solanaTokenBridge
-        );
-
-        // register the Solana emitter on the source contract
-        helloToken.registerEmitter(solanaChainId, solanaForeignEmitter);
-
-        // store balances in the Balances struct (reduces local variable count)
-        Balances memory balances;
-        balances.recipientBefore = getBalance(wrappedAsset, address(this));
-        balances.relayerBefore = getBalance(wrappedAsset, vm.addr(guardianSigner));
-
-        // Query the Solana ATA on the source contract and verify that
-        // a wrapped SOL ATA hasn't been registered yet.
-        bytes32 solanaTokenAccountBefore = helloToken.solanaTokenAccount(
-            wrappedAsset
-        );
-        assertEq(solanaTokenAccountBefore, bytes32(0));
-
-        /**
-         * Call redeemTransferWithPayload using the signed VM. Prank the
-         * calling address to confirm that the relayer fees are paid
-         * out correctly.
-         */
-        vm.prank(vm.addr(guardianSigner));
-        helloToken.redeemTransferWithPayload(signedMessage);
-
-        // check balance of wrapped SOL after redeeming the transfer
-        balances.recipientAfter = getBalance(wrappedAsset, address(this));
-        balances.relayerAfter = getBalance(wrappedAsset, vm.addr(guardianSigner));
-
-        // compute the relayer fee
-        uint256 relayerFee = helloToken.calculateRelayerFee(denormalizedAmount);
-
-        // confirm balance changes on the caller and recipient
-        assertEq(
-            balances.recipientAfter - balances.recipientBefore,
-            denormalizedAmount - relayerFee
-        );
-        assertEq(balances.relayerAfter - balances.relayerBefore, relayerFee);
-
-        // confirm that the wrapped SOL ATA was registered correctly
-        bytes32 solanaTokenAccountAfter = helloToken.solanaTokenAccount(
-            wrappedAsset
-        );
-        assertEq(solanaTokenAccountAfter, solanaTokenAccount);
-    }
-
-    /**
-     * @notice This test confirms that HelloToken correctly redeems wrapped
-     * Solana tokens to the encoded recipient and handles relayer payments correctly.
-     * This test also confirms that the contract correcty handles when the ATA
-     * for a token is already registered.
-     */
-    function testRedeemTransferWithPayloadSolanaTokenAccountAlreadyRegistered(
-        uint256 amount,
-        bytes32 solanaTokenAccount,
-        bytes32 solanaForeignEmitter
-    ) public {
-        vm.assume(
-            amount > 1e10 &&
-            amount < type(uint256).max / helloToken.relayerFeePercentage()
-        );
-        vm.assume(bytes12(solanaTokenAccount) != 0);
-        vm.assume(bytes12(solanaForeignEmitter) != 0);
-
-        // fetch the wrapped SOL contract address on AVAX
-        address wrappedAsset = bridge.wrappedAsset(
-            solanaChainId,
-            wsol
-        );
-        uint8 tokenDecimals = getDecimals(wrappedAsset);
-
-        // Normalize and denormalize the transfer amount the same way the
-        // token bridge does.
-        uint256 normalizedAmount = normalizeAmount(amount, tokenDecimals);
-        uint256 denormalizedAmount = denormalizeAmount(normalizedAmount, tokenDecimals);
-
-        /**
-         * Encode the message by calling the encodePayload method. Add the
-         * solanaTokenAccount argument to the solanaTokenAccount field to test
-         * registering Solana ATAs on inbound transfers.
-         */
-        bytes memory encodedHelloTokenMessage = helloToken.encodePayload(
-            HelloTokenStructs.HelloTokenMessage({
-                payloadID: uint8(1),
-                targetRecipient: addressToBytes32(address(this)),
-                solanaTokenAccount: solanaTokenAccount
-            })
-        );
-
-        // Create a simulated version of the wormhole message that the
-        // HelloToken contract will emit.
-        ITokenBridge.TransferWithPayload memory transfer =
-            ITokenBridge.TransferWithPayload({
-                payloadID: uint8(3), // payload3 transfer
-                amount: normalizedAmount,
-                tokenAddress: wsol,
-                tokenChain: solanaChainId,
-                to: addressToBytes32(address(helloToken)),
-                toChain: helloToken.chainId(),
-                fromAddress: solanaForeignEmitter,
-                payload: encodedHelloTokenMessage
-            });
-
-        // Encode the TransferWithPayload struct and simulate signing
-        // the message with the devnet guardian key.
-        bytes memory signedMessage = getTransferTokensWithPayloadMessage(
-            transfer,
-            solanaChainId,
-            solanaTokenBridge
-        );
-
-        // register the Solana emitter on the source contract
-        helloToken.registerEmitter(solanaChainId, solanaForeignEmitter);
-
-        // store balances in the Balances struct (reduces local variable count)
-        Balances memory balances;
-        balances.recipientBefore = getBalance(wrappedAsset, address(this));
-        balances.relayerBefore = getBalance(wrappedAsset, vm.addr(guardianSigner));
-
-        // NOTE: We need to preregister the solana token account to test
-        // the internal registration logic.
-        helloToken.registerSolanaTokenAccount(wrappedAsset, solanaTokenAccount);
-
-        // Query the Solana ATA on the source contract and verify that
-        // a wrapped SOL ATA was already registered.
-        bytes32 solanaTokenAccountBefore = helloToken.solanaTokenAccount(
-            wrappedAsset
-        );
-        assertEq(solanaTokenAccountBefore, solanaTokenAccount);
-
-        /**
-         * Call redeemTransferWithPayload using the signed VM. Prank the
-         * calling address to confirm that the relayer fees are paid
-         * out correctly.
-         */
-        vm.prank(vm.addr(guardianSigner));
-        helloToken.redeemTransferWithPayload(signedMessage);
-
-        // check balance of wavax after redeeming the transfer
-        balances.recipientAfter = getBalance(wrappedAsset, address(this));
-        balances.relayerAfter = getBalance(wrappedAsset, vm.addr(guardianSigner));
-
-        // compute the relayer fee
-        uint256 relayerFee = helloToken.calculateRelayerFee(denormalizedAmount);
-
-        // confirm balance changes on the caller and recipient
-        assertEq(
-            balances.recipientAfter - balances.recipientBefore,
-            denormalizedAmount - relayerFee
-        );
-        assertEq(balances.relayerAfter - balances.relayerBefore, relayerFee);
-    }
-
-    /**
-     * @notice This test confirms that HelloToken correctly redeems wrapped
      * tokens to the encoded recipient and handles relayer payments correctly.
      * This test explicitly calls the redeemTransferWithPayload method from
      * the recipient wallet to confirm that the contract handles relayer
@@ -1223,8 +822,7 @@ contract HelloTokenTest is Test {
         bytes memory encodedHelloTokenMessage = helloToken.encodePayload(
             HelloTokenStructs.HelloTokenMessage({
                 payloadID: uint8(1),
-                targetRecipient: addressToBytes32(address(this)),
-                solanaTokenAccount: bytes32(0)
+                targetRecipient: addressToBytes32(address(this))
             })
         );
 
@@ -1249,7 +847,7 @@ contract HelloTokenTest is Test {
 
         // Encode the TransferWithPayload struct and simulate signing
         // the message with the devnet guardian key.
-        bytes memory signedMessage = getTransferTokensWithPayloadMessage(
+        bytes memory signedMessage = getTransferWithPayloadMessage(
             transfer,
             ethereumChainId,
             addressToBytes32(ethereumTokenBridge)
@@ -1295,8 +893,7 @@ contract HelloTokenTest is Test {
         bytes memory encodedHelloTokenMessage = helloToken.encodePayload(
             HelloTokenStructs.HelloTokenMessage({
                 payloadID: uint8(1),
-                targetRecipient: addressToBytes32(address(this)),
-                solanaTokenAccount: bytes32(0)
+                targetRecipient: addressToBytes32(address(this))
             })
         );
 
@@ -1319,7 +916,7 @@ contract HelloTokenTest is Test {
 
         // Encode the TransferWithPayload struct and simulate signing
         // the message with the devnet guardian key.
-        bytes memory signedMessage = getTransferTokensWithPayloadMessage(
+        bytes memory signedMessage = getTransferWithPayloadMessage(
             transfer,
             ethereumChainId,
             addressToBytes32(ethereumTokenBridge)
@@ -1334,7 +931,7 @@ contract HelloTokenTest is Test {
     }
 
      /**
-     * @notice This test confirms that HellToken correctly reverts
+     * @notice This test confirms that HelloToken correctly reverts
      * when receiving a `TransferWithPayload` message from an
      * unregistered emitter.
      */
@@ -1354,8 +951,7 @@ contract HelloTokenTest is Test {
         bytes memory encodedHelloTokenMessage = helloToken.encodePayload(
             HelloTokenStructs.HelloTokenMessage({
                 payloadID: uint8(1),
-                targetRecipient: addressToBytes32(address(this)),
-                solanaTokenAccount: bytes32(0)
+                targetRecipient: addressToBytes32(address(this))
             })
         );
 
@@ -1375,7 +971,7 @@ contract HelloTokenTest is Test {
 
         // Encode the TransferWithPayload struct and simulate signing
         // the message with the devnet guardian key.
-        bytes memory signedMessage = getTransferTokensWithPayloadMessage(
+        bytes memory signedMessage = getTransferWithPayloadMessage(
             transfer,
             ethereumChainId,
             addressToBytes32(ethereumTokenBridge)

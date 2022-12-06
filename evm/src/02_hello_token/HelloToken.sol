@@ -62,7 +62,6 @@ contract HelloToken is HelloTokenGovernance, HelloTokenMessages, ReentrancyGuard
      * - `amount` is zero
      * - `targetRecipient` is bytes32(0)
      * - a registered HelloToken contract does not exist for the `targetChain`
-     * - a registered ATA does not exist for tokens being transfered to Solana
      * - caller doesn't pass enough value to pay the Wormhole network fee
      * @param token Address of `token` to be transferred
      * @param amount Amount of `token` to be transferred
@@ -93,13 +92,6 @@ contract HelloToken is HelloTokenGovernance, HelloTokenMessages, ReentrancyGuard
         bytes32 targetContract = getRegisteredEmitter(targetChain);
         require(targetContract != bytes32(0), "emitter not registered");
 
-        // If the target chain is Solana, update the targetContract to be a
-        // registered ATA.
-        if (targetChain == 1) {
-            targetContract = solanaTokenAccount(token);
-            require(targetContract != bytes32(0), "ATA not registered");
-        }
-
         // cache Wormhole instance and fees
         IWormhole wormhole = wormhole();
         uint256 wormholeFee = wormhole.messageFee();
@@ -116,17 +108,11 @@ contract HelloToken is HelloTokenGovernance, HelloTokenMessages, ReentrancyGuard
          * The targetRecipient address is in bytes32 format (zero-left-padded) to
          * support non-evm smart contracts that have addresses that are longer
          * than 20 bytes.
-         *
-         * Encode bytes32(0) as a placeholder for Solana ATA registration. All
-         * messages sent from registered Solana contracts will include the ATA
-         * for the transferred token. We encode a placeholder so that the message
-         * format is uniform across different blockchains.
          */
         bytes memory messagePayload = encodePayload(
             HelloTokenMessage({
                 payloadID: 1,
-                targetRecipient: targetRecipient,
-                solanaTokenAccount: bytes32(0)
+                targetRecipient: targetRecipient
             })
         );
 
@@ -246,16 +232,6 @@ contract HelloToken is HelloTokenGovernance, HelloTokenMessages, ReentrancyGuard
                 amountTransferred - relayerFee
             );
         }
-
-        // If the transfer originated from Solana, check to see if the Solana ATA
-        // has been registered with this contract. Register the ATA if it hasn't
-        // been registered already.
-        if (parsedMessage.emitterChainId == 1) {
-            _registerSolanaTokenAccount(
-                localTokenAddress,
-                helloTokenPayload.solanaTokenAccount
-            );
-        }
     }
 
     /**
@@ -322,16 +298,6 @@ contract HelloToken is HelloTokenGovernance, HelloTokenMessages, ReentrancyGuard
                 abi.encodeWithSelector(IERC20.balanceOf.selector, address(this))
             );
         balance = abi.decode(queriedBalance, (uint256));
-    }
-
-    function _registerSolanaTokenAccount(address token, bytes32 account) internal {
-        // fetch the solana account for the associated token address
-        bytes32 registeredAccount = solanaTokenAccount(token);
-
-        // register the ATA if it hasn't been registered already
-        if (registeredAccount == bytes32(0)) {
-            setSolanaTokenAccount(token, account);
-        }
     }
 
     function addressToBytes32(address address_) internal pure returns (bytes32) {

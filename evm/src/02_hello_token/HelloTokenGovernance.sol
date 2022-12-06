@@ -36,28 +36,6 @@ contract HelloTokenGovernance is HelloTokenGetters {
     }
 
     /**
-     * @notice Registers Solana ATAs (Associated Token Accounts) to allow this
-     * contract to send ERC20 tokens to Solana via the token bridge contract.
-     * @dev Only the deployer (owner) can invoke this method
-     * @param token ERC20 token address
-     * @param solanaTokenAccount Associated ATA for the `token`
-     */
-    function registerSolanaTokenAccount(
-        address token,
-        bytes32 solanaTokenAccount
-    ) public onlyOwner {
-        // sanity check the token and solanaTokenAccount input values
-        require(token != address(0), "invalid token address");
-        require(
-            solanaTokenAccount != bytes32(0),
-            "solanaTokenAccount cannot equal bytes32(0)"
-        );
-
-        // register the solanaTokenAccount
-        setSolanaTokenAccount(token, solanaTokenAccount);
-    }
-
-    /**
      * @notice Updates the relayer fee percentage
      * @dev Only the deployer (owner) can invoke this method
      * @param relayerFeePercentage The percentage of each transfer that is
