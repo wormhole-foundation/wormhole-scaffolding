@@ -100,7 +100,7 @@ contract HelloTokenTest is Test {
 
         // relayer fee and precision
         uint32 feePrecision = 1e6;
-        uint32 relayerFee = 1000; // 1 basis point
+        uint32 relayerFeePercentage = 1000; // 1 basis point
 
         // initialize "source chain" HelloToken contract
         helloToken = new HelloToken(
@@ -109,7 +109,7 @@ contract HelloTokenTest is Test {
             wormhole.chainId(),
             uint8(1), // wormhole finality
             feePrecision,
-            relayerFee
+            relayerFeePercentage
         );
     }
 
@@ -182,10 +182,7 @@ contract HelloTokenTest is Test {
      * @notice This test confirms that the contracts are able to serialize and deserialize
      * the HelloToken message correctly.
      */
-    function testMessageDeserialization(
-        bytes32 targetRecipient,
-        uint32 relayerFee
-    ) public {
+    function testMessageDeserialization(bytes32 targetRecipient) public {
         vm.assume(targetRecipient != bytes32(0));
 
         // encode the message by calling the encodePayload method
@@ -193,7 +190,6 @@ contract HelloTokenTest is Test {
             HelloTokenStructs.HelloTokenMessage({
                 payloadID: uint8(1),
                 targetRecipient: targetRecipient,
-                relayerFee: relayerFee,
                 solanaTokenAccount: bytes32(0)
             })
         );
@@ -205,7 +201,6 @@ contract HelloTokenTest is Test {
         // verify the parsed output
         assertEq(results.payloadID, 1);
         assertEq(results.targetRecipient, targetRecipient);
-        assertEq(results.relayerFee, relayerFee);
         assertEq(results.solanaTokenAccount, bytes32(0));
     }
 
@@ -222,7 +217,6 @@ contract HelloTokenTest is Test {
             HelloTokenStructs.HelloTokenMessage({
                 payloadID: uint8(2),
                 targetRecipient: targetRecipient,
-                relayerFee: 10000,
                 solanaTokenAccount: bytes32(0)
             })
         );
@@ -245,7 +239,6 @@ contract HelloTokenTest is Test {
             HelloTokenStructs.HelloTokenMessage({
                 payloadID: uint8(1),
                 targetRecipient: targetRecipient,
-                relayerFee: 10000,
                 solanaTokenAccount: bytes32(0)
             })
         );
@@ -348,12 +341,12 @@ contract HelloTokenTest is Test {
     function testUpdateRelayerFee(uint32 relayerFeePercentage) public {
         vm.assume(
             relayerFeePercentage < helloToken.feePrecision() &&
-            relayerFeePercentage != helloToken.relayerFee()
+            relayerFeePercentage != helloToken.relayerFeePercentage()
         );
 
         // set the new relayer fee
-        helloToken.updateRelayerFee(relayerFeePercentage);
-        assertEq(helloToken.relayerFee(), relayerFeePercentage);
+        helloToken.updateRelayerFeePercentage(relayerFeePercentage);
+        assertEq(helloToken.relayerFeePercentage(), relayerFeePercentage);
     }
 
     /**
@@ -362,15 +355,15 @@ contract HelloTokenTest is Test {
     function testUpdateRelayerFeeNotOwner(uint32 relayerFeePercentage) public {
         vm.assume(
             relayerFeePercentage < helloToken.feePrecision() &&
-            relayerFeePercentage != helloToken.relayerFee()
+            relayerFeePercentage != helloToken.relayerFeePercentage()
         );
 
         // prank the caller address to something different than the owner's address
         vm.prank(address(wormholeSimulator));
 
-        // expect the updateRelayerFee call to revert
+        // expect the updateRelayerFeePercentage call to revert
         vm.expectRevert("caller not the owner");
-        helloToken.updateRelayerFee(relayerFeePercentage);
+        helloToken.updateRelayerFeePercentage(relayerFeePercentage);
     }
 
 
@@ -470,7 +463,6 @@ contract HelloTokenTest is Test {
 
         assertEq(message.payloadID, 1);
         assertEq(message.targetRecipient, targetRecipient);
-        assertEq(message.relayerFee, helloToken.relayerFee());
         assertEq(message.solanaTokenAccount, bytes32(0));
     }
 
@@ -572,7 +564,6 @@ contract HelloTokenTest is Test {
 
         assertEq(message.payloadID, 1);
         assertEq(message.targetRecipient, targetRecipient);
-        assertEq(message.relayerFee, helloToken.relayerFee());
         assertEq(message.solanaTokenAccount, bytes32(0));
     }
 
@@ -682,12 +673,10 @@ contract HelloTokenTest is Test {
     /**
      * @notice send wrapped ether from Ethereum to avax HelloToken contract
      */
-    function testRedeemTransferWithPayloadWrappedToken(
-        uint256 amount
-    ) public {
+    function testRedeemTransferWithPayloadWrappedToken(uint256 amount) public {
         vm.assume(
             amount > 1e10 &&
-            amount < type(uint256).max / helloToken.relayerFee()
+            amount < type(uint256).max / helloToken.relayerFeePercentage()
         );
 
         // create a bogus eth emitter address
@@ -714,7 +703,6 @@ contract HelloTokenTest is Test {
             HelloTokenStructs.HelloTokenMessage({
                 payloadID: uint8(1),
                 targetRecipient: addressToBytes32(address(this)),
-                relayerFee: helloToken.relayerFee(),
                 solanaTokenAccount: bytes32(0)
             })
         );
@@ -760,10 +748,7 @@ contract HelloTokenTest is Test {
         balances.relayerAfter = getBalance(wrappedAsset, vm.addr(guardianSigner));
 
         // compute the relayer fee
-        uint256 relayerFee = helloToken.calculateRelayerFee(
-            denormalizedAmount,
-            helloToken.relayerFee()
-        );
+        uint256 relayerFee = helloToken.calculateRelayerFee(denormalizedAmount);
 
         // confirm balance changes on the caller and recipient
         assertEq(
@@ -802,7 +787,6 @@ contract HelloTokenTest is Test {
             HelloTokenStructs.HelloTokenMessage({
                 payloadID: uint8(1),
                 targetRecipient: addressToBytes32(address(this)),
-                relayerFee: helloToken.relayerFee(),
                 solanaTokenAccount: bytes32(0)
             })
         );
@@ -851,10 +835,7 @@ contract HelloTokenTest is Test {
         balances.relayerAfter = getBalance(wavaxAddress, vm.addr(guardianSigner));
 
         // compute the relayer fee
-        uint256 relayerFee = helloToken.calculateRelayerFee(
-            denormalizedAmount,
-            helloToken.relayerFee()
-        );
+        uint256 relayerFee = helloToken.calculateRelayerFee(denormalizedAmount);
 
         // confirm balance changes on the caller and recipient
         assertEq(
@@ -873,7 +854,7 @@ contract HelloTokenTest is Test {
     ) public {
         vm.assume(
             amount > 1e10 &&
-            amount < type(uint256).max / helloToken.relayerFee()
+            amount < type(uint256).max / helloToken.relayerFeePercentage()
         );
 
         // create a bogus eth emitter address
@@ -900,7 +881,6 @@ contract HelloTokenTest is Test {
             HelloTokenStructs.HelloTokenMessage({
                 payloadID: uint8(1),
                 targetRecipient: addressToBytes32(address(this)),
-                relayerFee: helloToken.relayerFee(),
                 solanaTokenAccount: bytes32(0)
             })
         );
@@ -931,8 +911,8 @@ contract HelloTokenTest is Test {
         helloToken.registerEmitter(ethereumChainId, ethereumEmitter);
 
         // NOTE: update the relayer fee to 0
-        helloToken.updateRelayerFee(0);
-        assertEq(helloToken.relayerFee(), 0);
+        helloToken.updateRelayerFeePercentage(0);
+        assertEq(helloToken.relayerFeePercentage(), 0);
 
         // store balances in the Balances struct (reduces local variable count)
         Balances memory balances;
@@ -966,7 +946,7 @@ contract HelloTokenTest is Test {
     ) public {
         vm.assume(
             amount > 1e10 &&
-            amount < type(uint256).max / helloToken.relayerFee()
+            amount < type(uint256).max / helloToken.relayerFeePercentage()
         );
         vm.assume(bytes12(solanaTokenAccount) != 0);
         vm.assume(bytes12(solanaForeignEmitter) != 0);
@@ -990,7 +970,6 @@ contract HelloTokenTest is Test {
             HelloTokenStructs.HelloTokenMessage({
                 payloadID: uint8(1),
                 targetRecipient: addressToBytes32(address(this)),
-                relayerFee: helloToken.relayerFee(),
                 solanaTokenAccount: solanaTokenAccount
             })
         );
@@ -1043,10 +1022,7 @@ contract HelloTokenTest is Test {
         balances.relayerAfter = getBalance(wrappedAsset, vm.addr(guardianSigner));
 
         // compute the relayer fee
-        uint256 relayerFee = helloToken.calculateRelayerFee(
-            denormalizedAmount,
-            helloToken.relayerFee()
-        );
+        uint256 relayerFee = helloToken.calculateRelayerFee(denormalizedAmount);
 
         // confirm balance changes on the caller and recipient
         assertEq(
@@ -1072,7 +1048,7 @@ contract HelloTokenTest is Test {
     ) public {
         vm.assume(
             amount > 1e10 &&
-            amount < type(uint256).max / helloToken.relayerFee()
+            amount < type(uint256).max / helloToken.relayerFeePercentage()
         );
         vm.assume(bytes12(solanaTokenAccount) != 0);
         vm.assume(bytes12(solanaForeignEmitter) != 0);
@@ -1096,7 +1072,6 @@ contract HelloTokenTest is Test {
             HelloTokenStructs.HelloTokenMessage({
                 payloadID: uint8(1),
                 targetRecipient: addressToBytes32(address(this)),
-                relayerFee: helloToken.relayerFee(),
                 solanaTokenAccount: solanaTokenAccount
             })
         );
@@ -1153,10 +1128,7 @@ contract HelloTokenTest is Test {
         balances.relayerAfter = getBalance(wrappedAsset, vm.addr(guardianSigner));
 
         // compute the relayer fee
-        uint256 relayerFee = helloToken.calculateRelayerFee(
-            denormalizedAmount,
-            helloToken.relayerFee()
-        );
+        uint256 relayerFee = helloToken.calculateRelayerFee(denormalizedAmount);
 
         // confirm balance changes on the caller and recipient
         assertEq(
@@ -1195,7 +1167,6 @@ contract HelloTokenTest is Test {
             HelloTokenStructs.HelloTokenMessage({
                 payloadID: uint8(1),
                 targetRecipient: addressToBytes32(address(this)),
-                relayerFee: helloToken.relayerFee(),
                 solanaTokenAccount: bytes32(0)
             })
         );
@@ -1265,7 +1236,6 @@ contract HelloTokenTest is Test {
             HelloTokenStructs.HelloTokenMessage({
                 payloadID: uint8(1),
                 targetRecipient: addressToBytes32(address(this)),
-                relayerFee: helloToken.relayerFee(),
                 solanaTokenAccount: bytes32(0)
             })
         );
@@ -1323,7 +1293,6 @@ contract HelloTokenTest is Test {
             HelloTokenStructs.HelloTokenMessage({
                 payloadID: uint8(1),
                 targetRecipient: addressToBytes32(address(this)),
-                relayerFee: helloToken.relayerFee(),
                 solanaTokenAccount: bytes32(0)
             })
         );

@@ -9,7 +9,9 @@ contract HelloTokenMessages is HelloTokenStructs {
     using BytesLib for bytes;
 
     /**
-     * @notice
+     * @notice Encodes the HelloTokenMessage struct into bytes
+     * @param parsedMessage HelloTokenMessage struct
+     * @return encodedMessage HelloTokenMessage struct encoded into bytes
      */
     function encodePayload(
         HelloTokenMessage memory parsedMessage
@@ -17,13 +19,17 @@ contract HelloTokenMessages is HelloTokenStructs {
         encodedMessage = abi.encodePacked(
             parsedMessage.payloadID, // payloadID = 1
             parsedMessage.targetRecipient,
-            parsedMessage.relayerFee,
             parsedMessage.solanaTokenAccount
         );
     }
 
     /**
-     * @notice
+     * @notice Decodes bytes into HelloTokenMessage struct
+     * @dev reverts if:
+     * - the message payloadID is not 1
+     * - the encodedMessage length is incorrect
+     * @param encodedMessage encoded HelloToken message
+     * @return parsedMessage HelloTokenMessage struct
      */
     function decodePayload(
         bytes memory encodedMessage
@@ -38,10 +44,6 @@ contract HelloTokenMessages is HelloTokenStructs {
         // target wallet recipient
         parsedMessage.targetRecipient = encodedMessage.toBytes32(index);
         index += 32;
-
-        // relayer fee percentage
-        parsedMessage.relayerFee = encodedMessage.toUint32(index);
-        index += 4;
 
         // solana token account (relevant for Solana inbound transfers)
         parsedMessage.solanaTokenAccount = encodedMessage.toBytes32(index);

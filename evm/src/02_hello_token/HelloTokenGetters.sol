@@ -35,8 +35,8 @@ contract HelloTokenGetters is HelloTokenSetters {
         return _state.feePrecision;
     }
 
-    function relayerFee() public view returns (uint32) {
-        return _state.relayerFee;
+    function relayerFeePercentage() public view returns (uint32) {
+        return _state.relayerFeePercentage;
     }
 
     function solanaTokenAccount(address token) public view returns (bytes32) {

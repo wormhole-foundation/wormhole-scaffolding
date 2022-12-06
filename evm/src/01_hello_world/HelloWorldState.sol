@@ -14,13 +14,17 @@ contract HelloWorldStorage {
         // Wormhole chain ID of this contract
         uint16 chainId;
 
-        // The number of block confirmations needed before the wormhole network
-        // will attest a message.
+        /**
+         * The number of block confirmations needed before the wormhole network
+         * will attest a message.
+         */
         uint8 wormholeFinality;
 
-        // Wormhole chain ID to known emitter address mapping. Xapps using
-        // Wormhole should register all deployed contracts on each chain to
-        // verify that messages being consumed are from trusted contracts.
+        /**
+         * Wormhole chain ID to known emitter address mapping. Xdapps using
+         * Wormhole should register all deployed contracts on each chain to
+         * verify that messages being consumed are from trusted contracts.
+         */
         mapping(uint16 => bytes32) registeredEmitters;
 
         // verified message hash to received message mapping

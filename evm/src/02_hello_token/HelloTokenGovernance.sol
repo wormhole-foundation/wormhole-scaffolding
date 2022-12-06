@@ -8,17 +8,13 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import "./HelloTokenGetters.sol";
 
-/**
- * @title A Cross-Chain HelloToken Application
- * @notice
- */
 contract HelloTokenGovernance is HelloTokenGetters {
     /**
      * @notice Registers foreign emitters (HelloToken contracts) with this contract
      * @dev Only the deployer (owner) can invoke this method
      * @param emitterChainId Wormhole chainId of the contract being registered.
      * See https://book.wormhole.com/reference/contracts.html for more information.
-     * @param emitterAddress 32 byte address of the contract being registered. For EVM
+     * @param emitterAddress 32-byte address of the contract being registered. For EVM
      * contracts the first 12 bytes should be zeros.
      */
     function registerEmitter(
@@ -41,7 +37,7 @@ contract HelloTokenGovernance is HelloTokenGetters {
 
     /**
      * @notice Registers Solana ATAs (Associated Token Accounts) to allow this
-     * contract to send ERC20 tokens to Solana via the token bridge.
+     * contract to send ERC20 tokens to Solana via the token bridge contract.
      * @dev Only the deployer (owner) can invoke this method
      * @param token ERC20 token address
      * @param solanaTokenAccount Associated ATA for the `token`
@@ -50,7 +46,7 @@ contract HelloTokenGovernance is HelloTokenGetters {
         address token,
         bytes32 solanaTokenAccount
     ) public onlyOwner {
-        // sanity check the emitterChainId and emitterAddress input values
+        // sanity check the token and solanaTokenAccount input values
         require(token != address(0), "invalid token address");
         require(
             solanaTokenAccount != bytes32(0),
@@ -67,8 +63,8 @@ contract HelloTokenGovernance is HelloTokenGetters {
      * @param relayerFeePercentage The percentage of each transfer that is
      * rewarded to the relayer.
      */
-    function updateRelayerFee(uint32 relayerFeePercentage) public onlyOwner {
-        setRelayerFee(relayerFeePercentage);
+    function updateRelayerFeePercentage(uint32 relayerFeePercentage) public onlyOwner {
+        setRelayerFeePercentage(relayerFeePercentage);
     }
 
     modifier onlyOwner() {

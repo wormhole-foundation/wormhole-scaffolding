@@ -293,11 +293,9 @@ describe("Hello Token Test", () => {
           wrappedTokenDecimals
         );
 
-        // fetch the relayer fee percentage
-        const relayerFeePercentage = await avaxHelloToken.relayerFee();
+        // calculate the relayer fee
         relayerFee = await avaxHelloToken.calculateRelayerFee(
-          denormalizedTransferAmount,
-          relayerFeePercentage
+          denormalizedTransferAmount
         );
       }
 
@@ -441,11 +439,9 @@ describe("Hello Token Test", () => {
           tokenDecimals
         );
 
-        // fetch the relayer fee percentage
-        const relayerFeePercentage = await ethHelloToken.relayerFee();
+        // calculate the relayer fee
         relayerFee = await ethHelloToken.calculateRelayerFee(
-          denormalizedTransferAmount,
-          relayerFeePercentage
+          denormalizedTransferAmount
         );
       }
 
@@ -605,11 +601,9 @@ describe("Hello Token Test", () => {
           wrappedWethDecimals
         );
 
-        // fetch the relayer fee percentage
-        const relayerFeePercentage = await avaxHelloToken.relayerFee();
+        // calculate the relayer fee
         relayerFee = await avaxHelloToken.calculateRelayerFee(
-          denormalizedTransferAmount,
-          relayerFeePercentage
+          denormalizedTransferAmount
         );
       }
 

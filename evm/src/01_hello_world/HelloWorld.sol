@@ -34,9 +34,13 @@ contract HelloWorld is HelloWorldGetters, HelloWorldMessages {
     }
 
     /**
-     * @notice Creates an arbitrary HelloWorld message to be attested by the Wormhole guardians
-     * @dev batchID is set to 0 to opt out of batching in future Wormhole versions
-     * @param helloWorldMessage arbitrary HelloWorld string
+     * @notice Creates an arbitrary HelloWorld message to be attested by the
+     * Wormhole guardians.
+     * @dev batchID is set to 0 to opt out of batching in future Wormhole versions.
+     * Reverts if:
+     * - caller doesn't pass enough value to pay the Wormhole network fee
+     * - `helloWorldMessage` length is >= max(uint16)
+     * @param helloWorldMessage Arbitrary HelloWorld string
      * @return messageSequence Wormhole message sequence for this contract
      */
     function sendMessage(
@@ -76,8 +80,14 @@ contract HelloWorld is HelloWorldGetters, HelloWorldMessages {
 
     /**
      * @notice Consumes arbitrary HelloWorld messages sent by registered emitters
-     * @dev The arbitrary message is verified by the Wormhole core endpoint `verifyVM`
-     * @param encodedMessage verified Wormhole messsage containing arbitrary HelloWorld message
+     * @dev The arbitrary message is verified by the Wormhole core endpoint
+     * `verifyVM`.
+     * Reverts if:
+     * - `encodedMessage` is not attested by the Wormhole network
+     * - `encodedMessage` was sent by an unregistered emitter
+     * - `encodedMessage` was consumed already
+     * @param encodedMessage verified Wormhole message containing arbitrary
+     * HelloWorld message.
      */
     function receiveMessage(bytes memory encodedMessage) public {
         // call the Wormhole core contract to parse and verify the encodedMessage
@@ -94,7 +104,9 @@ contract HelloWorld is HelloWorldGetters, HelloWorldMessages {
         require(verifyEmitter(wormholeMessage), "unknown emitter");
 
         // decode the message payload into the HelloWorldMessage struct
-        HelloWorldMessage memory parsedMessage = decodeMessage(wormholeMessage.payload);
+        HelloWorldMessage memory parsedMessage = decodeMessage(
+            wormholeMessage.payload
+        );
 
         /**
          * Check to see if this message has been consumed already. If not,
@@ -110,9 +122,9 @@ contract HelloWorld is HelloWorldGetters, HelloWorldMessages {
     /**
      * @notice Registers foreign emitters (HelloWorld contracts) with this contract
      * @dev Only the deployer (owner) can invoke this method
-     * @param emitterChainId Wormhole chainId of the contract being registered.
+     * @param emitterChainId Wormhole chainId of the contract being registered
      * See https://book.wormhole.com/reference/contracts.html for more information.
-     * @param emitterAddress 32 byte address of the contract being registered. For EVM
+     * @param emitterAddress 32-byte address of the contract being registered. For EVM
      * contracts the first 12 bytes should be zeros.
      */
     function registerEmitter(

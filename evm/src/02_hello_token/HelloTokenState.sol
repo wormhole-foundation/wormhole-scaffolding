@@ -24,17 +24,21 @@ contract HelloTokenStorage {
         // precision of relayer fee percentage
         uint32 feePrecision;
 
-        // relayer fee in notional percentage terms
-        uint32 relayerFee;
+        // relayer fee in percentage terms
+        uint32 relayerFeePercentage;
 
-        // Wormhole chain ID to known emitter address mapping. Xapps using
-        // Wormhole should register all deployed contracts on each chain to
-        // verify that messages being consumed are from trusted contracts.
+        /**
+         * Wormhole chain ID to known emitter address mapping. Xdapps using
+         * Wormhole should register all deployed contracts on each chain to
+         * verify that messages being consumed are from trusted contracts.
+         */
         mapping(uint16 => bytes32) registeredEmitters;
 
-        // ERC20 token address to Solana Associated Token Account (ATA) mapping.
-        // Tokens that are bridged to Solana have to be sent to the ATA owned
-        // by the HelloToken contract on Solana.
+        /**
+         * ERC20 token address to Solana Associated Token Account (ATA) mapping.
+         * Tokens that are bridged to Solana have to be sent to the ATA owned
+         * by the HelloToken contract on Solana.
+         */
         mapping(address => bytes32) solanaTokenAccounts;
     }
 }
