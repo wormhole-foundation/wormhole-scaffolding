@@ -21,6 +21,9 @@ contract HelloTokenTest is Test {
     // guardian private key for simulated signing of Wormhole messages
     uint256 guardianSigner;
 
+    // relayer fee precision
+    uint32 relayerFeePrecision;
+
     // ethereum test info
     uint16 ethereumChainId;
     address ethereumTokenBridge;
@@ -89,7 +92,7 @@ contract HelloTokenTest is Test {
         weth = vm.envAddress("TESTING_WRAPPED_ETH_ADDRESS");
 
         // relayer fee percentage and precision
-        uint32 feePrecision = 1e6;
+        relayerFeePrecision = 1e6;
         uint32 relayerFeePercentage = 1000; // 1 basis point
 
         // deploy the HelloToken contract
@@ -98,7 +101,7 @@ contract HelloTokenTest is Test {
             address(bridge),
             wormhole.chainId(),
             uint8(1), // wormhole finality
-            feePrecision,
+            relayerFeePrecision,
             relayerFeePercentage
         );
     }
@@ -304,7 +307,10 @@ contract HelloTokenTest is Test {
         );
 
         // set the new relayer fee
-        helloToken.updateRelayerFeePercentage(relayerFeePercentage);
+        helloToken.updateRelayerFee(
+            relayerFeePercentage,
+            relayerFeePrecision
+        );
         assertEq(helloToken.relayerFeePercentage(), relayerFeePercentage);
     }
 
@@ -320,11 +326,39 @@ contract HelloTokenTest is Test {
         // prank the caller address to something different than the owner's address
         vm.prank(address(wormholeSimulator));
 
-        // expect the updateRelayerFeePercentage call to revert
+        // expect the updateRelayerFee call to revert
         vm.expectRevert("caller not the owner");
-        helloToken.updateRelayerFeePercentage(relayerFeePercentage);
+        helloToken.updateRelayerFee(relayerFeePercentage, relayerFeePrecision);
     }
 
+    /**
+     * @notice This test confirms that the owner can't update the relayerFeePrecision
+     * to a value of zero.
+     */
+    function testUpdateRelayerFeeZeroPrecision(uint32 relayerFeePercentage) public {
+        // expect the updateRelayerFee call to revert
+        vm.expectRevert("precision must be > 0");
+        helloToken.updateRelayerFee(
+            relayerFeePercentage,
+            0
+        );
+    }
+
+    /**
+     * @notice This test confirms that the owner can't update the relayerFeePercentage
+     * to a value greater than the feePrecision.
+     */
+    function testUpdateRelayerFeePrecisionLessThanPercentage() public {
+        uint32 relayerFeePercentage = 42000;
+        uint32 relayerFeePrecision_ = relayerFeePercentage - 69;
+
+        // expect the updateRelayerFee call to revert
+        vm.expectRevert("relayer fee percentage must be < precision");
+        helloToken.updateRelayerFee(
+            relayerFeePercentage,
+            relayerFeePrecision_
+        );
+    }
 
     /**
      * @notice This test confirms that the `sendTokensWithPayload` method correctly sends
@@ -760,7 +794,7 @@ contract HelloTokenTest is Test {
         helloToken.registerEmitter(ethereumChainId, ethereumEmitter);
 
         // NOTE: update the relayer fee to 0
-        helloToken.updateRelayerFeePercentage(0);
+        helloToken.updateRelayerFee(0, relayerFeePrecision);
         assertEq(helloToken.relayerFeePercentage(), 0);
 
         // store balances in the Balances struct (reduces local variable count)

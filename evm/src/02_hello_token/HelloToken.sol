@@ -92,9 +92,8 @@ contract HelloToken is HelloTokenGovernance, HelloTokenMessages, ReentrancyGuard
         bytes32 targetContract = getRegisteredEmitter(targetChain);
         require(targetContract != bytes32(0), "emitter not registered");
 
-        // cache Wormhole instance and fees
-        IWormhole wormhole = wormhole();
-        uint256 wormholeFee = wormhole.messageFee();
+        // cache Wormhole fee
+        uint256 wormholeFee = wormhole().messageFee();
 
         // Confirm that the caller has sent enough value to pay for the Wormhole
         // message fee.

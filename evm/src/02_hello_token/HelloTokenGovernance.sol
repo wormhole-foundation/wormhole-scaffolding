@@ -36,13 +36,24 @@ contract HelloTokenGovernance is HelloTokenGetters {
     }
 
     /**
-     * @notice Updates the relayer fee percentage
+     * @notice Updates the relayer fee percentage and precision
      * @dev Only the deployer (owner) can invoke this method
      * @param relayerFeePercentage The percentage of each transfer that is
      * rewarded to the relayer.
+     * @param relayerFeePrecision The precision of the relayer fee
      */
-    function updateRelayerFeePercentage(uint32 relayerFeePercentage) public onlyOwner {
+    function updateRelayerFee(
+        uint32 relayerFeePercentage,
+        uint32 relayerFeePrecision
+    ) public onlyOwner {
+        require(relayerFeePrecision > 0, "precision must be > 0");
+        require(
+            relayerFeePercentage < relayerFeePrecision,
+            "relayer fee percentage must be < precision"
+        );
+
         setRelayerFeePercentage(relayerFeePercentage);
+        setFeePrecision(relayerFeePrecision);
     }
 
     modifier onlyOwner() {
