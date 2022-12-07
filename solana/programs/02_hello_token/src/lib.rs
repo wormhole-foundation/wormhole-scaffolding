@@ -112,6 +112,24 @@ pub mod hello_token {
         Ok(())
     }
 
+    pub fn update_relayer_fee(
+        ctx: Context<UpdateRelayerFee>,
+        relayer_fee: u32,
+        relayer_fee_precision: u32,
+    ) -> Result<()> {
+        require!(
+            relayer_fee < relayer_fee_precision,
+            HelloTokenError::InvalidRelayerFee,
+        );
+
+        let config = &mut ctx.accounts.config;
+        config.relayer_fee = relayer_fee;
+        config.relayer_fee_precision = relayer_fee_precision;
+
+        // Done.
+        Ok(())
+    }
+
     pub fn send_native_tokens_with_payload(
         ctx: Context<SendNativeTokensWithPayload>,
         batch_id: u32,
@@ -257,15 +275,16 @@ pub mod hello_token {
         // is redeemed again. But we choose to short-circuit the failure as the
         // first evaluation of this instruction.
         require!(
-            ctx.accounts.token_bridge_claim.data_len() == 0,
+            ctx.accounts.token_bridge_claim.data_is_empty(),
             HelloTokenError::AlreadyRedeemed
         );
 
         // These seeds are used to:
-        // 1.  Sign the Sender Config's token account to delegate approval
-        //     of truncated_amount.
-        // 2.  Sign Token Bridge program's transfer_native instruction.
-        // 3.  Close tmp_token_account.
+        // 1.  Redeem Token Bridge program's
+        //     complete_transfer_native_with_payload.
+        // 2.  Transfer tokens to relayer if he exists.
+        // 3.  Transfer remaining tokens to recipient.
+        // 4.  Close tmp_token_account.
         let config_seeds = &[
             RedeemerConfig::SEED_PREFIX.as_ref(),
             &[ctx.accounts.config.bump],
@@ -300,20 +319,35 @@ pub mod hello_token {
         // token amount (determined by the relayer fee) to the payer's token
         // account.
         if ctx.accounts.payer.key() != ctx.accounts.recipient.key() {
-            // Pay the relayer.
+            // Does the relayer have an aassociated token account already? If
+            // not, he needs to create one.
+            require!(
+                !ctx.accounts.payer_token_account.data_is_empty(),
+                HelloTokenError::NonExistentRelayerAta
+            );
+
             let relayer_amount = ctx.accounts.config.compute_relayer_amount(amount);
-            anchor_spl::token::transfer(
-                CpiContext::new_with_signer(
-                    ctx.accounts.token_program.to_account_info(),
-                    anchor_spl::token::Transfer {
-                        from: ctx.accounts.tmp_token_account.to_account_info(),
-                        to: ctx.accounts.payer_token_account.to_account_info(),
-                        authority: ctx.accounts.config.to_account_info(),
-                    },
-                    &[&config_seeds[..]],
-                ),
-                relayer_amount,
-            )?;
+
+            // Pay the relayer if there is anything for him.
+            if relayer_amount > 0 {
+                anchor_spl::token::transfer(
+                    CpiContext::new_with_signer(
+                        ctx.accounts.token_program.to_account_info(),
+                        anchor_spl::token::Transfer {
+                            from: ctx.accounts.tmp_token_account.to_account_info(),
+                            to: ctx.accounts.payer_token_account.to_account_info(),
+                            authority: ctx.accounts.config.to_account_info(),
+                        },
+                        &[&config_seeds[..]],
+                    ),
+                    relayer_amount,
+                )?;
+            }
+
+            msg!(
+                "RedeemNativeTransferWithPayload :: relayed by {:?}",
+                ctx.accounts.payer.key()
+            );
 
             // Transfer tokens from tmp_token_account to recipient.
             anchor_spl::token::transfer(

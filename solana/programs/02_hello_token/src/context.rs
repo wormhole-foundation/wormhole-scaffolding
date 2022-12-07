@@ -187,6 +187,25 @@ pub struct RegisterForeignContract<'info> {
 }
 
 #[derive(Accounts)]
+pub struct UpdateRelayerFee<'info> {
+    /// Owner of the program set in the [`Config`] account.
+    #[account(mut)]
+    pub owner: Signer<'info>,
+
+    #[account(
+        has_one = owner @ HelloTokenError::OwnerOnly,
+        seeds = [RedeemerConfig::SEED_PREFIX],
+        bump
+    )]
+    /// Redeemer Config account. This program requires that the `owner` specified
+    /// in the context equals the pubkey specified in this account. Read-only.
+    pub config: Account<'info, RedeemerConfig>,
+
+    /// System program.
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
 #[instruction(
     batch_id: u32,
     amount: u64,

@@ -3,9 +3,7 @@ use anchor_spl;
 
 #[derive(AnchorDeserialize, AnchorSerialize)]
 pub enum Instruction {
-    Initialize {
-        wormhole_program: Pubkey,
-    },
+    Initialize, // placeholder
     AttestToken {
         batch_id: u32,
     },
@@ -25,9 +23,9 @@ pub enum Instruction {
         recipient_address: [u8; 32],
         recipient_chain: u16,
     },
-    RegisterChain {},
+    RegisterChain, // placeholder (governance action)
     CreateWrapped {},
-    UpgradeContract {},
+    UpgradeContract, // placeholder (governance action)
     CompleteNativeWithPayload {},
     CompleteWrappedWithPayload {},
     TransferWrappedWithPayload {

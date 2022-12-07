@@ -99,4 +99,9 @@ pub enum HelloTokenError {
     #[msg("InvalidTokenBridgeForeignEndpoint")]
     /// Token Bridge program's foreign endpoint disagrees with registered one.
     InvalidTokenBridgeForeignEndpoint,
+
+    #[msg("NonExistentRelayerAta")]
+    /// Relayer needs to create an associated token account before he can be
+    /// paid.
+    NonExistentRelayerAta,
 }
