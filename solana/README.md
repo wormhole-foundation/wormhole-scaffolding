@@ -8,6 +8,7 @@ subdirectories (e.g. [evm](../evm)).
 Read the design documents for each example project:
 
 1. [hello-world](../docs/01_hello_world.md)
+2. [hello-token](../docs/02_hello_token.md)
 
 ## Getting Started
 
