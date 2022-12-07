@@ -29,6 +29,7 @@ unit-test: cargo-test
 
 .PHONY: integration-test
 integration-test: dependencies
+	md5sum -c dependencies/checksum.txt
 	anchor test
 
 .PHONY: test
