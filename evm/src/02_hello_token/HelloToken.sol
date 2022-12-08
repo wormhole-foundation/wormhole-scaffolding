@@ -55,8 +55,8 @@ contract HelloToken is HelloTokenGovernance, HelloTokenMessages, ReentrancyGuard
      * by invoking the `transferTokensWithPayload` method on the Wormhole token
      * bridge contract. `transferTokensWithPayload` allows the caller to send
      * an arbitrary message payload along with a token transfer. In this case,
-     * the contract sends the transfer recipient's wallet address on the target
-     * chain.
+     * the arbitrary message includes the transfer recipient's target-chain
+     * wallet address.
      * @dev reverts if:
      * - `token` is address(0)
      * - `amount` is zero
@@ -65,12 +65,13 @@ contract HelloToken is HelloTokenGovernance, HelloTokenMessages, ReentrancyGuard
      * - caller doesn't pass enough value to pay the Wormhole network fee
      * @param token Address of `token` to be transferred
      * @param amount Amount of `token` to be transferred
-     * @param targetChain Wormhole chainID of the target blockchain
+     * @param targetChain Wormhole chain ID of the target blockchain
      * @param batchId Wormhole message ID
      * @param targetRecipient Address in bytes32 format (zero-left-padded if
      * less than 20 bytes) of the recipient's wallet on the target blockchain.
      * @return messageSequence Wormhole message sequence for the Wormhole token
-     * bridge contract. This sequence is incremented for each message emitter.
+     * bridge contract. This sequence is incremented (per message) for each
+     * message emitter.
      */
     function sendTokensWithPayload(
         address token,
@@ -92,19 +93,17 @@ contract HelloToken is HelloTokenGovernance, HelloTokenMessages, ReentrancyGuard
         bytes32 targetContract = getRegisteredEmitter(targetChain);
         require(targetContract != bytes32(0), "emitter not registered");
 
-        // cache Wormhole fee
+        // Cache Wormhole fee value, and confirm that the caller has sent
+        // enough value to pay for the Wormhole message fee.
         uint256 wormholeFee = wormhole().messageFee();
-
-        // Confirm that the caller has sent enough value to pay for the Wormhole
-        // message fee.
         require(msg.value == wormholeFee, "insufficient value");
 
-        // transfer tokens from use to the this contract
+        // transfer tokens from user to the this contract
         uint256 amountReceived = custodyTokens(token, amount);
 
         /**
          * Encode instructions (HelloTokenMessage) to send with the token transfer.
-         * The targetRecipient address is in bytes32 format (zero-left-padded) to
+         * The `targetRecipient` address is in bytes32 format (zero-left-padded) to
          * support non-evm smart contracts that have addresses that are longer
          * than 20 bytes.
          */
@@ -129,7 +128,7 @@ contract HelloToken is HelloTokenGovernance, HelloTokenMessages, ReentrancyGuard
          * Call `transferTokensWithPayload`method on the token bridge and pay
          * the Wormhole network fee. The token bridge will emit a Wormhole
          * message with an encoded `TransferWithPayload` struct (see the
-         * BridgeStructs.sol file in the Wormhole repo).
+         * ITokenBridge.sol interface file in this repo).
          */
         messageSequence = bridge.transferTokensWithPayload{value: wormholeFee}(
             token,
@@ -155,7 +154,14 @@ contract HelloToken is HelloTokenGovernance, HelloTokenMessages, ReentrancyGuard
      * @param encodedTransferMessage Encoded `TransferWithPayload` message
      */
     function redeemTransferWithPayload(bytes memory encodedTransferMessage) public {
-        // parse the encodedTransferMessage
+        /**
+         * parse the encoded Wormhole message
+         *
+         * SECURITY: This message not been verified by the Wormhole core layer yet.
+         * The encoded payload can only be trusted once the message has been verified
+         * by the Wormhole core contract. In this case, the message will be verified
+         * by a call to the token bridge contract in subsequent actions.
+         */
         IWormhole.VM memory parsedMessage = wormhole().parseVM(
             encodedTransferMessage
         );
@@ -166,6 +172,10 @@ contract HelloToken is HelloTokenGovernance, HelloTokenMessages, ReentrancyGuard
          * so that it can compute the balance change before and after redeeming
          * the transfer. The amount encoded in the payload could be incorrect,
          * since fee-on-transfer tokens are supported by the token bridge.
+         *
+         * NOTE: The token bridge truncates the encoded amount for any token
+         * with decimals greater than 8. This is to support blockchains that
+         * cannot handle transfer amounts exceeding max(uint64).
          */
         address localTokenAddress = fetchLocalAddressFromTransferMessage(
             parsedMessage.payload
@@ -177,7 +187,11 @@ contract HelloToken is HelloTokenGovernance, HelloTokenMessages, ReentrancyGuard
         // cache the token bridge instance
         ITokenBridge bridge = tokenBridge();
 
-        // call `completeTransferWithPayload` on the token bridge
+        /**
+         * Call `completeTransferWithPayload` on the token bridge. This
+         * method acts as a reentrancy protection since it does not allow
+         * transfers to be redeemed more than once.
+         */
         bytes memory transferPayload = bridge.completeTransferWithPayload(
             encodedTransferMessage
         );
@@ -206,9 +220,11 @@ contract HelloToken is HelloTokenGovernance, HelloTokenMessages, ReentrancyGuard
         // cache the recipient address
         address recipient = bytes32ToAddress(helloTokenPayload.targetRecipient);
 
-        // If the caller is the `transferRecipient` (self redeem) or the relayer fee
-        // is set to zero, send the full token amount to the recipient. Otherwise,
-        // send the relayer the calculated fee and the recipient the remainder.
+        /**
+         * If the caller is the `transferRecipient` (self redeem) or the relayer fee
+         * is set to zero, send the full token amount to the recipient. Otherwise,
+         * send the relayer the calculated fee and the recipient the remainder.
+         */
         if (relayerFee == 0 || msg.sender == recipient) {
             // send the full amount to the recipient
             SafeERC20.safeTransfer(

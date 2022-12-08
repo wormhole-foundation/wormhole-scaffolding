@@ -636,8 +636,8 @@ contract HelloTokenTest is Test {
     /**
      * @notice This test confirms that HelloToken correctly redeems native
      * tokens to the encoded recipient and handles relayer payments correctly.
-     * In this case, native tokens means that the token originates from on
-     * the target blockchain (the HelloToken chain).
+     * In this case, native tokens means that the token originates on the
+     * target blockchain (the HelloToken chain).
      */
     function testRedeemTransferWithPayloadNativeToken(
         uint256 amount
@@ -825,7 +825,7 @@ contract HelloTokenTest is Test {
     }
 
     /**
-     * @notice This test confirms that HelloToken correctly redeems wrapped
+     * @notice This test confirms that HelloToken correctly redeems native
      * tokens to the encoded recipient and handles relayer payments correctly.
      * This test explicitly calls the redeemTransferWithPayload method from
      * the recipient wallet to confirm that the contract handles relayer
