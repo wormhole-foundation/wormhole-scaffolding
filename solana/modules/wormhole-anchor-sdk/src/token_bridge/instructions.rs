@@ -127,7 +127,6 @@ pub struct CompleteTransferNativeWithPayload<'info> {
     pub foreign_endpoint: AccountInfo<'info>,
     pub to: AccountInfo<'info>,
     pub redeemer: AccountInfo<'info>,
-    // pub to_fees: AccountInfo<'info>,
     pub custody: AccountInfo<'info>,
     pub mint: AccountInfo<'info>,
     pub custody_signer: AccountInfo<'info>,

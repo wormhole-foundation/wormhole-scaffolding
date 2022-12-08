@@ -10,8 +10,11 @@ import {
 } from "@solana/spl-token";
 import { ethers } from "ethers";
 import {
+  createWrappedOnSolana,
+  redeemOnSolana,
   transferNativeSol,
   tryNativeToHexString,
+  tryNativeToUint8Array,
 } from "@certusone/wormhole-sdk";
 import * as wormhole from "@certusone/wormhole-sdk/lib/cjs/solana/wormhole";
 import * as tokenBridge from "@certusone/wormhole-sdk/lib/cjs/solana/tokenBridge";
@@ -33,7 +36,10 @@ import {
   WORMHOLE_ADDRESS,
   createMaliciousRegisterChainInstruction,
   RELAYER_PRIVATE_KEY,
+  WETH_ADDRESS,
 } from "./helpers";
+import { MockEthereumTokenBridge } from "@certusone/wormhole-sdk/lib/cjs/mock";
+import { deriveWrappedMintKey } from "@certusone/wormhole-sdk/lib/cjs/solana/tokenBridge";
 
 describe(" 0: Wormhole", () => {
   const connection = new web3.Connection(LOCALHOST, "confirmed");
@@ -85,7 +91,7 @@ describe(" 0: Wormhole", () => {
       expect(mint.equals(MINT)).is.true;
     });
 
-    it("Create ATAs", async () => {
+    it("Create `MINT` ATAs", async () => {
       const walletAccount = await getOrCreateAssociatedTokenAccount(
         connection,
         wallet.signer(),
@@ -104,18 +110,6 @@ describe(" 0: Wormhole", () => {
     });
 
     it("Mint to Wallet's ATA", async () => {
-      {
-        const amount = await getOrCreateAssociatedTokenAccount(
-          connection,
-          wallet.signer(),
-          MINT,
-          wallet.key()
-        ).then((account) => {
-          return account.amount;
-        });
-        expect(amount).equals(0n);
-      }
-
       const mintAmount = 69420000n * 1000000000n;
       const destination = getAssociatedTokenAddressSync(MINT, wallet.key());
 
@@ -198,6 +192,17 @@ describe(" 0: Wormhole", () => {
   });
 
   describe("Verify Token Bridge Program", () => {
+    // foreign token bridge
+    const ethereumTokenBridge = new mock.MockEthereumTokenBridge(
+      ETHEREUM_TOKEN_BRIDGE_ADDRESS
+    );
+
+    const tokenBridgeWethMint = deriveWrappedMintKey(
+      TOKEN_BRIDGE_ADDRESS,
+      2,
+      WETH_ADDRESS
+    );
+
     it("Initialize", async () => {
       // initialize
       const initializeTx = await web3
@@ -397,7 +402,112 @@ describe(" 0: Wormhole", () => {
     });
 
     it("Attest WETH from Ethereum", async () => {
-      // TODO
+      const published = ethereumTokenBridge.publishAttestMeta(
+        WETH_ADDRESS,
+        18,
+        "WETH",
+        "Wrapped Ether"
+      );
+
+      const signedWormholeMessage = guardians.addSignatures(published, [0]);
+
+      const createWrappedTx = await postVaaSolana(
+        connection,
+        wallet.signTransaction,
+        WORMHOLE_ADDRESS,
+        wallet.key(),
+        signedWormholeMessage
+      )
+        .then((_) =>
+          createWrappedOnSolana(
+            connection,
+            WORMHOLE_ADDRESS,
+            TOKEN_BRIDGE_ADDRESS,
+            wallet.key(),
+            signedWormholeMessage
+          )
+        )
+        .then((transaction) =>
+          signSendAndConfirmTransaction(
+            connection,
+            wallet.key(),
+            wallet.signTransaction,
+            transaction
+          )
+        )
+        .catch((reason) => null);
+      expect(createWrappedTx).is.not.null;
+    });
+
+    it("Create WETH ATAs", async () => {
+      const walletAccount = await getOrCreateAssociatedTokenAccount(
+        connection,
+        wallet.signer(),
+        tokenBridgeWethMint,
+        wallet.key()
+      ).catch((reason) => null);
+      expect(walletAccount).is.not.null;
+
+      const relayerAccount = await getOrCreateAssociatedTokenAccount(
+        connection,
+        relayer.signer(),
+        tokenBridgeWethMint,
+        relayer.key()
+      ).catch((reason) => null);
+      expect(relayerAccount).is.not.null;
+    });
+
+    it("Mint WETH to Wallet ATA", async () => {
+      const rawAmount = ethers.utils.parseEther("110000");
+      const mintAmount = BigInt(rawAmount.toString()) / 10n ** (18n - 8n);
+
+      const destination = getAssociatedTokenAddressSync(
+        tokenBridgeWethMint,
+        wallet.key()
+      );
+
+      const published = ethereumTokenBridge.publishTransferTokens(
+        tryNativeToHexString(WETH_ADDRESS, "ethereum"),
+        2, // tokenChain
+        mintAmount,
+        1, // recipientChain
+        destination.toBuffer().toString("hex"),
+        0n
+      );
+
+      const signedWormholeMessage = guardians.addSignatures(published, [0]);
+
+      const mintTx = await postVaaSolana(
+        connection,
+        wallet.signTransaction,
+        WORMHOLE_ADDRESS,
+        wallet.key(),
+        signedWormholeMessage
+      )
+        .then((_) =>
+          redeemOnSolana(
+            connection,
+            WORMHOLE_ADDRESS,
+            TOKEN_BRIDGE_ADDRESS,
+            wallet.key(),
+            signedWormholeMessage
+          )
+        )
+        .then((transaction) =>
+          signSendAndConfirmTransaction(
+            connection,
+            wallet.key(),
+            wallet.signTransaction,
+            transaction
+          )
+        )
+        .catch((reason) => null);
+      expect(mintTx).is.not.null;
+
+      const amount = await getAccount(connection, destination).then(
+        (account) => account.amount
+      );
+      expect(amount).equals(mintAmount);
     });
   });
 

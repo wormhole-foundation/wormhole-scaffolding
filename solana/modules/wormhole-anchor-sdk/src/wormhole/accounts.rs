@@ -48,12 +48,7 @@ impl AccountDeserialize for BridgeData {
     }
 }
 
-impl AccountSerialize for BridgeData {
-    fn try_serialize<W: io::Write>(&self, _writer: &mut W) -> Result<()> {
-        // no-op
-        Ok(())
-    }
-}
+impl AccountSerialize for BridgeData {}
 
 impl Owner for BridgeData {
     fn owner() -> Pubkey {
@@ -78,12 +73,7 @@ impl AccountDeserialize for FeeCollector {
     }
 }
 
-impl AccountSerialize for FeeCollector {
-    fn try_serialize<W: io::Write>(&self, _writer: &mut W) -> Result<()> {
-        // no-op
-        Ok(())
-    }
-}
+impl AccountSerialize for FeeCollector {}
 
 impl Owner for FeeCollector {
     fn owner() -> Pubkey {
@@ -118,12 +108,7 @@ impl AccountDeserialize for SequenceTracker {
     }
 }
 
-impl AccountSerialize for SequenceTracker {
-    fn try_serialize<W: io::Write>(&self, _writer: &mut W) -> Result<()> {
-        // no-op
-        Ok(())
-    }
-}
+impl AccountSerialize for SequenceTracker {}
 
 impl Owner for SequenceTracker {
     fn owner() -> Pubkey {
@@ -153,12 +138,7 @@ impl AccountDeserialize for SignatureSetData {
     }
 }
 
-impl AccountSerialize for SignatureSetData {
-    fn try_serialize<W: io::Write>(&self, _writer: &mut W) -> Result<()> {
-        // no-op
-        Ok(())
-    }
-}
+impl AccountSerialize for SignatureSetData {}
 
 impl Owner for SignatureSetData {
     fn owner() -> Pubkey {
@@ -232,12 +212,7 @@ impl AccountDeserialize for PostedVaaData {
     }
 }
 
-impl AccountSerialize for PostedVaaData {
-    fn try_serialize<W: io::Write>(&self, _writer: &mut W) -> Result<()> {
-        // no-op
-        Ok(())
-    }
-}
+impl AccountSerialize for PostedVaaData {}
 
 impl Owner for PostedVaaData {
     fn owner() -> Pubkey {
@@ -326,12 +301,7 @@ impl<D: AnchorDeserialize + AnchorSerialize> AccountDeserialize for PostedVaa<D>
     }
 }
 
-impl<D: AnchorDeserialize + AnchorSerialize> AccountSerialize for PostedVaa<D> {
-    fn try_serialize<W: io::Write>(&self, _writer: &mut W) -> Result<()> {
-        // no-op
-        Ok(())
-    }
-}
+impl<D: AnchorDeserialize + AnchorSerialize> AccountSerialize for PostedVaa<D> {}
 
 impl<D: AnchorDeserialize + AnchorSerialize> Owner for PostedVaa<D> {
     fn owner() -> Pubkey {

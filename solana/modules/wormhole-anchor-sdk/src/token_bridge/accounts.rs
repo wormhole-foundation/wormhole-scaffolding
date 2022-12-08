@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use std::io;
+use std::ops::Deref;
 
 use crate::token_bridge::program::ID;
 
@@ -22,12 +22,7 @@ impl AccountDeserialize for Config {
     }
 }
 
-impl AccountSerialize for Config {
-    fn try_serialize<W: io::Write>(&self, _writer: &mut W) -> Result<()> {
-        // no-op
-        Ok(())
-    }
-}
+impl AccountSerialize for Config {}
 
 impl Owner for Config {
     fn owner() -> Pubkey {
@@ -51,16 +46,46 @@ impl AccountDeserialize for EndpointRegistration {
     }
 }
 
-impl AccountSerialize for EndpointRegistration {
-    fn try_serialize<W: io::Write>(&self, _writer: &mut W) -> Result<()> {
-        // no-op
-        Ok(())
-    }
-}
+impl AccountSerialize for EndpointRegistration {}
 
 impl Owner for EndpointRegistration {
     fn owner() -> Pubkey {
         ID
+    }
+}
+
+#[derive(Default, Clone, PartialEq)]
+pub struct WrappedMint(anchor_spl::token::Mint);
+
+impl WrappedMint {
+    pub const SEED_PREFIX: &'static [u8; 7] = b"wrapped";
+}
+
+impl AccountDeserialize for WrappedMint {
+    fn try_deserialize(buf: &mut &[u8]) -> Result<Self> {
+        Self::try_deserialize_unchecked(buf)
+    }
+
+    fn try_deserialize_unchecked(buf: &mut &[u8]) -> Result<Self> {
+        Ok(Self(anchor_spl::token::Mint::try_deserialize_unchecked(
+            buf,
+        )?))
+    }
+}
+
+impl AccountSerialize for WrappedMint {}
+
+impl Owner for WrappedMint {
+    fn owner() -> Pubkey {
+        anchor_spl::token::ID
+    }
+}
+
+impl Deref for WrappedMint {
+    type Target = anchor_spl::token::Mint;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
@@ -85,12 +110,7 @@ impl AccountDeserialize for WrappedMeta {
     }
 }
 
-impl AccountSerialize for WrappedMeta {
-    fn try_serialize<W: io::Write>(&self, _writer: &mut W) -> Result<()> {
-        // no-op
-        Ok(())
-    }
-}
+impl AccountSerialize for WrappedMeta {}
 
 impl Owner for WrappedMeta {
     fn owner() -> Pubkey {
@@ -114,12 +134,7 @@ impl AccountDeserialize for EndpointDerivation {
     }
 }
 
-impl AccountSerialize for EndpointDerivation {
-    fn try_serialize<W: io::Write>(&self, _writer: &mut W) -> Result<()> {
-        // no-op
-        Ok(())
-    }
-}
+impl AccountSerialize for EndpointDerivation {}
 
 impl Owner for EndpointDerivation {
     fn owner() -> Pubkey {

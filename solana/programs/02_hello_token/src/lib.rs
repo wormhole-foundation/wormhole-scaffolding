@@ -391,13 +391,137 @@ pub mod hello_token {
     }
 
     pub fn send_wrapped_tokens_with_payload(
-        _ctx: Context<SendWrappedTokensWithPayload>,
-        _batch_id: u32,
-        _message: Vec<u8>,
+        ctx: Context<SendWrappedTokensWithPayload>,
+        batch_id: u32,
+        amount: u64,
+        recipient_address: [u8; 32],
+        recipient_chain: u16,
     ) -> Result<()> {
-        // TODO
+        // Token Bridge program truncates amounts to 8 decimals, so there will
+        // be a residual amount if decimals of SPL is >8. We need to take into
+        // account how much will actually be bridged.
+        let truncated_amount = {
+            // let truncate_by =
+            //     10u64.pow(std::cmp::max(8, ctx.accounts.token_bridge_wrapped_mint.decimals as u32) - 8);
+            // (amount / truncate_by) * truncate_by
+            amount
+        };
+        require!(truncated_amount > 0, HelloTokenError::ZeroBridgeAmount);
+        if truncated_amount != amount {
+            msg!(
+                "SendNativeTokensWithPayload :: truncating amount {} to {}",
+                amount,
+                truncated_amount
+            );
+        }
 
-        // Done.
-        Ok(())
+        require!(
+            recipient_chain > 0
+                && recipient_chain != wormhole::CHAIN_ID_SOLANA
+                && !recipient_address.iter().all(|&x| x == 0),
+            HelloTokenError::InvalidRecipient,
+        );
+
+        // These seeds are used to:
+        // 1.  Sign the Sender Config's token account to delegate approval
+        //     of truncated_amount.
+        // 2.  Sign Token Bridge program's transfer_native instruction.
+        // 3.  Close tmp_token_account.
+        let config_seeds = &[
+            SenderConfig::SEED_PREFIX.as_ref(),
+            &[ctx.accounts.config.bump],
+        ];
+
+        // First transfer tokens from payer to tmp_token_account.
+        anchor_spl::token::transfer(
+            CpiContext::new(
+                ctx.accounts.token_program.to_account_info(),
+                anchor_spl::token::Transfer {
+                    from: ctx.accounts.from_token_account.to_account_info(),
+                    to: ctx.accounts.tmp_token_account.to_account_info(),
+                    authority: ctx.accounts.payer.to_account_info(),
+                },
+            ),
+            truncated_amount,
+        )?;
+
+        // Delegate spending to Token Bridge program's authority signer.
+        anchor_spl::token::approve(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                anchor_spl::token::Approve {
+                    to: ctx.accounts.tmp_token_account.to_account_info(),
+                    delegate: ctx.accounts.token_bridge_authority_signer.to_account_info(),
+                    authority: ctx.accounts.config.to_account_info(),
+                },
+                &[&config_seeds[..]],
+            ),
+            truncated_amount,
+        )?;
+
+        // Serialize HelloTokenMessage as encoded payload for Token Bridge
+        // transfer.
+        let payload = HelloTokenMessage::Hello {
+            recipient: recipient_address,
+        }
+        .try_to_vec()?;
+
+        // Bridge native token with encoded payload.
+        token_bridge::transfer_wrapped_with_payload(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_bridge_program.to_account_info(),
+                token_bridge::TransferWrappedWithPayload {
+                    payer: ctx.accounts.payer.to_account_info(),
+                    config: ctx.accounts.token_bridge_config.to_account_info(),
+                    from: ctx.accounts.tmp_token_account.to_account_info(),
+                    from_owner: ctx.accounts.config.to_account_info(),
+                    wrapped_mint: ctx.accounts.token_bridge_wrapped_mint.to_account_info(),
+                    wrapped_metadata: ctx.accounts.token_bridge_wrapped_meta.to_account_info(),
+                    authority_signer: ctx.accounts.token_bridge_authority_signer.to_account_info(),
+                    wormhole_bridge: ctx.accounts.wormhole_bridge.to_account_info(),
+                    wormhole_message: ctx.accounts.wormhole_message.to_account_info(),
+                    wormhole_emitter: ctx.accounts.token_bridge_emitter.to_account_info(),
+                    wormhole_sequence: ctx.accounts.token_bridge_sequence.to_account_info(),
+                    wormhole_fee_collector: ctx.accounts.wormhole_fee_collector.to_account_info(),
+                    clock: ctx.accounts.clock.to_account_info(),
+                    sender: ctx.accounts.config.to_account_info(),
+                    rent: ctx.accounts.rent.to_account_info(),
+                    system_program: ctx.accounts.system_program.to_account_info(),
+                    token_program: ctx.accounts.token_program.to_account_info(),
+                    wormhole_program: ctx.accounts.wormhole_program.to_account_info(),
+                },
+                &[
+                    &config_seeds[..],
+                    &[
+                        SEED_PREFIX_BRIDGED,
+                        &ctx.accounts
+                            .token_bridge_sequence
+                            .next_value()
+                            .to_le_bytes()[..],
+                        &[*ctx
+                            .bumps
+                            .get("wormhole_message")
+                            .ok_or(HelloTokenError::BumpNotFound)?],
+                    ],
+                ],
+            ),
+            batch_id,
+            truncated_amount,
+            ctx.accounts.foreign_contract.address,
+            recipient_chain,
+            payload,
+            &ctx.program_id.key(),
+        )?;
+
+        // Finish instruction by closing tmp_token_account.
+        anchor_spl::token::close_account(CpiContext::new_with_signer(
+            ctx.accounts.token_program.to_account_info(),
+            anchor_spl::token::CloseAccount {
+                account: ctx.accounts.tmp_token_account.to_account_info(),
+                destination: ctx.accounts.payer.to_account_info(),
+                authority: ctx.accounts.config.to_account_info(),
+            },
+            &[&config_seeds[..]],
+        ))
     }
 }

@@ -22,6 +22,7 @@ import {
   deriveSenderConfigKey,
   deriveForeignContractKey,
   createRedeemNativeTransferWithPayloadInstruction,
+  createSendWrappedTokensWithPayloadInstruction,
 } from "../sdk/02_hello_token";
 import {
   ETHEREUM_TOKEN_BRIDGE_ADDRESS,
@@ -35,7 +36,9 @@ import {
   deriveMaliciousTokenBridgeEndpointKey,
   errorExistsInLog,
   RELAYER_PRIVATE_KEY,
+  WETH_ADDRESS,
 } from "./helpers";
+import { deriveWrappedMintKey } from "@certusone/wormhole-sdk/lib/cjs/solana/tokenBridge";
 
 describe(" 2: Hello Token", () => {
   const connection = new web3.Connection(LOCALHOST, "confirmed");
@@ -910,6 +913,242 @@ describe(" 2: Hello Token", () => {
               return null;
             });
         expect(redeemTransferTx).is.null;
+      });
+    });
+  });
+
+  describe("Send Wrapped Tokens With Payload", () => {
+    const tokenBridgeWethMint = deriveWrappedMintKey(
+      TOKEN_BRIDGE_ADDRESS,
+      2,
+      WETH_ADDRESS
+    );
+
+    describe("Expect Failure", () => {
+      it("Cannot Send To Unregistered Foreign Contract", async () => {
+        const batchId = 69;
+        const amount = 42069n;
+        const recipientAddress = Buffer.alloc(32, "1337beef", "hex");
+        const recipientChain = 6;
+        const sendTokensTx =
+          await createSendWrappedTokensWithPayloadInstruction(
+            connection,
+            HELLO_TOKEN_ADDRESS,
+            wallet.key(),
+            TOKEN_BRIDGE_ADDRESS,
+            WORMHOLE_ADDRESS,
+            tokenBridgeWethMint,
+            {
+              batchId,
+              amount,
+              recipientAddress,
+              recipientChain,
+            }
+          )
+            .then((ix) =>
+              web3.sendAndConfirmTransaction(
+                connection,
+                new web3.Transaction().add(ix),
+                [wallet.signer()]
+              )
+            )
+            .catch((reason) => {
+              expect(errorExistsInLog(reason, "AccountNotInitialized"));
+              return null;
+            });
+        expect(sendTokensTx).is.null;
+      });
+
+      it("Cannot Send To Chain ID == 0", async () => {
+        const batchId = 69;
+        const amount = 42069n;
+        const recipientAddress = Buffer.alloc(32, "1337beef", "hex");
+        const sendTokensTx =
+          await createSendWrappedTokensWithPayloadInstruction(
+            connection,
+            HELLO_TOKEN_ADDRESS,
+            wallet.key(),
+            TOKEN_BRIDGE_ADDRESS,
+            WORMHOLE_ADDRESS,
+            tokenBridgeWethMint,
+            {
+              batchId,
+              amount,
+              recipientAddress,
+              recipientChain: 0,
+            }
+          )
+            .then((ix) =>
+              web3.sendAndConfirmTransaction(
+                connection,
+                new web3.Transaction().add(ix),
+                [wallet.signer()]
+              )
+            )
+            .catch((reason) => {
+              expect(errorExistsInLog(reason, "InvalidRecipient"));
+              return null;
+            });
+        expect(sendTokensTx).is.null;
+      });
+
+      it("Cannot Send To Chain ID == 1", async () => {
+        const batchId = 69;
+        const amount = 42069n;
+        const recipientAddress = Buffer.alloc(32, "1337beef", "hex");
+        const sendTokensTx =
+          await createSendWrappedTokensWithPayloadInstruction(
+            connection,
+            HELLO_TOKEN_ADDRESS,
+            wallet.key(),
+            TOKEN_BRIDGE_ADDRESS,
+            WORMHOLE_ADDRESS,
+            tokenBridgeWethMint,
+            {
+              batchId,
+              amount,
+              recipientAddress,
+              recipientChain: 1,
+            }
+          )
+            .then((ix) =>
+              web3.sendAndConfirmTransaction(
+                connection,
+                new web3.Transaction().add(ix),
+                [wallet.signer()]
+              )
+            )
+            .catch((reason) => {
+              expect(errorExistsInLog(reason, "InvalidRecipient"));
+              return null;
+            });
+        expect(sendTokensTx).is.null;
+      });
+
+      it("Cannot Send To Zero Address", async () => {
+        const batchId = 69;
+        const amount = 42069n;
+        const recipientChain = 2;
+        const sendTokensTx =
+          await createSendWrappedTokensWithPayloadInstruction(
+            connection,
+            HELLO_TOKEN_ADDRESS,
+            wallet.key(),
+            TOKEN_BRIDGE_ADDRESS,
+            WORMHOLE_ADDRESS,
+            tokenBridgeWethMint,
+            {
+              batchId,
+              amount,
+              recipientAddress: Buffer.alloc(32),
+              recipientChain,
+            }
+          )
+            .then((ix) =>
+              web3.sendAndConfirmTransaction(
+                connection,
+                new web3.Transaction().add(ix),
+                [wallet.signer()]
+              )
+            )
+            .catch((reason) => {
+              expect(errorExistsInLog(reason, "InvalidRecipient"));
+              return null;
+            });
+        expect(sendTokensTx).is.null;
+      });
+    });
+
+    describe("Finally Send Tokens With Payload", () => {
+      it("Instruction: send_wrapped_tokens_with_payload", async () => {
+        const tokenAccount = getAssociatedTokenAddressSync(
+          tokenBridgeWethMint,
+          wallet.key()
+        );
+
+        // will be used for balance change later
+        const walletBalanceBefore = await getAccount(
+          connection,
+          tokenAccount
+        ).then((account) => account.amount);
+
+        // save message count to grab posted message later
+        const sequence = await wormhole
+          .getProgramSequenceTracker(
+            connection,
+            TOKEN_BRIDGE_ADDRESS,
+            WORMHOLE_ADDRESS
+          )
+          .then((sequenceTracker) => sequenceTracker.value() + 1n);
+
+        const batchId = 69;
+        const amount = 2n * 42069n;
+        const recipientAddress = Buffer.alloc(32, "1337beef", "hex");
+        const recipientChain = 2;
+        const sendTokensTx =
+          await createSendWrappedTokensWithPayloadInstruction(
+            connection,
+            HELLO_TOKEN_ADDRESS,
+            wallet.key(),
+            TOKEN_BRIDGE_ADDRESS,
+            WORMHOLE_ADDRESS,
+            tokenBridgeWethMint,
+            {
+              batchId,
+              amount,
+              recipientAddress,
+              recipientChain,
+            }
+          )
+            .then((ix) =>
+              web3.sendAndConfirmTransaction(
+                connection,
+                new web3.Transaction().add(ix),
+                [wallet.signer()]
+              )
+            )
+            .catch((reason) => {
+              // should not happen
+              console.log(reason);
+              return null;
+            });
+        expect(sendTokensTx).is.not.null;
+
+        const walletBalanceAfter = await getAccount(
+          connection,
+          tokenAccount
+        ).then((account) => account.amount);
+
+        // check balance change
+        expect(walletBalanceBefore - walletBalanceAfter).to.equal(amount);
+
+        // tmp_token_account should not exist
+        const tmpTokenAccountKey = deriveTmpTokenAccountKey(
+          HELLO_TOKEN_ADDRESS,
+          tokenBridgeWethMint
+        );
+        const tmpTokenAccount = await getAccount(
+          connection,
+          tmpTokenAccountKey
+        ).catch((reason) => null);
+        expect(tmpTokenAccount).is.null;
+
+        // verify wormhole message
+        const payload = await wormhole
+          .getPostedMessage(
+            connection,
+            deriveTokenTransferMessageKey(HELLO_TOKEN_ADDRESS, sequence)
+          )
+          .then(
+            (posted) =>
+              parseTokenTransferPayload(posted.message.payload)
+                .tokenTransferPayload
+          );
+
+        expect(payload.readUint8(0)).to.equal(1); // payload ID
+        expect(
+          Buffer.compare(payload.subarray(1, 33), recipientAddress)
+        ).to.equal(0);
       });
     });
   });
