@@ -27,6 +27,7 @@ import {
   createRedeemNativeTransferWithPayloadInstruction,
   createSendWrappedTokensWithPayloadInstruction,
   createRedeemWrappedTransferWithPayloadInstruction,
+  createUpdateRelayerFeeInstruction,
 } from "../sdk/02_hello_token";
 import {
   ETHEREUM_TOKEN_BRIDGE_ADDRESS,
@@ -63,11 +64,71 @@ describe(" 2: Hello Token", () => {
   const guardians = new mock.MockGuardians(0, [GUARDIAN_PRIVATE_KEY]);
 
   describe("Initialize Program", () => {
+    describe("Expect Failure", () => {
+      it("Cannot Initialize With relayer_fee_precision == 0", async () => {
+        const relayerFee = 0;
+        const relayerFeePrecision = 0;
+        expect(relayerFeePrecision).to.equal(0);
+
+        const initializeTx = await createInitializeInstruction(
+          connection,
+          HELLO_TOKEN_ADDRESS,
+          wallet.key(),
+          TOKEN_BRIDGE_ADDRESS,
+          WORMHOLE_ADDRESS,
+          relayerFee,
+          relayerFeePrecision
+        )
+          .then((ix) =>
+            web3.sendAndConfirmTransaction(
+              connection,
+              new web3.Transaction().add(ix),
+              [wallet.signer()]
+            )
+          )
+          .catch((reason) => {
+            expect(errorExistsInLog(reason, "InvalidRelayerFee")).is.true;
+            return null;
+          });
+        expect(initializeTx).is.null;
+      });
+
+      it("Cannot Initialize With relayer_fee > relayer_fee_precision", async () => {
+        const relayerFee = 100_000_000;
+        const relayerFeePrecision = 1_000_000;
+        expect(relayerFee).is.greaterThan(relayerFeePrecision);
+
+        const initializeTx = await createInitializeInstruction(
+          connection,
+          HELLO_TOKEN_ADDRESS,
+          wallet.key(),
+          TOKEN_BRIDGE_ADDRESS,
+          WORMHOLE_ADDRESS,
+          relayerFee,
+          relayerFeePrecision
+        )
+          .then((ix) =>
+            web3.sendAndConfirmTransaction(
+              connection,
+              new web3.Transaction().add(ix),
+              [wallet.signer()]
+            )
+          )
+          .catch((reason) => {
+            expect(errorExistsInLog(reason, "InvalidRelayerFee")).is.true;
+            return null;
+          });
+        expect(initializeTx).is.null;
+      });
+    });
+
     describe("Finally Set Up Program", () => {
       it("Instruction: initialize", async () => {
-        // we are configuring the relayer fee to be 0.1%, so that means the
-        // relayer fee precision must be 1000x the relayer fee
-        const relayerFee = 100_000;
+        // we are configuring the relayer fee to be 1%, so that means the
+        // relayer fee precision must be 100x the relayer fee.
+        // Note: This will be overwritten later when update_relayer_fee
+        // instruction is called.
+        const relayerFee = 1_000_000;
         const relayerFeePrecision = 100_000_000;
         const initializeTx = await createInitializeInstruction(
           connection,
@@ -189,6 +250,366 @@ describe(" 2: Hello Token", () => {
             return null;
           });
         expect(initializeTx).is.null;
+      });
+    });
+  });
+
+  describe("Update Relayer Fee", () => {
+    describe("Expect Failure", () => {
+      it("Cannot Update as Non-Owner", async () => {
+        const relayerFee = 69;
+        const relayerFeePrecision = 420;
+
+        const updateRelayerFeeTx = await createUpdateRelayerFeeInstruction(
+          connection,
+          HELLO_TOKEN_ADDRESS,
+          relayer.key(),
+          relayerFee,
+          relayerFeePrecision
+        )
+          .then((ix) =>
+            web3.sendAndConfirmTransaction(
+              connection,
+              new web3.Transaction().add(ix),
+              [relayer.signer()]
+            )
+          )
+          .catch((reason) => {
+            expect(errorExistsInLog(reason, "OwnerOnly")).is.true;
+            return null;
+          });
+        expect(updateRelayerFeeTx).is.null;
+      });
+
+      it("Cannot Update With relayer_fee_precision == 0", async () => {
+        const relayerFee = 0;
+        const relayerFeePrecision = 0;
+        expect(relayerFeePrecision).to.equal(0);
+
+        const updateRelayerFeeTx = await createUpdateRelayerFeeInstruction(
+          connection,
+          HELLO_TOKEN_ADDRESS,
+          wallet.key(),
+          relayerFee,
+          relayerFeePrecision
+        )
+          .then((ix) =>
+            web3.sendAndConfirmTransaction(
+              connection,
+              new web3.Transaction().add(ix),
+              [wallet.signer()]
+            )
+          )
+          .catch((reason) => {
+            expect(errorExistsInLog(reason, "InvalidRelayerFee")).is.true;
+            return null;
+          });
+        expect(updateRelayerFeeTx).is.null;
+      });
+
+      it("Cannot Update With relayer_fee > relayer_fee_precision", async () => {
+        const relayerFee = 100_000_000;
+        const relayerFeePrecision = 1_000_000;
+        expect(relayerFee).is.greaterThan(relayerFeePrecision);
+        const updateRelayerFeeTx = await createUpdateRelayerFeeInstruction(
+          connection,
+          HELLO_TOKEN_ADDRESS,
+          wallet.key(),
+          relayerFee,
+          relayerFeePrecision
+        )
+          .then((ix) =>
+            web3.sendAndConfirmTransaction(
+              connection,
+              new web3.Transaction().add(ix),
+              [wallet.signer()]
+            )
+          )
+          .catch((reason) => {
+            expect(errorExistsInLog(reason, "InvalidRelayerFee")).is.true;
+            return null;
+          });
+        expect(updateRelayerFeeTx).is.null;
+      });
+    });
+
+    describe("Finally Update Relayer Fee", () => {
+      it("Instruction: update_relayer_fee", async () => {
+        // we are configuring the relayer fee to be 0.1%, so that means the
+        // relayer fee precision must be 1000x the relayer fee
+        const relayerFee = 100_000;
+        const relayerFeePrecision = 100_000_000;
+        const updateRelayerFeeTx = await createUpdateRelayerFeeInstruction(
+          connection,
+          HELLO_TOKEN_ADDRESS,
+          wallet.key(),
+          relayerFee,
+          relayerFeePrecision
+        )
+          .then((ix) =>
+            web3.sendAndConfirmTransaction(
+              connection,
+              new web3.Transaction().add(ix),
+              [wallet.signer()]
+            )
+          )
+          .catch((reason) => {
+            // should not happen
+            console.log(reason);
+            return null;
+          });
+        expect(updateRelayerFeeTx).is.not.null;
+
+        const redeemerConfigData = await getRedeemerConfigData(
+          connection,
+          HELLO_TOKEN_ADDRESS
+        );
+        expect(redeemerConfigData.relayerFee).equals(relayerFee);
+        expect(redeemerConfigData.relayerFeePrecision).equals(
+          relayerFeePrecision
+        );
+      });
+    });
+  });
+
+  describe("Register Foreign Emitter", () => {
+    describe("Expect Failure", () => {
+      it("Cannot Update as Non-Owner", async () => {
+        const chain = foreignChain;
+        const contractAddress = Buffer.alloc(32, "fbadc0de", "hex");
+
+        const registerForeignEmitterTx =
+          await createRegisterForeignContractInstruction(
+            connection,
+            HELLO_TOKEN_ADDRESS,
+            relayer.key(),
+            TOKEN_BRIDGE_ADDRESS,
+            chain,
+            contractAddress,
+            ETHEREUM_TOKEN_BRIDGE_ADDRESS
+          )
+            .then((ix) =>
+              web3.sendAndConfirmTransaction(
+                connection,
+                new web3.Transaction().add(ix),
+                [relayer.signer()]
+              )
+            )
+            .catch((reason) => {
+              expect(errorExistsInLog(reason, "OwnerOnly")).is.true;
+              return null;
+            });
+        expect(registerForeignEmitterTx).is.null;
+      });
+
+      it("Cannot Register Chain ID == 0", async () => {
+        const bogusChain = 0;
+        const registerForeignEmitterTx = await createHelloTokenProgramInterface(
+          connection,
+          HELLO_TOKEN_ADDRESS
+        )
+          .methods.registerForeignContract(bogusChain, [
+            ...foreignContractAddress,
+          ])
+          .accounts({
+            owner: wallet.key(),
+            config: deriveSenderConfigKey(HELLO_TOKEN_ADDRESS),
+            foreignContract: deriveForeignContractKey(
+              HELLO_TOKEN_ADDRESS,
+              bogusChain
+            ),
+            tokenBridgeForeignEndpoint: deriveMaliciousTokenBridgeEndpointKey(
+              TOKEN_BRIDGE_ADDRESS,
+              bogusChain,
+              Buffer.alloc(32)
+            ),
+            tokenBridgeProgram: new web3.PublicKey(TOKEN_BRIDGE_ADDRESS),
+          })
+          .instruction()
+          .then((ix) =>
+            web3.sendAndConfirmTransaction(
+              connection,
+              new web3.Transaction().add(ix),
+              [wallet.signer()]
+            )
+          )
+          .catch((reason) => {
+            expect(errorExistsInLog(reason, "InvalidForeignContract")).is.true;
+            return null;
+          });
+        expect(registerForeignEmitterTx).is.null;
+      });
+
+      it("Cannot Register Chain ID == 1", async () => {
+        const bogusChain = 1;
+        const registerForeignEmitterTx = await createHelloTokenProgramInterface(
+          connection,
+          HELLO_TOKEN_ADDRESS
+        )
+          .methods.registerForeignContract(bogusChain, [
+            ...foreignContractAddress,
+          ])
+          .accounts({
+            owner: wallet.key(),
+            config: deriveSenderConfigKey(HELLO_TOKEN_ADDRESS),
+            foreignContract: deriveForeignContractKey(
+              HELLO_TOKEN_ADDRESS,
+              bogusChain
+            ),
+            tokenBridgeForeignEndpoint: deriveMaliciousTokenBridgeEndpointKey(
+              TOKEN_BRIDGE_ADDRESS,
+              bogusChain,
+              Buffer.alloc(32)
+            ),
+            tokenBridgeProgram: new web3.PublicKey(TOKEN_BRIDGE_ADDRESS),
+          })
+          .instruction()
+          .then((ix) =>
+            web3.sendAndConfirmTransaction(
+              connection,
+              new web3.Transaction().add(ix),
+              [wallet.signer()]
+            )
+          )
+          .catch((reason) => {
+            expect(errorExistsInLog(reason, "InvalidForeignContract")).is.true;
+            return null;
+          });
+        expect(registerForeignEmitterTx).is.null;
+      });
+
+      it("Cannot Register Zero Address", async () => {
+        const registerForeignEmitterTx =
+          await createRegisterForeignContractInstruction(
+            connection,
+            HELLO_TOKEN_ADDRESS,
+            wallet.key(),
+            TOKEN_BRIDGE_ADDRESS,
+            foreignChain,
+            Buffer.alloc(32), // contractAddress
+            ETHEREUM_TOKEN_BRIDGE_ADDRESS
+          )
+            .then((ix) =>
+              web3.sendAndConfirmTransaction(
+                connection,
+                new web3.Transaction().add(ix),
+                [wallet.signer()]
+              )
+            )
+            .catch((reason) => {
+              expect(errorExistsInLog(reason, "InvalidForeignContract")).is
+                .true;
+              return null;
+            });
+        expect(registerForeignEmitterTx).is.null;
+      });
+
+      it("Cannot Register Contract Address Length != 32", async () => {
+        const registerForeignEmitterTx =
+          await createRegisterForeignContractInstruction(
+            connection,
+            HELLO_TOKEN_ADDRESS,
+            wallet.key(),
+            TOKEN_BRIDGE_ADDRESS,
+            foreignChain,
+            Buffer.alloc(31, "deadbeef", "hex"), // contractAddress
+            ETHEREUM_TOKEN_BRIDGE_ADDRESS
+          )
+            .then((ix) =>
+              web3.sendAndConfirmTransaction(
+                connection,
+                new web3.Transaction().add(ix),
+                [wallet.signer()]
+              )
+            )
+            .catch((reason) => {
+              expect(errorExistsInLog(reason, "InstructionDidNotDeserialize"))
+                .is.true;
+              return null;
+            });
+        expect(registerForeignEmitterTx).is.null;
+      });
+    });
+
+    describe("Finally Register Foreign Contract", () => {
+      it("Instruction: register_foreign_contract", async () => {
+        const chain = foreignChain;
+        const contractAddress = Buffer.alloc(32, "fbadc0de", "hex");
+
+        const registerForeignEmitterTx =
+          await createRegisterForeignContractInstruction(
+            connection,
+            HELLO_TOKEN_ADDRESS,
+            wallet.key(),
+            TOKEN_BRIDGE_ADDRESS,
+            chain,
+            contractAddress,
+            ETHEREUM_TOKEN_BRIDGE_ADDRESS
+          )
+            .then((ix) =>
+              web3.sendAndConfirmTransaction(
+                connection,
+                new web3.Transaction().add(ix),
+                [wallet.signer()]
+              )
+            )
+            .catch((reason) => {
+              // should not happen
+              console.log(reason);
+              return null;
+            });
+        expect(registerForeignEmitterTx).is.not.null;
+
+        // verify account data
+        const foreignContractData = await getForeignContractData(
+          connection,
+          HELLO_TOKEN_ADDRESS,
+          chain
+        );
+        expect(foreignContractData.chain).to.equal(chain);
+        expect(
+          Buffer.compare(contractAddress, foreignContractData.address)
+        ).to.equal(0);
+      });
+
+      it("Call Instruction Again With Different Contract Address", async () => {
+        const chain = foreignChain;
+        const contractAddress = foreignContractAddress;
+
+        const registerForeignEmitterTx =
+          await createRegisterForeignContractInstruction(
+            connection,
+            HELLO_TOKEN_ADDRESS,
+            wallet.key(),
+            TOKEN_BRIDGE_ADDRESS,
+            chain,
+            contractAddress,
+            ETHEREUM_TOKEN_BRIDGE_ADDRESS
+          )
+            .then((ix) =>
+              web3.sendAndConfirmTransaction(
+                connection,
+                new web3.Transaction().add(ix),
+                [wallet.signer()]
+              )
+            )
+            .catch((reason) => {
+              // should not happen
+              console.log(reason);
+              return null;
+            });
+        expect(registerForeignEmitterTx).is.not.null;
+
+        // verify account data
+        const foreignContractData = await getForeignContractData(
+          connection,
+          HELLO_TOKEN_ADDRESS,
+          chain
+        );
+        expect(foreignContractData.chain).to.equal(chain);
+        expect(
+          Buffer.compare(contractAddress, foreignContractData.address)
+        ).to.equal(0);
       });
     });
   });
@@ -1366,6 +1787,7 @@ describe(" 2: Hello Token", () => {
       published[51] = 3;
 
       const signedWormholeMessage = guardians.addSignatures(published, [0]);
+
       it("Post Wormhole Message", async () => {
         const response = await postVaaSolana(
           connection,

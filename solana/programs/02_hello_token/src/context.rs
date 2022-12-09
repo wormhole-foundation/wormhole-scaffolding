@@ -193,6 +193,7 @@ pub struct UpdateRelayerFee<'info> {
     pub owner: Signer<'info>,
 
     #[account(
+        mut,
         has_one = owner @ HelloTokenError::OwnerOnly,
         seeds = [RedeemerConfig::SEED_PREFIX],
         bump
@@ -219,7 +220,6 @@ pub struct SendNativeTokensWithPayload<'info> {
     pub payer: Signer<'info>,
 
     #[account(
-        mut,
         seeds = [SenderConfig::SEED_PREFIX],
         bump
     )]
@@ -377,7 +377,6 @@ pub struct RedeemNativeTransferWithPayload<'info> {
     pub payer_token_account: UncheckedAccount<'info>,
 
     #[account(
-        mut,
         seeds = [RedeemerConfig::SEED_PREFIX],
         bump
     )]
@@ -515,7 +514,6 @@ pub struct SendWrappedTokensWithPayload<'info> {
     pub payer: Signer<'info>,
 
     #[account(
-        mut,
         seeds = [SenderConfig::SEED_PREFIX],
         bump
     )]
@@ -679,7 +677,6 @@ pub struct RedeemWrappedTransferWithPayload<'info> {
     pub payer_token_account: UncheckedAccount<'info>,
 
     #[account(
-        mut,
         seeds = [RedeemerConfig::SEED_PREFIX],
         bump
     )]
