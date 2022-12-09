@@ -72,11 +72,11 @@ pub enum HelloTokenError {
     InvalidTransferTokenAccount,
 
     #[msg("InvalidTransferTokenChain")]
-    /// Deserialized token chain is not CHAIN_ID_SOLANA.
+    /// Deserialized token chain is invalid.
     InvalidTransferToChain,
 
     #[msg("InvalidTransferTokenChain")]
-    /// Deserialized recipient chain is not CHAIN_ID_SOLANA.
+    /// Deserialized recipient chain is invalid.
     InvalidTransferTokenChain,
 
     #[msg("InvalidRelayerFee")]

@@ -1174,6 +1174,7 @@ describe(" 2: Hello Token", () => {
       published[51] = 3;
 
       const signedWormholeMessage = guardians.addSignatures(published, [0]);
+
       it("Post Wormhole Message", async () => {
         const response = await postVaaSolana(
           connection,
@@ -1183,6 +1184,36 @@ describe(" 2: Hello Token", () => {
           signedWormholeMessage
         ).catch((reason) => null);
         expect(response).is.not.null;
+      });
+
+      it("Cannot Redeem From With Bogus Token Account", async () => {
+        const bogusTokenAccount = getAssociatedTokenAddressSync(
+          MINT,
+          relayer.key()
+        );
+
+        const redeemTransferTx =
+          await createRedeemNativeTransferWithPayloadInstruction(
+            connection,
+            HELLO_TOKEN_ADDRESS,
+            relayer.key(),
+            TOKEN_BRIDGE_ADDRESS,
+            WORMHOLE_ADDRESS,
+            signedWormholeMessage,
+            bogusTokenAccount
+          )
+            .then((ix) =>
+              web3.sendAndConfirmTransaction(
+                connection,
+                new web3.Transaction().add(ix),
+                [relayer.signer()]
+              )
+            )
+            .catch((reason) => {
+              expect(errorExistsInLog(reason, "InvalidRecipient")).is.true;
+              return null;
+            });
+        expect(redeemTransferTx).is.null;
       });
 
       it("Instruction: redeem_native_transfer_with_payload", async () => {
@@ -1361,6 +1392,42 @@ describe(" 2: Hello Token", () => {
           signedWormholeMessage
         ).catch((reason) => null);
         expect(response).is.not.null;
+      });
+
+      it("Cannot Redeem From With Bogus Token Account", async () => {
+        const bogusTokenAccount = getAssociatedTokenAddressSync(
+          MINT,
+          relayer.key()
+        );
+
+        const redeemTransferTx =
+          await createRedeemNativeTransferWithPayloadInstruction(
+            connection,
+            HELLO_TOKEN_ADDRESS,
+            relayer.key(),
+            TOKEN_BRIDGE_ADDRESS,
+            WORMHOLE_ADDRESS,
+            signedWormholeMessage,
+            bogusTokenAccount,
+            wallet.key() // recipient
+          )
+            .then((ix) =>
+              web3.sendAndConfirmTransaction(
+                connection,
+                new web3.Transaction().add(ix),
+                [relayer.signer()]
+              )
+            )
+            .catch((reason) => {
+              expect(
+                errorExistsInLog(
+                  reason,
+                  "recipient_token_account. Error Code: ConstraintTokenOwner"
+                )
+              ).is.true;
+              return null;
+            });
+        expect(redeemTransferTx).is.null;
       });
 
       it("Instruction: redeem_native_transfer_with_payload", async () => {
@@ -1799,6 +1866,36 @@ describe(" 2: Hello Token", () => {
         expect(response).is.not.null;
       });
 
+      it("Cannot Redeem From With Bogus Token Account", async () => {
+        const bogusTokenAccount = getAssociatedTokenAddressSync(
+          tokenBridgeWethMint,
+          relayer.key()
+        );
+
+        const redeemTransferTx =
+          await createRedeemWrappedTransferWithPayloadInstruction(
+            connection,
+            HELLO_TOKEN_ADDRESS,
+            relayer.key(),
+            TOKEN_BRIDGE_ADDRESS,
+            WORMHOLE_ADDRESS,
+            signedWormholeMessage,
+            bogusTokenAccount
+          )
+            .then((ix) =>
+              web3.sendAndConfirmTransaction(
+                connection,
+                new web3.Transaction().add(ix),
+                [relayer.signer()]
+              )
+            )
+            .catch((reason) => {
+              expect(errorExistsInLog(reason, "InvalidRecipient")).is.true;
+              return null;
+            });
+        expect(redeemTransferTx).is.null;
+      });
+
       it("Instruction: redeem_wrapped_transfer_with_payload", async () => {
         // will be used for balance change later
         const walletBalanceBefore = await getAccount(
@@ -1981,6 +2078,42 @@ describe(" 2: Hello Token", () => {
           signedWormholeMessage
         ).catch((reason) => null);
         expect(response).is.not.null;
+      });
+
+      it("Cannot Redeem From With Bogus Token Account", async () => {
+        const bogusTokenAccount = getAssociatedTokenAddressSync(
+          tokenBridgeWethMint,
+          relayer.key()
+        );
+
+        const redeemTransferTx =
+          await createRedeemWrappedTransferWithPayloadInstruction(
+            connection,
+            HELLO_TOKEN_ADDRESS,
+            relayer.key(),
+            TOKEN_BRIDGE_ADDRESS,
+            WORMHOLE_ADDRESS,
+            signedWormholeMessage,
+            bogusTokenAccount,
+            wallet.key() // recipient
+          )
+            .then((ix) =>
+              web3.sendAndConfirmTransaction(
+                connection,
+                new web3.Transaction().add(ix),
+                [relayer.signer()]
+              )
+            )
+            .catch((reason) => {
+              expect(
+                errorExistsInLog(
+                  reason,
+                  "recipient_token_account. Error Code: ConstraintTokenOwner"
+                )
+              ).is.true;
+              return null;
+            });
+        expect(redeemTransferTx).is.null;
       });
 
       it("Instruction: redeem_wrapped_transfer_with_payload", async () => {

@@ -140,10 +140,7 @@ pub mod hello_token {
         // Token Bridge program truncates amounts to 8 decimals, so there will
         // be a residual amount if decimals of SPL is >8. We need to take into
         // account how much will actually be bridged.
-        let truncated_amount = {
-            let truncate_by = 10u64.pow(std::cmp::max(8, ctx.accounts.mint.decimals as u32) - 8);
-            (amount / truncate_by) * truncate_by
-        };
+        let truncated_amount = token_bridge::truncate_amount(amount, ctx.accounts.mint.decimals);
         require!(truncated_amount > 0, HelloTokenError::ZeroBridgeAmount);
         if truncated_amount != amount {
             msg!(
@@ -279,6 +276,14 @@ pub mod hello_token {
             HelloTokenError::AlreadyRedeemed
         );
 
+        // The intended recipient must agree with the recipient's token
+        // account.
+        let HelloTokenMessage::Hello { recipient } = ctx.accounts.vaa.message().data();
+        require!(
+            ctx.accounts.recipient_token_account.key().to_bytes() == *recipient,
+            HelloTokenError::InvalidRecipient
+        );
+
         // These seeds are used to:
         // 1.  Redeem Token Bridge program's
         //     complete_transfer_native_with_payload.
@@ -312,8 +317,10 @@ pub mod hello_token {
             &[&config_seeds[..]],
         ))?;
 
-        let amount = ctx.accounts.vaa.data().amount()
-            * 10u64.pow(std::cmp::max(8, ctx.accounts.mint.decimals as u32) - 8);
+        let amount = token_bridge::denormalize_amount(
+            ctx.accounts.vaa.data().amount(),
+            ctx.accounts.mint.decimals,
+        );
 
         // If this instruction were executed by a relayer, send some of the
         // token amount (determined by the relayer fee) to the payer's token
@@ -397,24 +404,7 @@ pub mod hello_token {
         recipient_address: [u8; 32],
         recipient_chain: u16,
     ) -> Result<()> {
-        // Token Bridge program truncates amounts to 8 decimals, so there will
-        // be a residual amount if decimals of SPL is >8. We need to take into
-        // account how much will actually be bridged.
-        let truncated_amount = {
-            // let truncate_by =
-            //     10u64.pow(std::cmp::max(8, ctx.accounts.token_bridge_wrapped_mint.decimals as u32) - 8);
-            // (amount / truncate_by) * truncate_by
-            amount
-        };
-        require!(truncated_amount > 0, HelloTokenError::ZeroBridgeAmount);
-        if truncated_amount != amount {
-            msg!(
-                "SendNativeTokensWithPayload :: truncating amount {} to {}",
-                amount,
-                truncated_amount
-            );
-        }
-
+        require!(amount > 0, HelloTokenError::ZeroBridgeAmount);
         require!(
             recipient_chain > 0
                 && recipient_chain != wormhole::CHAIN_ID_SOLANA
@@ -424,8 +414,8 @@ pub mod hello_token {
 
         // These seeds are used to:
         // 1.  Sign the Sender Config's token account to delegate approval
-        //     of truncated_amount.
-        // 2.  Sign Token Bridge program's transfer_native instruction.
+        //     of amount.
+        // 2.  Sign Token Bridge program's transfer_wrapped instruction.
         // 3.  Close tmp_token_account.
         let config_seeds = &[
             SenderConfig::SEED_PREFIX.as_ref(),
@@ -442,7 +432,7 @@ pub mod hello_token {
                     authority: ctx.accounts.payer.to_account_info(),
                 },
             ),
-            truncated_amount,
+            amount,
         )?;
 
         // Delegate spending to Token Bridge program's authority signer.
@@ -456,7 +446,7 @@ pub mod hello_token {
                 },
                 &[&config_seeds[..]],
             ),
-            truncated_amount,
+            amount,
         )?;
 
         // Serialize HelloTokenMessage as encoded payload for Token Bridge
@@ -466,7 +456,7 @@ pub mod hello_token {
         }
         .try_to_vec()?;
 
-        // Bridge native token with encoded payload.
+        // Bridge wrapped token with encoded payload.
         token_bridge::transfer_wrapped_with_payload(
             CpiContext::new_with_signer(
                 ctx.accounts.token_bridge_program.to_account_info(),
@@ -506,7 +496,7 @@ pub mod hello_token {
                 ],
             ),
             batch_id,
-            truncated_amount,
+            amount,
             ctx.accounts.foreign_contract.address,
             recipient_chain,
             payload,
@@ -541,9 +531,17 @@ pub mod hello_token {
             HelloTokenError::AlreadyRedeemed
         );
 
+        // The intended recipient must agree with the recipient's token
+        // account.
+        let HelloTokenMessage::Hello { recipient } = ctx.accounts.vaa.message().data();
+        require!(
+            ctx.accounts.recipient_token_account.key().to_bytes() == *recipient,
+            HelloTokenError::InvalidRecipient
+        );
+
         // These seeds are used to:
         // 1.  Redeem Token Bridge program's
-        //     complete_transfer_native_with_payload.
+        //     complete_transfer_wrapped_with_payload.
         // 2.  Transfer tokens to relayer if he exists.
         // 3.  Transfer remaining tokens to recipient.
         // 4.  Close tmp_token_account.
@@ -606,7 +604,7 @@ pub mod hello_token {
             }
 
             msg!(
-                "RedeemNativeTransferWithPayload :: relayed by {:?}",
+                "RedeemWrappedTransferWithPayload :: relayed by {:?}",
                 ctx.accounts.payer.key()
             );
 

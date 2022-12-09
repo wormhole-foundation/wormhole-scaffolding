@@ -52,18 +52,22 @@ impl RedeemerConfig {
 #[cfg(test)]
 pub mod test {
     use super::*;
+    use std::mem::size_of;
 
     #[test]
     fn test_config() -> Result<()> {
         assert_eq!(
             InboundTokenBridgeAddresses::LEN,
-            96,
-            "InboundTokenBridgeAddresses::LEN wrong value"
+            size_of::<InboundTokenBridgeAddresses>()
         );
         assert_eq!(
             RedeemerConfig::MAXIMUM_SIZE,
-            145,
-            "RedeemerConfig::MAXIMUM_SIZE wrong value"
+            size_of::<u64>()
+                + size_of::<Pubkey>()
+                + size_of::<u8>()
+                + size_of::<InboundTokenBridgeAddresses>()
+                + size_of::<u32>()
+                + size_of::<u32>()
         );
 
         Ok(())

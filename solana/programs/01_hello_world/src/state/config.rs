@@ -50,11 +50,19 @@ impl Config {
 #[cfg(test)]
 pub mod test {
     use super::*;
+    use std::mem::size_of;
 
     #[test]
     fn test_config() -> Result<()> {
-        assert!(WormholeAddresses::LEN == 96, "WormholeAddress::LEN wrong value");
-        assert!(Config::MAXIMUM_SIZE == 141, "Config::MAXIMUM_SIZE wrong value");
+        assert_eq!(WormholeAddresses::LEN, std::mem::size_of::<WormholeAddresses>());
+        assert_eq!(
+            Config::MAXIMUM_SIZE, 
+            size_of::<u64>()
+            + size_of::<Pubkey>() 
+            + size_of::<WormholeAddresses>()
+            + size_of::<u32>()
+            + size_of::<u8>()
+        );
 
         Ok(())
     }

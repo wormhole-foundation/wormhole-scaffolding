@@ -61,8 +61,7 @@ impl AnchorDeserialize for HelloWorldMessage {
 pub mod test {
     use super::*;
     use anchor_lang::prelude::Result;
-    use std::str;
-    use std::string::String;
+    use std::{mem::size_of, str, string::String};
 
     #[test]
     fn test_message_alive() -> Result<()> {
@@ -75,22 +74,21 @@ pub mod test {
         let mut encoded = Vec::new();
         msg.serialize(&mut encoded)?;
 
+        assert_eq!(encoded.len(), size_of::<u8>() + size_of::<Pubkey>());
+
         // Verify Payload ID.
-        assert!(encoded[0] == PAYLOAD_ID_ALIVE, "buf[0] != PAYLOAD_ID_ALIVE");
+        assert_eq!(encoded[0], PAYLOAD_ID_ALIVE);
 
         // Verify Program ID.
         let mut program_id_bytes = [0u8; 32];
         program_id_bytes.copy_from_slice(&encoded[1..33]);
-        assert!(
-            program_id_bytes == my_program_id.to_bytes(),
-            "incorrect program ID"
-        );
+        assert_eq!(program_id_bytes, my_program_id.to_bytes());
 
         // Now deserialize the encoded message.
         if let HelloWorldMessage::Alive { program_id } =
             HelloWorldMessage::deserialize(&mut encoded.as_slice())?
         {
-            assert!(program_id == my_program_id, "incorrect program ID");
+            assert_eq!(program_id, my_program_id);
         } else {
             return Err(std::io::Error::new(std::io::ErrorKind::Other, "invalid message").into());
         }
@@ -109,24 +107,26 @@ pub mod test {
         let mut encoded = Vec::new();
         msg.serialize(&mut encoded)?;
 
+        assert_eq!(
+            encoded.len(),
+            size_of::<u8>() + size_of::<u16>() + raw_message.len()
+        );
+
         // Verify Payload ID.
-        assert!(encoded[0] == PAYLOAD_ID_HELLO, "buf[0] != PAYLOAD_ID_HELLO");
+        assert_eq!(encoded[0], PAYLOAD_ID_HELLO);
 
         // Verify message length.
         let mut message_len_bytes = [0u8; 2];
         message_len_bytes.copy_from_slice(&encoded[1..3]);
-        assert!(
-            u16::from_be_bytes(message_len_bytes) as usize == raw_message.len(),
-            "incorrect message length"
+        assert_eq!(
+            u16::from_be_bytes(message_len_bytes) as usize,
+            raw_message.len()
         );
 
         // Verify message.
         let from_utf8_result = str::from_utf8(&encoded[3..]);
         assert!(from_utf8_result.is_ok(), "from_utf8 resulted in an error");
-        assert!(
-            from_utf8_result.unwrap() == raw_message,
-            "incorrect message"
-        );
+        assert_eq!(from_utf8_result.unwrap(), raw_message);
 
         // Now deserialize the encoded message.
         if let HelloWorldMessage::Hello { message } =
@@ -134,10 +134,7 @@ pub mod test {
         {
             let from_utf8_result = str::from_utf8(&message);
             assert!(from_utf8_result.is_ok(), "from_utf8 resulted in an error");
-            assert!(
-                from_utf8_result.unwrap() == raw_message,
-                "incorrect message"
-            );
+            assert_eq!(from_utf8_result.unwrap(), raw_message);
         } else {
             return Err(std::io::Error::new(std::io::ErrorKind::Other, "invalid message").into());
         }

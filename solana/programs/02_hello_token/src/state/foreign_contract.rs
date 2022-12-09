@@ -32,16 +32,17 @@ impl ForeignContract {
 
 #[cfg(test)]
 pub mod test {
-    use crate::HelloTokenMessage;
-    use wormhole_anchor_sdk::{token_bridge, wormhole};
-
     use super::*;
+
+    use crate::HelloTokenMessage;
+    use std::mem::size_of;
+    use wormhole_anchor_sdk::{token_bridge, wormhole};
 
     #[test]
     fn test_foreign_emitter() -> Result<()> {
-        assert!(
-            ForeignContract::MAXIMUM_SIZE == 74,
-            "ForeignContract::MAXIMUM_SIZE wrong value"
+        assert_eq!(
+            ForeignContract::MAXIMUM_SIZE,
+            size_of::<u64>() + size_of::<u16>() + size_of::<[u8; 32]>() + size_of::<Pubkey>()
         );
 
         let chain: u16 = 2;

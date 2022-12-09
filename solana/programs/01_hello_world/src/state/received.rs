@@ -28,12 +28,17 @@ impl Received {
 #[cfg(test)]
 pub mod test {
     use super::*;
+    use std::mem::size_of;
 
     #[test]
     fn test_received() -> Result<()> {
-        assert!(
-            Received::MAXIMUM_SIZE == 1072,
-            "Received::MAXIMUM_SIZE wrong value"
+        assert_eq!(
+            Received::MAXIMUM_SIZE,
+            size_of::<u64>()
+                + size_of::<u32>()
+                + size_of::<[u8; 32]>()
+                + size_of::<u32>()
+                + MESSAGE_MAX_LENGTH
         );
 
         Ok(())

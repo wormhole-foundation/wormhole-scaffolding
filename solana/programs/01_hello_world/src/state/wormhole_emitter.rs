@@ -21,12 +21,13 @@ impl WormholeEmitter {
 #[cfg(test)]
 pub mod test {
     use super::*;
+    use std::mem::size_of;
 
     #[test]
     fn test_wormhole_emitter() -> Result<()> {
-        assert!(
-            WormholeEmitter::MAXIMUM_SIZE == 9,
-            "WormholeEmitter::MAXIMUM_SIZE wrong value"
+        assert_eq!(
+            WormholeEmitter::MAXIMUM_SIZE,
+            size_of::<u64>() + size_of::<u8>()
         );
 
         Ok(())

@@ -1,7 +1,4 @@
-use anchor_lang::{
-    prelude::*,
-    solana_program::sysvar::{clock, rent},
-};
+use anchor_lang::prelude::*;
 use wormhole_anchor_sdk::wormhole;
 
 use crate::{
@@ -17,7 +14,9 @@ pub const SEED_PREFIX_SENT: &[u8; 4] = b"sent";
 /// Context used to initialize program data (i.e. config).
 pub struct Initialize<'info> {
     #[account(mut)]
-    /// Whoever initializes the config will be the owner of the program.
+    /// Whoever initializes the config will be the owner of the program. Signer
+    /// for creating the [`Config`] account and posting a Wormhole message
+    /// indicating that the program is alive.
     pub owner: Signer<'info>,
 
     #[account(
@@ -97,17 +96,11 @@ pub struct Initialize<'info> {
     /// [`wormhole::post_message`] requires this account be mutable.
     pub wormhole_message: UncheckedAccount<'info>,
 
-    #[account(
-        address = clock::id() @ HelloWorldError::InvalidSysvar
-    )]
-    /// CHECK: Clock sysvar (see [clock::id()]). Read-only.
-    pub clock: UncheckedAccount<'info>,
+    /// Clock sysvar.
+    pub clock: Sysvar<'info, Clock>,
 
-    #[account(
-        address = rent::id() @ HelloWorldError::InvalidSysvar
-    )]
-    /// CHECK: Rent sysvar (see [rent::id()]). Read-only.
-    pub rent: UncheckedAccount<'info>,
+    /// Rent sysvar.
+    pub rent: Sysvar<'info, Rent>,
 
     /// System program.
     pub system_program: Program<'info, System>,
@@ -116,8 +109,9 @@ pub struct Initialize<'info> {
 #[derive(Accounts)]
 #[instruction(chain: u16)]
 pub struct RegisterEmitter<'info> {
-    /// Owner of the program set in the [`Config`] account.
     #[account(mut)]
+    /// Owner of the program set in the [`Config`] account. Signer for creating
+    /// the [`ForeignEmitter`] account.
     pub owner: Signer<'info>,
 
     #[account(
@@ -211,24 +205,18 @@ pub struct SendMessage<'info> {
     /// System program.
     pub system_program: Program<'info, System>,
 
-    #[account(
-        address = clock::id() @ HelloWorldError::InvalidSysvar
-    )]
-    /// CHECK: Clock sysvar (see [`clock::id()`]). Read-only.
-    pub clock: UncheckedAccount<'info>,
+    /// Clock sysvar.
+    pub clock: Sysvar<'info, Clock>,
 
-    #[account(
-        address = rent::id() @ HelloWorldError::InvalidSysvar
-    )]
-    /// CHECK: Rent sysvar (see [`rent::id()`]). Read-only.
-    pub rent: UncheckedAccount<'info>,
+    /// Rent sysvar.
+    pub rent: Sysvar<'info, Rent>,
 }
 
 #[derive(Accounts)]
 #[instruction(vaa_hash: [u8; 32])]
 pub struct ReceiveMessage<'info> {
     #[account(mut)]
-    /// Payer will initialize an account that tracks his own message IDs
+    /// Payer will initialize an account that tracks his own message IDs.
     pub payer: Signer<'info>,
 
     #[account(
