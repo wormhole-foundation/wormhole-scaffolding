@@ -33,7 +33,7 @@ import {
 } from "./helpers";
 
 describe(" 1: Hello World", () => {
-  const connection = new web3.Connection(LOCALHOST, "confirmed");
+  const connection = new web3.Connection(LOCALHOST, "processed");
   const wallet = NodeWallet.fromSecretKey(PAYER_PRIVATE_KEY);
 
   // foreign emitter info

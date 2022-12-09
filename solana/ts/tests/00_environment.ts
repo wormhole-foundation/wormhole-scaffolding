@@ -42,7 +42,7 @@ import { MockEthereumTokenBridge } from "@certusone/wormhole-sdk/lib/cjs/mock";
 import { deriveWrappedMintKey } from "@certusone/wormhole-sdk/lib/cjs/solana/tokenBridge";
 
 describe(" 0: Wormhole", () => {
-  const connection = new web3.Connection(LOCALHOST, "confirmed");
+  const connection = new web3.Connection(LOCALHOST, "processed");
   const wallet = NodeWallet.fromSecretKey(PAYER_PRIVATE_KEY);
   const relayer = NodeWallet.fromSecretKey(RELAYER_PRIVATE_KEY);
 
@@ -91,7 +91,7 @@ describe(" 0: Wormhole", () => {
       expect(mint.equals(MINT)).is.true;
     });
 
-    it("Create `MINT` ATAs", async () => {
+    it("Create ATAs", async () => {
       const walletAccount = await getOrCreateAssociatedTokenAccount(
         connection,
         wallet.signer(),

@@ -240,3 +240,54 @@ pub fn transfer_wrapped_with_payload<'a, 'b, 'c, 'info>(
     )
     .map_err(Into::into)
 }
+
+#[derive(Accounts)]
+pub struct CompleteTransferWrappedWithPayload<'info> {
+    pub payer: AccountInfo<'info>,
+    pub config: AccountInfo<'info>,
+    pub vaa: AccountInfo<'info>,
+    pub claim: AccountInfo<'info>,
+    pub foreign_endpoint: AccountInfo<'info>,
+    pub to: AccountInfo<'info>,
+    pub redeemer: AccountInfo<'info>,
+    pub wrapped_mint: AccountInfo<'info>,
+    pub wrapped_metadata: AccountInfo<'info>,
+    pub mint_authority: AccountInfo<'info>,
+    pub rent: AccountInfo<'info>,
+    pub system_program: AccountInfo<'info>,
+    pub token_program: AccountInfo<'info>,
+    pub wormhole_program: AccountInfo<'info>,
+}
+
+pub fn complete_transfer_wrapped_with_payload<'a, 'b, 'c, 'info>(
+    ctx: CpiContext<'a, 'b, 'c, 'info, CompleteTransferWrappedWithPayload<'info>>,
+) -> Result<()> {
+    let ix = solana_program::instruction::Instruction {
+        program_id: ctx.program.key(),
+        accounts: vec![
+            AccountMeta::new(ctx.accounts.payer.key(), true),
+            AccountMeta::new_readonly(ctx.accounts.config.key(), false),
+            AccountMeta::new_readonly(ctx.accounts.vaa.key(), false),
+            AccountMeta::new(ctx.accounts.claim.key(), false),
+            AccountMeta::new_readonly(ctx.accounts.foreign_endpoint.key(), false),
+            AccountMeta::new(ctx.accounts.to.key(), false),
+            AccountMeta::new_readonly(ctx.accounts.redeemer.key(), true),
+            AccountMeta::new(ctx.accounts.to.key(), false), // to_fees, lol
+            AccountMeta::new(ctx.accounts.wrapped_mint.key(), false),
+            AccountMeta::new_readonly(ctx.accounts.wrapped_metadata.key(), false),
+            AccountMeta::new_readonly(ctx.accounts.mint_authority.key(), false),
+            AccountMeta::new_readonly(solana_program::sysvar::rent::id(), false),
+            AccountMeta::new_readonly(ctx.accounts.system_program.key(), false),
+            AccountMeta::new_readonly(ctx.accounts.wormhole_program.key(), false),
+            AccountMeta::new_readonly(anchor_spl::token::spl_token::id(), false),
+        ],
+        data: Instruction::CompleteWrappedWithPayload {}.try_to_vec()?,
+    };
+
+    solana_program::program::invoke_signed(
+        &ix,
+        &ToAccountInfos::to_account_infos(&ctx),
+        ctx.signer_seeds,
+    )
+    .map_err(Into::into)
+}

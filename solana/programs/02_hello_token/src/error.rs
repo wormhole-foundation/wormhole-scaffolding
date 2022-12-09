@@ -104,4 +104,8 @@ pub enum HelloTokenError {
     /// Relayer needs to create an associated token account before he can be
     /// paid.
     NonExistentRelayerAta,
+
+    #[msg("InvalidTokenBridgeMintAuthority")]
+    /// Specified Token Bridge mint authority PDA is wrong.
+    InvalidTokenBridgeMintAuthority,
 }

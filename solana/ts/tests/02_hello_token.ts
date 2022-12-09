@@ -8,7 +8,10 @@ import {
   NodeWallet,
   postVaaSolana,
 } from "@certusone/wormhole-sdk/lib/cjs/solana";
-import { parseTokenTransferPayload } from "@certusone/wormhole-sdk";
+import {
+  parseTokenTransferPayload,
+  tryNativeToHexString,
+} from "@certusone/wormhole-sdk";
 import {
   createInitializeInstruction,
   createRegisterForeignContractInstruction,
@@ -23,6 +26,7 @@ import {
   deriveForeignContractKey,
   createRedeemNativeTransferWithPayloadInstruction,
   createSendWrappedTokensWithPayloadInstruction,
+  createRedeemWrappedTransferWithPayloadInstruction,
 } from "../sdk/02_hello_token";
 import {
   ETHEREUM_TOKEN_BRIDGE_ADDRESS,
@@ -41,7 +45,7 @@ import {
 import { deriveWrappedMintKey } from "@certusone/wormhole-sdk/lib/cjs/solana/tokenBridge";
 
 describe(" 2: Hello Token", () => {
-  const connection = new web3.Connection(LOCALHOST, "confirmed");
+  const connection = new web3.Connection(LOCALHOST, "processed");
   const wallet = NodeWallet.fromSecretKey(PAYER_PRIVATE_KEY);
   const relayer = NodeWallet.fromSecretKey(RELAYER_PRIVATE_KEY);
 
@@ -223,7 +227,7 @@ describe(" 2: Hello Token", () => {
             )
           )
           .catch((reason) => {
-            expect(errorExistsInLog(reason, "InvalidForeignContract"));
+            expect(errorExistsInLog(reason, "InvalidForeignContract")).is.true;
             return null;
           });
         expect(registerForeignEmitterTx).is.null;
@@ -261,7 +265,7 @@ describe(" 2: Hello Token", () => {
             )
           )
           .catch((reason) => {
-            expect(errorExistsInLog(reason, "InvalidForeignContract"));
+            expect(errorExistsInLog(reason, "InvalidForeignContract")).is.true;
             return null;
           });
         expect(registerForeignEmitterTx).is.null;
@@ -286,7 +290,8 @@ describe(" 2: Hello Token", () => {
               )
             )
             .catch((reason) => {
-              expect(errorExistsInLog(reason, "InvalidForeignContract"));
+              expect(errorExistsInLog(reason, "InvalidForeignContract")).is
+                .true;
               return null;
             });
         expect(registerForeignEmitterTx).is.null;
@@ -311,7 +316,8 @@ describe(" 2: Hello Token", () => {
               )
             )
             .catch((reason) => {
-              expect(errorExistsInLog(reason, "InstructionDidNotDeserialize"));
+              expect(errorExistsInLog(reason, "InstructionDidNotDeserialize"))
+                .is.true;
               return null;
             });
         expect(registerForeignEmitterTx).is.null;
@@ -430,7 +436,7 @@ describe(" 2: Hello Token", () => {
             )
           )
           .catch((reason) => {
-            expect(errorExistsInLog(reason, "AccountNotInitialized"));
+            expect(errorExistsInLog(reason, "AccountNotInitialized")).is.true;
             return null;
           });
         expect(sendTokensTx).is.null;
@@ -462,7 +468,7 @@ describe(" 2: Hello Token", () => {
             )
           )
           .catch((reason) => {
-            expect(errorExistsInLog(reason, "ZeroBridgeAmount"));
+            expect(errorExistsInLog(reason, "ZeroBridgeAmount")).is.true;
             return null;
           });
         expect(sendTokensTx).is.null;
@@ -494,7 +500,12 @@ describe(" 2: Hello Token", () => {
             )
           )
           .catch((reason) => {
-            expect(errorExistsInLog(reason, "InvalidRecipient"));
+            expect(
+              errorExistsInLog(
+                reason,
+                "AnchorError caused by account: foreign_contract. Error Code: AccountNotInitialized"
+              )
+            ).is.true;
             return null;
           });
         expect(sendTokensTx).is.null;
@@ -526,7 +537,12 @@ describe(" 2: Hello Token", () => {
             )
           )
           .catch((reason) => {
-            expect(errorExistsInLog(reason, "InvalidRecipient"));
+            expect(
+              errorExistsInLog(
+                reason,
+                "AnchorError caused by account: foreign_contract. Error Code: AccountNotInitialized"
+              )
+            ).is.true;
             return null;
           });
         expect(sendTokensTx).is.null;
@@ -558,7 +574,7 @@ describe(" 2: Hello Token", () => {
             )
           )
           .catch((reason) => {
-            expect(errorExistsInLog(reason, "InvalidRecipient"));
+            expect(errorExistsInLog(reason, "InvalidRecipient")).is.true;
             return null;
           });
         expect(sendTokensTx).is.null;
@@ -670,21 +686,73 @@ describe(" 2: Hello Token", () => {
     })();
     const batchId = 69;
 
-    const published = ethereumTokenBridge.publishTransferTokensWithPayload(
-      tokenAddress,
-      1, // tokenChain
-      amount / 10n,
-      1, // recipientChain
-      HELLO_TOKEN_ADDRESS.toBuffer().toString("hex"),
-      foreignContractAddress,
-      tokenTransferPayload,
-      batchId
-    );
-    published[51] = 3;
+    describe("Expect Failure", () => {
+      const published = ethereumTokenBridge.publishTransferTokensWithPayload(
+        tokenAddress,
+        1, // tokenChain
+        amount / 10n,
+        1, // recipientChain
+        HELLO_TOKEN_ADDRESS.toBuffer().toString("hex"),
+        Buffer.alloc(32, "deafbeef", "hex"),
+        tokenTransferPayload,
+        batchId
+      );
+      published[51] = 3;
 
-    const signedWormholeMessage = guardians.addSignatures(published, [0]);
+      const signedWormholeMessage = guardians.addSignatures(published, [0]);
+
+      it("Post Wormhole Message", async () => {
+        const response = await postVaaSolana(
+          connection,
+          wallet.signTransaction,
+          WORMHOLE_ADDRESS,
+          wallet.key(),
+          signedWormholeMessage
+        ).catch((reason) => null);
+        expect(response).is.not.null;
+      });
+
+      it("Cannot Redeem From Unregistered Foreign Contract", async () => {
+        const redeemTransferTx =
+          await createRedeemNativeTransferWithPayloadInstruction(
+            connection,
+            HELLO_TOKEN_ADDRESS,
+            wallet.key(),
+            TOKEN_BRIDGE_ADDRESS,
+            WORMHOLE_ADDRESS,
+            signedWormholeMessage,
+            tokenAccount
+          )
+            .then((ix) =>
+              web3.sendAndConfirmTransaction(
+                connection,
+                new web3.Transaction().add(ix),
+                [wallet.signer()]
+              )
+            )
+            .catch((reason) => {
+              expect(errorExistsInLog(reason, "InvalidForeignContract")).is
+                .true;
+              return null;
+            });
+        expect(redeemTransferTx).is.null;
+      });
+    });
 
     describe("Finally Receive Tokens With Payload", () => {
+      const published = ethereumTokenBridge.publishTransferTokensWithPayload(
+        tokenAddress,
+        1, // tokenChain
+        amount / 10n,
+        1, // recipientChain
+        HELLO_TOKEN_ADDRESS.toBuffer().toString("hex"),
+        foreignContractAddress,
+        tokenTransferPayload,
+        batchId
+      );
+      published[51] = 3;
+
+      const signedWormholeMessage = guardians.addSignatures(published, [0]);
       it("Post Wormhole Message", async () => {
         const response = await postVaaSolana(
           connection,
@@ -747,7 +815,7 @@ describe(" 2: Hello Token", () => {
         expect(tmpTokenAccount).is.null;
       });
 
-      it("Cannot Redeem Same Transfer", async () => {
+      it("Cannot Redeem Transfer Again", async () => {
         const redeemTransferTx =
           await createRedeemNativeTransferWithPayloadInstruction(
             connection,
@@ -766,6 +834,7 @@ describe(" 2: Hello Token", () => {
               )
             )
             .catch((reason) => {
+              expect(errorExistsInLog(reason, "AlreadyRedeemed")).is.true;
               return null;
             });
         expect(redeemTransferTx).is.null;
@@ -793,21 +862,75 @@ describe(" 2: Hello Token", () => {
     })();
     const batchId = 69;
 
-    const published = ethereumTokenBridge.publishTransferTokensWithPayload(
-      tokenAddress,
-      1, // tokenChain
-      amount / 10n,
-      1, // recipientChain
-      HELLO_TOKEN_ADDRESS.toBuffer().toString("hex"),
-      foreignContractAddress,
-      tokenTransferPayload,
-      batchId
-    );
-    published[51] = 3;
+    describe("Expect Failure", () => {
+      const published = ethereumTokenBridge.publishTransferTokensWithPayload(
+        tokenAddress,
+        1, // tokenChain
+        amount / 10n,
+        1, // recipientChain
+        HELLO_TOKEN_ADDRESS.toBuffer().toString("hex"),
+        Buffer.alloc(32, "deafbeef", "hex"),
+        tokenTransferPayload,
+        batchId
+      );
+      published[51] = 3;
 
-    const signedWormholeMessage = guardians.addSignatures(published, [0]);
+      const signedWormholeMessage = guardians.addSignatures(published, [0]);
+
+      it("Post Wormhole Message", async () => {
+        const response = await postVaaSolana(
+          connection,
+          relayer.signTransaction,
+          WORMHOLE_ADDRESS,
+          relayer.key(),
+          signedWormholeMessage
+        ).catch((reason) => null);
+        expect(response).is.not.null;
+      });
+
+      it("Cannot Redeem From Unregistered Foreign Contract", async () => {
+        const redeemTransferTx =
+          await createRedeemNativeTransferWithPayloadInstruction(
+            connection,
+            HELLO_TOKEN_ADDRESS,
+            relayer.key(),
+            TOKEN_BRIDGE_ADDRESS,
+            WORMHOLE_ADDRESS,
+            signedWormholeMessage,
+            recipientTokenAccount,
+            wallet.key()
+          )
+            .then((ix) =>
+              web3.sendAndConfirmTransaction(
+                connection,
+                new web3.Transaction().add(ix),
+                [relayer.signer()]
+              )
+            )
+            .catch((reason) => {
+              expect(errorExistsInLog(reason, "InvalidForeignContract")).is
+                .true;
+              return null;
+            });
+        expect(redeemTransferTx).is.null;
+      });
+    });
 
     describe("Finally Receive Tokens With Payload", () => {
+      const published = ethereumTokenBridge.publishTransferTokensWithPayload(
+        tokenAddress,
+        1, // tokenChain
+        amount / 10n,
+        1, // recipientChain
+        HELLO_TOKEN_ADDRESS.toBuffer().toString("hex"),
+        foreignContractAddress,
+        tokenTransferPayload,
+        batchId
+      );
+      published[51] = 3;
+
+      const signedWormholeMessage = guardians.addSignatures(published, [0]);
+
       it("Post Wormhole Message", async () => {
         const response = await postVaaSolana(
           connection,
@@ -825,11 +948,10 @@ describe(" 2: Hello Token", () => {
           connection,
           recipientTokenAccount
         ).then((account) => account.amount);
-        const relayerBalanceBefore = 0n;
-        // await getAccount(
-        //   connection,
-        //   relayerTokenAccount
-        // ).then((account) => account.amount);
+        const relayerBalanceBefore = await getAccount(
+          connection,
+          relayerTokenAccount
+        ).then((account) => account.amount);
 
         const redeemTransferTx =
           await createRedeemNativeTransferWithPayloadInstruction(
@@ -891,7 +1013,7 @@ describe(" 2: Hello Token", () => {
         expect(tmpTokenAccount).is.null;
       });
 
-      it("Cannot Redeem Same Transfer", async () => {
+      it("Cannot Redeem Transfer Again", async () => {
         const redeemTransferTx =
           await createRedeemNativeTransferWithPayloadInstruction(
             connection,
@@ -900,7 +1022,8 @@ describe(" 2: Hello Token", () => {
             TOKEN_BRIDGE_ADDRESS,
             WORMHOLE_ADDRESS,
             signedWormholeMessage,
-            recipientTokenAccount
+            recipientTokenAccount,
+            wallet.key()
           )
             .then((ix) =>
               web3.sendAndConfirmTransaction(
@@ -910,6 +1033,7 @@ describe(" 2: Hello Token", () => {
               )
             )
             .catch((reason) => {
+              expect(errorExistsInLog(reason, "AlreadyRedeemed")).is.true;
               return null;
             });
         expect(redeemTransferTx).is.null;
@@ -1149,6 +1273,389 @@ describe(" 2: Hello Token", () => {
         expect(
           Buffer.compare(payload.subarray(1, 33), recipientAddress)
         ).to.equal(0);
+      });
+    });
+  });
+
+  describe("Receive Wrapped Tokens With Payload (payer == recipient)", () => {
+    const tokenChain = 2;
+    const tokenBridgeWethMint = deriveWrappedMintKey(
+      TOKEN_BRIDGE_ADDRESS,
+      tokenChain,
+      WETH_ADDRESS
+    );
+    const tokenAccount = getAssociatedTokenAddressSync(
+      tokenBridgeWethMint,
+      wallet.key()
+    );
+
+    const tokenAddress = tryNativeToHexString(WETH_ADDRESS, "ethereum");
+    const rawAmount = 420_690_000_000_000n;
+    const amount = rawAmount / 10n ** (18n - 8n);
+    const tokenTransferPayload = (() => {
+      const buf = Buffer.alloc(33);
+      buf.writeUInt8(1, 0); // payload ID
+      buf.write(tokenAccount.toBuffer().toString("hex"), 1, "hex");
+      return buf;
+    })();
+    const batchId = 69;
+
+    describe("Expect Failure", () => {
+      const published = ethereumTokenBridge.publishTransferTokensWithPayload(
+        tokenAddress,
+        tokenChain,
+        amount,
+        1, // recipientChain
+        HELLO_TOKEN_ADDRESS.toBuffer().toString("hex"),
+        Buffer.alloc(32, "deafbeef", "hex"),
+        tokenTransferPayload,
+        batchId
+      );
+      published[51] = 3;
+
+      const signedWormholeMessage = guardians.addSignatures(published, [0]);
+
+      it("Post Wormhole Message", async () => {
+        const response = await postVaaSolana(
+          connection,
+          relayer.signTransaction,
+          WORMHOLE_ADDRESS,
+          relayer.key(),
+          signedWormholeMessage
+        ).catch((reason) => null);
+        expect(response).is.not.null;
+      });
+
+      it("Cannot Redeem From Unregistered Foreign Contract", async () => {
+        const redeemTransferTx =
+          await createRedeemWrappedTransferWithPayloadInstruction(
+            connection,
+            HELLO_TOKEN_ADDRESS,
+            wallet.key(),
+            TOKEN_BRIDGE_ADDRESS,
+            WORMHOLE_ADDRESS,
+            signedWormholeMessage,
+            tokenAccount
+          )
+            .then((ix) =>
+              web3.sendAndConfirmTransaction(
+                connection,
+                new web3.Transaction().add(ix),
+                [wallet.signer()]
+              )
+            )
+            .catch((reason) => {
+              expect(errorExistsInLog(reason, "InvalidForeignContract"));
+              return null;
+            });
+        expect(redeemTransferTx).is.null;
+      });
+    });
+
+    describe("Finally Receive Tokens With Payload", () => {
+      const published = ethereumTokenBridge.publishTransferTokensWithPayload(
+        tokenAddress,
+        tokenChain,
+        amount,
+        1, // recipientChain
+        HELLO_TOKEN_ADDRESS.toBuffer().toString("hex"),
+        foreignContractAddress,
+        tokenTransferPayload,
+        batchId
+      );
+      published[51] = 3;
+
+      const signedWormholeMessage = guardians.addSignatures(published, [0]);
+      it("Post Wormhole Message", async () => {
+        const response = await postVaaSolana(
+          connection,
+          wallet.signTransaction,
+          WORMHOLE_ADDRESS,
+          wallet.key(),
+          signedWormholeMessage
+        ).catch((reason) => null);
+        expect(response).is.not.null;
+      });
+
+      it("Instruction: redeem_wrapped_transfer_with_payload", async () => {
+        // will be used for balance change later
+        const walletBalanceBefore = await getAccount(
+          connection,
+          tokenAccount
+        ).then((account) => account.amount);
+
+        const redeemTransferTx =
+          await createRedeemWrappedTransferWithPayloadInstruction(
+            connection,
+            HELLO_TOKEN_ADDRESS,
+            wallet.key(),
+            TOKEN_BRIDGE_ADDRESS,
+            WORMHOLE_ADDRESS,
+            signedWormholeMessage,
+            tokenAccount
+          )
+            .then((ix) =>
+              web3.sendAndConfirmTransaction(
+                connection,
+                new web3.Transaction().add(ix),
+                [wallet.signer()]
+              )
+            )
+            .catch((reason) => {
+              // should not happen
+              console.log(reason);
+              return null;
+            });
+        expect(redeemTransferTx).is.not.null;
+
+        const walletBalanceAfter = await getAccount(
+          connection,
+          tokenAccount
+        ).then((account) => account.amount);
+
+        // check balance change
+        expect(walletBalanceAfter - walletBalanceBefore).to.equal(amount);
+
+        // tmp_token_account should not exist
+        const tmpTokenAccountKey = deriveTmpTokenAccountKey(
+          HELLO_TOKEN_ADDRESS,
+          tokenBridgeWethMint
+        );
+        const tmpTokenAccount = await getAccount(
+          connection,
+          tmpTokenAccountKey
+        ).catch((reason) => null);
+        expect(tmpTokenAccount).is.null;
+      });
+
+      it("Cannot Redeem Transfer Again", async () => {
+        const redeemTransferTx =
+          await createRedeemNativeTransferWithPayloadInstruction(
+            connection,
+            HELLO_TOKEN_ADDRESS,
+            wallet.key(),
+            TOKEN_BRIDGE_ADDRESS,
+            WORMHOLE_ADDRESS,
+            signedWormholeMessage,
+            tokenAccount
+          )
+            .then((ix) =>
+              web3.sendAndConfirmTransaction(
+                connection,
+                new web3.Transaction().add(ix),
+                [wallet.signer()]
+              )
+            )
+            .catch((reason) => {
+              expect(errorExistsInLog(reason, "AlreadyRedeemed"));
+              return null;
+            });
+        expect(redeemTransferTx).is.null;
+      });
+    });
+  });
+
+  describe("Receive Wrapped Tokens With Payload (payer != recipient)", () => {
+    const tokenChain = 2;
+    const tokenBridgeWethMint = deriveWrappedMintKey(
+      TOKEN_BRIDGE_ADDRESS,
+      tokenChain,
+      WETH_ADDRESS
+    );
+    const recipientTokenAccount = getAssociatedTokenAddressSync(
+      tokenBridgeWethMint,
+      wallet.key()
+    );
+    const relayerTokenAccount = getAssociatedTokenAddressSync(
+      tokenBridgeWethMint,
+      relayer.key()
+    );
+
+    const tokenAddress = tryNativeToHexString(WETH_ADDRESS, "ethereum");
+    const rawAmount = 420_690_000_000_000n;
+    const amount = rawAmount / 10n ** (18n - 8n);
+    const tokenTransferPayload = (() => {
+      const buf = Buffer.alloc(33);
+      buf.writeUInt8(1, 0); // payload ID
+      buf.write(recipientTokenAccount.toBuffer().toString("hex"), 1, "hex");
+      return buf;
+    })();
+    const batchId = 69;
+
+    describe("Expect Failure", () => {
+      const published = ethereumTokenBridge.publishTransferTokensWithPayload(
+        tokenAddress,
+        tokenChain,
+        amount,
+        1, // recipientChain
+        HELLO_TOKEN_ADDRESS.toBuffer().toString("hex"),
+        Buffer.alloc(32, "deafbeef", "hex"),
+        tokenTransferPayload,
+        batchId
+      );
+      published[51] = 3;
+
+      const signedWormholeMessage = guardians.addSignatures(published, [0]);
+
+      it("Post Wormhole Message", async () => {
+        const response = await postVaaSolana(
+          connection,
+          relayer.signTransaction,
+          WORMHOLE_ADDRESS,
+          relayer.key(),
+          signedWormholeMessage
+        ).catch((reason) => null);
+        expect(response).is.not.null;
+      });
+
+      it("Cannot Redeem From Unregistered Foreign Contract", async () => {
+        const redeemTransferTx =
+          await createRedeemWrappedTransferWithPayloadInstruction(
+            connection,
+            HELLO_TOKEN_ADDRESS,
+            relayer.key(),
+            TOKEN_BRIDGE_ADDRESS,
+            WORMHOLE_ADDRESS,
+            signedWormholeMessage,
+            recipientTokenAccount,
+            wallet.key()
+          )
+            .then((ix) =>
+              web3.sendAndConfirmTransaction(
+                connection,
+                new web3.Transaction().add(ix),
+                [relayer.signer()]
+              )
+            )
+            .catch((reason) => {
+              expect(errorExistsInLog(reason, "InvalidForeignContract"));
+              return null;
+            });
+        expect(redeemTransferTx).is.null;
+      });
+    });
+
+    describe("Finally Receive Tokens With Payload", () => {
+      const published = ethereumTokenBridge.publishTransferTokensWithPayload(
+        tokenAddress,
+        tokenChain,
+        amount,
+        1, // recipientChain
+        HELLO_TOKEN_ADDRESS.toBuffer().toString("hex"),
+        foreignContractAddress,
+        tokenTransferPayload,
+        batchId
+      );
+      published[51] = 3;
+
+      const signedWormholeMessage = guardians.addSignatures(published, [0]);
+
+      it("Post Wormhole Message", async () => {
+        const response = await postVaaSolana(
+          connection,
+          relayer.signTransaction,
+          WORMHOLE_ADDRESS,
+          relayer.key(),
+          signedWormholeMessage
+        ).catch((reason) => null);
+        expect(response).is.not.null;
+      });
+
+      it("Instruction: redeem_wrapped_transfer_with_payload", async () => {
+        // will be used for balance change later
+        const walletBalanceBefore = await getAccount(
+          connection,
+          recipientTokenAccount
+        ).then((account) => account.amount);
+        const relayerBalanceBefore = await getAccount(
+          connection,
+          relayerTokenAccount
+        ).then((account) => account.amount);
+
+        const redeemTransferTx =
+          await createRedeemWrappedTransferWithPayloadInstruction(
+            connection,
+            HELLO_TOKEN_ADDRESS,
+            relayer.key(),
+            TOKEN_BRIDGE_ADDRESS,
+            WORMHOLE_ADDRESS,
+            signedWormholeMessage,
+            recipientTokenAccount,
+            wallet.key()
+          )
+            .then((ix) =>
+              web3.sendAndConfirmTransaction(
+                connection,
+                new web3.Transaction().add(ix),
+                [relayer.signer()]
+              )
+            )
+            .catch((reason) => {
+              // should not happen
+              console.log(reason);
+              return null;
+            });
+        expect(redeemTransferTx).is.not.null;
+
+        const walletBalanceAfter = await getAccount(
+          connection,
+          recipientTokenAccount
+        ).then((account) => account.amount);
+        const relayerBalanceAfter = await getAccount(
+          connection,
+          relayerTokenAccount
+        ).then((account) => account.amount);
+
+        // check balance change
+        const { relayerFee, relayerFeePrecision } = await getRedeemerConfigData(
+          connection,
+          HELLO_TOKEN_ADDRESS
+        );
+        const relayerAmount =
+          (BigInt(relayerFee) * amount) / BigInt(relayerFeePrecision);
+        expect(relayerBalanceAfter - relayerBalanceBefore).to.equal(
+          relayerAmount
+        );
+        expect(walletBalanceAfter - walletBalanceBefore).to.equal(
+          amount - relayerAmount
+        );
+
+        // tmp_token_account should not exist
+        const tmpTokenAccountKey = deriveTmpTokenAccountKey(
+          HELLO_TOKEN_ADDRESS,
+          tokenBridgeWethMint
+        );
+        const tmpTokenAccount = await getAccount(
+          connection,
+          tmpTokenAccountKey
+        ).catch((reason) => null);
+        expect(tmpTokenAccount).is.null;
+      });
+
+      it("Cannot Redeem Transfer Again", async () => {
+        const redeemTransferTx =
+          await createRedeemWrappedTransferWithPayloadInstruction(
+            connection,
+            HELLO_TOKEN_ADDRESS,
+            relayer.key(),
+            TOKEN_BRIDGE_ADDRESS,
+            WORMHOLE_ADDRESS,
+            signedWormholeMessage,
+            recipientTokenAccount,
+            wallet.key()
+          )
+            .then((ix) =>
+              web3.sendAndConfirmTransaction(
+                connection,
+                new web3.Transaction().add(ix),
+                [relayer.signer()]
+              )
+            )
+            .catch((reason) => {
+              expect(errorExistsInLog(reason, "AlreadyRedeemed"));
+              return null;
+            });
+        expect(redeemTransferTx).is.null;
       });
     });
   });

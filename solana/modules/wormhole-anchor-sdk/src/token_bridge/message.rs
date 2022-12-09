@@ -76,13 +76,13 @@ impl TransferWithPayload {
         self.meta.amount
     }
 
-    pub fn token_address(&self) -> [u8; 32] {
-        self.meta.token_address
+    pub fn token_address(&self) -> &[u8; 32] {
+        &self.meta.token_address
     }
 
     pub fn mint(&self) -> Pubkey {
         if self.token_chain() == CHAIN_ID_SOLANA {
-            Pubkey::new_from_array(self.token_address())
+            Pubkey::new_from_array(*self.token_address())
         } else {
             Pubkey::default()
         }
@@ -92,20 +92,20 @@ impl TransferWithPayload {
         self.meta.token_chain
     }
 
-    pub fn to_address(&self) -> [u8; 32] {
-        self.meta.to_address
+    pub fn to_address(&self) -> &[u8; 32] {
+        &self.meta.to_address
     }
 
     pub fn to(&self) -> Pubkey {
-        Pubkey::new_from_array(self.to_address())
+        Pubkey::new_from_array(*self.to_address())
     }
 
     pub fn to_chain(&self) -> u16 {
         self.meta.to_chain
     }
 
-    pub fn from_address(&self) -> [u8; 32] {
-        self.meta.from_address
+    pub fn from_address(&self) -> &[u8; 32] {
+        &self.meta.from_address
     }
 
     pub fn data(&self) -> &[u8] {
@@ -144,13 +144,13 @@ impl<P: AnchorDeserialize + AnchorSerialize + Copy> TransferWith<P> {
         self.meta.amount
     }
 
-    pub fn token_address(&self) -> [u8; 32] {
-        self.meta.token_address
+    pub fn token_address(&self) -> &[u8; 32] {
+        &self.meta.token_address
     }
 
     pub fn mint(&self) -> Pubkey {
         if self.token_chain() == CHAIN_ID_SOLANA {
-            Pubkey::new_from_array(self.token_address())
+            Pubkey::new_from_array(*self.token_address())
         } else {
             Pubkey::default()
         }
@@ -160,12 +160,12 @@ impl<P: AnchorDeserialize + AnchorSerialize + Copy> TransferWith<P> {
         self.meta.token_chain
     }
 
-    pub fn to_address(&self) -> [u8; 32] {
-        self.meta.to_address
+    pub fn to_address(&self) -> &[u8; 32] {
+        &self.meta.to_address
     }
 
     pub fn to(&self) -> Pubkey {
-        Pubkey::new_from_array(self.to_address())
+        Pubkey::new_from_array(*self.to_address())
     }
 
     pub fn to_chain(&self) -> u16 {
