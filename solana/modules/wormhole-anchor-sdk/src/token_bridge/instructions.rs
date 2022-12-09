@@ -2,6 +2,7 @@ use anchor_lang::{prelude::*, solana_program};
 use anchor_spl;
 
 #[derive(AnchorDeserialize, AnchorSerialize)]
+/// Token Bridge instructions.
 pub enum Instruction {
     Initialize, // placeholder
     AttestToken {

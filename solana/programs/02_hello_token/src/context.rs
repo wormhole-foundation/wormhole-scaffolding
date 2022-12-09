@@ -184,7 +184,7 @@ pub struct RegisterForeignContract<'info> {
     /// endpoint per chain, but Token Bridge's PDA allows for multiple
     /// endpoints for each chain. We store the proper endpoint for the
     /// emitter chain.
-    pub token_bridge_foreign_endpoint: Account<'info, token_bridge::EndpointDerivation>,
+    pub token_bridge_foreign_endpoint: Account<'info, token_bridge::EndpointRegistration>,
 
     /// Token Bridge program.
     pub token_bridge_program: Program<'info, token_bridge::program::TokenBridge>,
@@ -484,7 +484,7 @@ pub struct RedeemNativeTransferWithPayload<'info> {
     /// Token Bridge foreign endpoint. This account should really be one
     /// endpoint per chain, but the PDA allows for multiple endpoints for each
     /// chain! We store the proper endpoint for the emitter chain.
-    pub token_bridge_foreign_endpoint: Account<'info, token_bridge::EndpointDerivation>,
+    pub token_bridge_foreign_endpoint: Account<'info, token_bridge::EndpointRegistration>,
 
     #[account(
         mut,
@@ -807,7 +807,7 @@ pub struct RedeemWrappedTransferWithPayload<'info> {
     /// Token Bridge foreign endpoint. This account should really be one
     /// endpoint per chain, but the PDA allows for multiple endpoints for each
     /// chain! We store the proper endpoint for the emitter chain.
-    pub token_bridge_foreign_endpoint: Account<'info, token_bridge::EndpointDerivation>,
+    pub token_bridge_foreign_endpoint: Account<'info, token_bridge::EndpointRegistration>,
 
     #[account(
         address = config.token_bridge.mint_authority @ HelloTokenError::InvalidTokenBridgeMintAuthority

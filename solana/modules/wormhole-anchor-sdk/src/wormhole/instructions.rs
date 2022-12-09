@@ -3,6 +3,7 @@ use anchor_lang::{prelude::*, solana_program};
 use super::Finality;
 
 #[derive(AnchorDeserialize, AnchorSerialize)]
+/// Wormhole instructions.
 pub enum Instruction {
     Initialize, // placeholder
     PostMessage {
