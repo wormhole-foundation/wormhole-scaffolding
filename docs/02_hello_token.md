@@ -135,7 +135,7 @@ pub fn update_relayer_fee(
 
 ### Registering Foreign Emitters
 
-`registerEmitter` is an owner-only methods, meaning that only the owner of the contract (EVM contract deployer, payer of Solana `initialize` instruction) can invoke these methods.
+`registerEmitter` is an owner-only method, meaning that only the owner of the contract (EVM contract deployer, payer of Solana `initialize` instruction) can invoke these methods.
 
 ### Relayer Fee Percentages
 
