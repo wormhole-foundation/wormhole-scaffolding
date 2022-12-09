@@ -8,6 +8,7 @@ subdirectories (e.g. [solana](../solana)).
 Read the design documents for each example project:
 
 1. [HelloWorld](../docs/01_hello_world.md)
+2. [HelloToken](../docs/02_hello_token.md)
 
 ## Prerequisites
 

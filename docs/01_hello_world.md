@@ -23,16 +23,17 @@ This design focuses only on providing an example to interact with Wormhole's gen
 
 - An example off-chain relayer
 - Testnet or mainnet deployment funds
+- An example User Interface
 
 ## Detailed Design
 
 The HelloWorld example XDapp utilizes the Wormhole generic-messaging layer to send and receive arbitrary HelloWorld messages between smart contracts.
 
-Before the HelloWorld contracts can send and receive messages, the owner (see `Registering Foreign Emitters` section of this document) of the contract must invoke the `registerEmitter` (or `register_emitter`) method to register trusted HelloWorld contracts on other blockchains. The HelloWorld contracts will confirm that all messages that it receives are sent by trusted HelloWorld contracts on other blockchains.
+Before the HelloWorld contracts can send and receive messages, the owner (see [Registering Foreign Emitters](#registering-foreign-emitters)) of the contract must invoke the `registerEmitter` method to register trusted HelloWorld contracts on other blockchains. The HelloWorld contracts will confirm that all messages that it receives are sent by trusted HelloWorld contracts on other blockchains.
 
-To send a HelloWorld message, one will invoke the `sendMessage` (or `send_message`) method and pass an arbitrary message as an argument. The HelloWorld contract will then invoke the Wormhole core contract to publish the message. The Wormhole guardians will then attest the message after waiting the specified number of block confirmations (referred to as `wormholeFinality` in the contracts).
+To send a HelloWorld message, one will invoke the `sendMessage` method and pass an arbitrary message as an argument. The HelloWorld contract will then invoke the Wormhole core contract to publish the message. The Wormhole guardians will then attest the message after waiting the specified number of block confirmations (referred to as `wormholeFinality` in the contracts).
 
-Once the message is attested by the Wormhole guardians, one will invoke the `receiveMessage` (or `receive_message`) method and pass the attested Wormhole message as an argument. The receiving HelloWorld contract will parse and verify the attested Wormhole message, and save the arbitrary HelloWorld message in its state.
+Once the message is attested by the Wormhole guardians, one will invoke the `receiveMessage` method and pass the attested Wormhole message as an argument. The receiving HelloWorld contract will parse and verify the attested Wormhole message, and save the arbitrary HelloWorld message in its state.
 
 ### EVM Interface
 
@@ -60,4 +61,4 @@ Once the message is attested by the Wormhole guardians, one will invoke the `rec
 
 ### Registering Foreign Emitters
 
-`registerEmitter` and `register_emitter` are owner-only methods, meaning that only the owner of the contract (EVM contract deployer, payer of Solana `initialize` instruction) can invoke these methods.
+`registerEmitter` is an owner-only methods, meaning that only the owner of the contract (EVM contract deployer, payer of Solana `initialize` instruction) can invoke these methods.
