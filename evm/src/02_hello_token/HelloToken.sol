@@ -63,6 +63,7 @@ contract HelloToken is HelloTokenGovernance, HelloTokenMessages, ReentrancyGuard
      * - `targetRecipient` is bytes32(0)
      * - a registered HelloToken contract does not exist for the `targetChain`
      * - caller doesn't pass enough value to pay the Wormhole network fee
+     * - normalized `amount` is zero
      * @param token Address of `token` to be transferred
      * @param amount Amount of `token` to be transferred
      * @param targetChain Wormhole chain ID of the target blockchain
@@ -86,6 +87,16 @@ contract HelloToken is HelloTokenGovernance, HelloTokenMessages, ReentrancyGuard
         require(
             targetRecipient != bytes32(0),
             "targetRecipient cannot be bytes32(0)"
+        );
+
+        /**
+         * Compute the normalized amount to verify that it's nonzero.
+         * The token bridge peforms the same operation before encoding
+         * the amount in the `TransferWithPayload` message.
+         */
+        require(
+            normalizeAmount(amount, getDecimals(token)) > 0,
+            "normalized amount must be > 0"
         );
 
         // Cache the target contract address and verify that there
@@ -322,5 +333,24 @@ contract HelloToken is HelloTokenGovernance, HelloTokenMessages, ReentrancyGuard
     function bytes32ToAddress(bytes32 address_) internal pure returns (address) {
         require(bytes12(address_) == 0, "invalid EVM address");
         return address(uint160(uint256(address_)));
+    }
+
+    function getDecimals(
+        address token
+    ) internal view returns (uint8) {
+        (,bytes memory queriedDecimals) = token.staticcall(
+            abi.encodeWithSignature("decimals()")
+        );
+        return abi.decode(queriedDecimals, (uint8));
+    }
+
+    function normalizeAmount(
+        uint256 amount,
+        uint8 decimals
+    ) public pure returns(uint256) {
+        if (decimals > 8) {
+            amount /= 10 ** (decimals - 8);
+        }
+        return amount;
     }
 }

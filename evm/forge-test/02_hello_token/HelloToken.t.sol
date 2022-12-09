@@ -93,7 +93,7 @@ contract HelloTokenTest is Test {
 
         // relayer fee percentage and precision
         relayerFeePrecision = 1e6;
-        uint32 relayerFeePercentage = 1000; // 1 basis point
+        uint32 relayerFeePercentage = 1000; // 10 basis point
 
         // deploy the HelloToken contract
         helloToken = new HelloToken(
@@ -369,7 +369,7 @@ contract HelloTokenTest is Test {
         bytes32 targetRecipient,
         bytes32 ethereumEmitter
     ) public {
-        vm.assume(amount > 1e8 && amount < type(uint96).max);
+        vm.assume(amount > 1e10 && amount < type(uint96).max);
         vm.assume(targetRecipient != bytes32(0));
         vm.assume(
             ethereumEmitter != bytes32(0) &&
@@ -449,6 +449,7 @@ contract HelloTokenTest is Test {
         assertEq(transfer.to, ethereumEmitter);
         assertEq(transfer.toChain, ethereumChainId);
         assertEq(transfer.fromAddress, addressToBytes32(address(helloToken)));
+        assertEq(transfer.amount > 0, true);
 
         // verify VAA values
         assertEq(wormholeMessage.sequence, sequence);
@@ -536,6 +537,35 @@ contract HelloTokenTest is Test {
         vm.expectRevert("emitter not registered");
         helloToken.sendTokensWithPayload(
             address(wavax),
+            amount,
+            targetChain,
+            0, // opt out of batching
+            targetRecipient
+        );
+    }
+
+    /**
+     * @notice This test confirms that the `sendTokensWithPayload` method reverts when
+     * the normalized amount is zero.
+     */
+    function testSendTokensWithPayloadInvalidNormalizedAmount(uint256 amount) public {
+        vm.assume(amount > 0 && amount < 1e10);
+
+        // NOTE: the token needs to have 18 decimals for this test to pass
+        address token = address(wavax);
+        bytes32 targetRecipient = addressToBytes32(address(this));
+        uint16 targetChain = 69;
+
+        // register the emitter on the source contract
+        helloToken.registerEmitter(
+            targetChain,
+            targetRecipient
+        );
+
+        // call `sendTokensWithPayload` should revert
+        vm.expectRevert("normalized amount must be > 0");
+        helloToken.sendTokensWithPayload(
+            token,
             amount,
             targetChain,
             0, // opt out of batching
