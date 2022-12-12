@@ -63,13 +63,14 @@ pub mod test {
     fn test_config() -> Result<()> {
         assert_eq!(
             OutboundTokenBridgeAddresses::LEN,
+            size_of::<OutboundTokenBridgeAddresses>()
+        );
+        assert_eq!(SenderConfig::MAXIMUM_SIZE,
             size_of::<u64>()
             + size_of::<Pubkey>()
             + size_of::<u8>()
             + size_of::<OutboundTokenBridgeAddresses>()
-            + size_of::<u8>()
-        );
-        assert_eq!(SenderConfig::MAXIMUM_SIZE, 266);
+            + size_of::<u8>());
 
         Ok(())
     }
