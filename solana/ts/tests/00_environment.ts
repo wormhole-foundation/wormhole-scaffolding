@@ -5,6 +5,7 @@ import {
   createMint,
   getAccount,
   getAssociatedTokenAddressSync,
+  getMint,
   getOrCreateAssociatedTokenAccount,
   mintTo,
 } from "@solana/spl-token";
@@ -92,6 +93,11 @@ describe(" 0: Wormhole", () => {
           web3.Keypair.fromSecretKey(MINT_9_PRIVATE_KEY)
         );
         expect(mint.equals(MINT_WITH_DECIMALS_9)).is.true;
+
+        const mintDecimals = await getMint(connection, mint).then(
+          (mintInfo) => mintInfo.decimals
+        );
+        expect(mintDecimals).to.equal(9);
       }
 
       {
@@ -105,6 +111,11 @@ describe(" 0: Wormhole", () => {
           web3.Keypair.fromSecretKey(MINT_8_PRIVATE_KEY)
         );
         expect(mint.equals(MINT_WITH_DECIMALS_8)).is.true;
+
+        const mintDecimals = await getMint(connection, mint).then(
+          (mintInfo) => mintInfo.decimals
+        );
+        expect(mintDecimals).to.equal(8);
       }
     });
 
