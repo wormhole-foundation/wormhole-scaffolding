@@ -120,6 +120,33 @@ contract WormholeSimulator {
     }
 
     /**
+     * @notice Finds published Wormhole events in forge logs
+     * @param logs The forge Vm.log captured when recording events during test execution
+     * @param numMessages The expected number of Wormhole events in the forge logs
+     */
+    function fetchWormholeMessageFromLog(
+        Vm.Log[] memory logs,
+        uint8 numMessages
+    ) public pure returns (Vm.Log[] memory) {
+        // create log array to save published messages
+        Vm.Log[] memory published = new Vm.Log[](numMessages);
+
+        uint8 publishedIndex = 0;
+        for (uint256 i = 0; i < logs.length; i++) {
+            if (
+                logs[i].topics[0] == keccak256(
+                    "LogMessagePublished(address,uint64,uint32,bytes,uint8)"
+                )
+            ) {
+                published[publishedIndex] = logs[i];
+                publishedIndex += 1;
+            }
+        }
+
+        return published;
+    }
+
+    /**
      * @notice Encodes Wormhole message body into bytes
      * @param vm_ Wormhole VM struct
      * @return encodedObservation Wormhole message body encoded into bytes
@@ -141,7 +168,11 @@ contract WormholeSimulator {
      * @param log The forge Vm.log captured when recording events during test execution
      * @return signedMessage Formatted and signed Wormhole message
      */
-    function fetchSignedMessageFromLogs(Vm.Log memory log, uint16 emitterChainId) public returns (bytes memory signedMessage) {
+    function fetchSignedMessageFromLogs(
+        Vm.Log memory log,
+        uint16 emitterChainId,
+        address emitterAddress
+    ) public returns (bytes memory signedMessage) {
         // Create message instance
         IWormhole.VM memory vm_;
 
@@ -152,7 +183,19 @@ contract WormholeSimulator {
         vm_.version = uint8(1);
         vm_.timestamp = uint32(block.timestamp);
         vm_.emitterChainId = emitterChainId;
+        vm_.emitterAddress = bytes32(uint256(uint160(emitterAddress)));
 
+        return encodeAndSignMessage(vm_);
+    }
+
+    /**
+     * @notice Signs and preformatted simulated Wormhole message
+     * @param vm_ The preformatted Wormhole message
+     * @return signedMessage Formatted and signed Wormhole message
+     */
+    function encodeAndSignMessage(
+        IWormhole.VM memory vm_
+    ) public returns (bytes memory signedMessage) {
         // Compute the hash of the body
         bytes memory body = encodeObservation(vm_);
         vm_.hash = doubleKeccak256(body);

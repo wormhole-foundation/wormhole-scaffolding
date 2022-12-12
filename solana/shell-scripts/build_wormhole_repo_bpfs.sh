@@ -18,7 +18,7 @@ fi
 echo "fetching Solana programs from wormhole repo"
 git clone \
     --depth 1 \
-    --branch dev.v2 \
+    --branch main \
     --filter=blob:none \
     --sparse \
     https://github.com/wormhole-foundation/wormhole \

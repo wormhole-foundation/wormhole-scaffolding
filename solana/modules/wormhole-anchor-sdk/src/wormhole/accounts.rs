@@ -1,7 +1,7 @@
 use anchor_lang::{prelude::*, solana_program};
 use std::io;
 
-use crate::wormhole::{message::MessageMeta, program::ID, types::Finality};
+use crate::wormhole::{message::PostedVaaMeta, program::ID};
 
 #[derive(Default, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq)]
 pub struct BridgeData {
@@ -48,12 +48,7 @@ impl AccountDeserialize for BridgeData {
     }
 }
 
-impl AccountSerialize for BridgeData {
-    fn try_serialize<W: io::Write>(&self, _writer: &mut W) -> Result<()> {
-        // no-op
-        Ok(())
-    }
-}
+impl AccountSerialize for BridgeData {}
 
 impl Owner for BridgeData {
     fn owner() -> Pubkey {
@@ -78,12 +73,7 @@ impl AccountDeserialize for FeeCollector {
     }
 }
 
-impl AccountSerialize for FeeCollector {
-    fn try_serialize<W: io::Write>(&self, _writer: &mut W) -> Result<()> {
-        // no-op
-        Ok(())
-    }
-}
+impl AccountSerialize for FeeCollector {}
 
 impl Owner for FeeCollector {
     fn owner() -> Pubkey {
@@ -118,12 +108,7 @@ impl AccountDeserialize for SequenceTracker {
     }
 }
 
-impl AccountSerialize for SequenceTracker {
-    fn try_serialize<W: io::Write>(&self, _writer: &mut W) -> Result<()> {
-        // no-op
-        Ok(())
-    }
-}
+impl AccountSerialize for SequenceTracker {}
 
 impl Owner for SequenceTracker {
     fn owner() -> Pubkey {
@@ -153,12 +138,7 @@ impl AccountDeserialize for SignatureSetData {
     }
 }
 
-impl AccountSerialize for SignatureSetData {
-    fn try_serialize<W: io::Write>(&self, _writer: &mut W) -> Result<()> {
-        // no-op
-        Ok(())
-    }
-}
+impl AccountSerialize for SignatureSetData {}
 
 impl Owner for SignatureSetData {
     fn owner() -> Pubkey {
@@ -168,7 +148,7 @@ impl Owner for SignatureSetData {
 
 #[derive(Default, AnchorSerialize, Clone, PartialEq, Eq)]
 pub struct PostedVaaData {
-    pub meta: MessageMeta,
+    pub meta: PostedVaaMeta,
     pub payload: Vec<u8>,
 }
 
@@ -179,8 +159,8 @@ impl PostedVaaData {
         self.meta.version
     }
 
-    pub fn finality(&self) -> &Finality {
-        &self.meta.finality
+    pub fn finality(&self) -> u8 {
+        self.meta.finality
     }
 
     pub fn timestamp(&self) -> u32 {
@@ -216,7 +196,7 @@ impl AnchorDeserialize for PostedVaaData {
     fn deserialize(buf: &mut &[u8]) -> io::Result<Self> {
         let buf = remove_vaa_discriminator(buf)?;
         Ok(PostedVaaData {
-            meta: MessageMeta::deserialize(&mut &buf[..88])?,
+            meta: PostedVaaMeta::deserialize(&mut &buf[..88])?,
             payload: Vec::deserialize(&mut &buf[88..])?,
         })
     }
@@ -232,12 +212,7 @@ impl AccountDeserialize for PostedVaaData {
     }
 }
 
-impl AccountSerialize for PostedVaaData {
-    fn try_serialize<W: io::Write>(&self, _writer: &mut W) -> Result<()> {
-        // no-op
-        Ok(())
-    }
-}
+impl AccountSerialize for PostedVaaData {}
 
 impl Owner for PostedVaaData {
     fn owner() -> Pubkey {
@@ -246,18 +221,18 @@ impl Owner for PostedVaaData {
 }
 
 #[derive(Default, AnchorSerialize, Clone, PartialEq, Eq)]
-pub struct PostedVaa<T: AnchorDeserialize + AnchorSerialize> {
-    meta: MessageMeta,
-    payload: (u32, T),
+pub struct PostedVaa<D: AnchorDeserialize + AnchorSerialize> {
+    pub meta: PostedVaaMeta,
+    pub payload: (u32, D),
 }
 
-impl<T: AnchorDeserialize + AnchorSerialize> PostedVaa<T> {
+impl<D: AnchorDeserialize + AnchorSerialize> PostedVaa<D> {
     pub fn version(&self) -> u8 {
         self.meta.version
     }
 
-    pub fn finality(&self) -> &Finality {
-        &self.meta.finality
+    pub fn finality(&self) -> u8 {
+        self.meta.finality
     }
 
     pub fn timestamp(&self) -> u32 {
@@ -292,31 +267,31 @@ impl<T: AnchorDeserialize + AnchorSerialize> PostedVaa<T> {
         self.payload.0
     }
 
-    pub fn data(&self) -> &T {
+    pub fn data(&self) -> &D {
         &self.payload.1
     }
 
-    pub fn message(&self) -> &T {
+    pub fn message(&self) -> &D {
         self.data()
     }
 }
 
-impl<T: AnchorDeserialize + AnchorSerialize> AnchorDeserialize for PostedVaa<T> {
+impl<D: AnchorDeserialize + AnchorSerialize> AnchorDeserialize for PostedVaa<D> {
     fn deserialize(buf: &mut &[u8]) -> io::Result<Self> {
         let buf = remove_vaa_discriminator(buf)?;
         let data_size = u32::deserialize(&mut &buf[88..92])?;
 
         Ok(PostedVaa {
-            meta: MessageMeta::deserialize(&mut &buf[..88])?,
+            meta: PostedVaaMeta::deserialize(&mut &buf[..88])?,
             payload: (
                 data_size,
-                T::deserialize(&mut &buf[92..(92 + data_size as usize)])?,
+                D::deserialize(&mut &buf[92..(92 + data_size as usize)])?,
             ),
         })
     }
 }
 
-impl<T: AnchorDeserialize + AnchorSerialize> AccountDeserialize for PostedVaa<T> {
+impl<D: AnchorDeserialize + AnchorSerialize> AccountDeserialize for PostedVaa<D> {
     fn try_deserialize(buf: &mut &[u8]) -> Result<Self> {
         Self::try_deserialize_unchecked(buf)
     }
@@ -326,14 +301,9 @@ impl<T: AnchorDeserialize + AnchorSerialize> AccountDeserialize for PostedVaa<T>
     }
 }
 
-impl<T: AnchorDeserialize + AnchorSerialize> AccountSerialize for PostedVaa<T> {
-    fn try_serialize<W: io::Write>(&self, _writer: &mut W) -> Result<()> {
-        // no-op
-        Ok(())
-    }
-}
+impl<D: AnchorDeserialize + AnchorSerialize> AccountSerialize for PostedVaa<D> {}
 
-impl<T: AnchorDeserialize + AnchorSerialize> Owner for PostedVaa<T> {
+impl<D: AnchorDeserialize + AnchorSerialize> Owner for PostedVaa<D> {
     fn owner() -> Pubkey {
         ID
     }

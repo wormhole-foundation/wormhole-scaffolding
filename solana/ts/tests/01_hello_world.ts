@@ -6,16 +6,9 @@ import {
   NodeWallet,
   postVaaSolana,
 } from "@certusone/wormhole-sdk/lib/cjs/solana";
-import {
-  getPostedMessage,
-  getProgramSequenceTracker,
-  getWormholeDerivedAccounts,
-} from "@certusone/wormhole-sdk/lib/cjs/solana/wormhole";
-import {
-  MockEmitter,
-  MockGuardians,
-} from "@certusone/wormhole-sdk/lib/cjs/mock";
 import { parseVaa } from "@certusone/wormhole-sdk";
+import * as wormhole from "@certusone/wormhole-sdk/lib/cjs/solana/wormhole";
+import * as mock from "@certusone/wormhole-sdk/lib/cjs/mock";
 import {
   createHelloWorldProgramInterface,
   createInitializeInstruction,
@@ -36,12 +29,12 @@ import {
   LOCALHOST,
   PAYER_PRIVATE_KEY,
   WORMHOLE_ADDRESS,
-} from "./helpers/consts";
-import { errorExistsInLog } from "./helpers/error";
+  errorExistsInLog,
+} from "./helpers";
 
 describe(" 1: Hello World", () => {
-  const connection = new web3.Connection(LOCALHOST, "confirmed");
-  const payer = web3.Keypair.fromSecretKey(PAYER_PRIVATE_KEY);
+  const connection = new web3.Connection(LOCALHOST, "processed");
+  const wallet = NodeWallet.fromSecretKey(PAYER_PRIVATE_KEY);
 
   // foreign emitter info
   const foreignEmitterChain = 2;
@@ -49,7 +42,7 @@ describe(" 1: Hello World", () => {
 
   // Create real pdas and array of invalid ones (generated from other bumps).
   // This is a bit hardcore, but should show the effectiveness of using Anchor
-  const wormholeCpi = getWormholeDerivedAccounts(
+  const wormholeCpi = wormhole.getWormholeDerivedAccounts(
     HELLO_WORLD_ADDRESS,
     WORMHOLE_ADDRESS
   );
@@ -71,7 +64,7 @@ describe(" 1: Hello World", () => {
       const wormholeCpi = getPostMessageCpiAccounts(
         HELLO_WORLD_ADDRESS,
         WORMHOLE_ADDRESS,
-        payer.publicKey,
+        wallet.key(),
         deriveAddress([Buffer.from("alive")], HELLO_WORLD_ADDRESS)
       );
 
@@ -97,7 +90,7 @@ describe(" 1: Hello World", () => {
           const initializeTx = await program.methods
             .initialize()
             .accounts({
-              owner: payer.publicKey,
+              owner: wallet.key(),
               config,
               wormholeProgram: WORMHOLE_ADDRESS,
               wormholeBridge: wormholeCpi.wormholeBridge,
@@ -113,7 +106,7 @@ describe(" 1: Hello World", () => {
               web3.sendAndConfirmTransaction(
                 connection,
                 new web3.Transaction().add(ix),
-                [payer]
+                [wallet.signer()]
               )
             )
             .catch((reason) => {
@@ -135,7 +128,7 @@ describe(" 1: Hello World", () => {
         const initializeTx = await program.methods
           .initialize()
           .accounts({
-            owner: payer.publicKey,
+            owner: wallet.key(),
             config: realConfig,
             wormholeProgram,
             wormholeBridge: wormholeCpi.wormholeBridge,
@@ -151,7 +144,7 @@ describe(" 1: Hello World", () => {
             web3.sendAndConfirmTransaction(
               connection,
               new web3.Transaction().add(ix),
-              [payer]
+              [wallet.signer()]
             )
           )
           .catch((reason) => {
@@ -185,7 +178,7 @@ describe(" 1: Hello World", () => {
           const initializeTx = await program.methods
             .initialize()
             .accounts({
-              owner: payer.publicKey,
+              owner: wallet.key(),
               config: realConfig,
               wormholeProgram: WORMHOLE_ADDRESS,
               wormholeBridge,
@@ -201,7 +194,7 @@ describe(" 1: Hello World", () => {
               web3.sendAndConfirmTransaction(
                 connection,
                 new web3.Transaction().add(ix),
-                [payer]
+                [wallet.signer()]
               )
             )
             .catch((reason) => {
@@ -238,7 +231,7 @@ describe(" 1: Hello World", () => {
           const initializeTx = await program.methods
             .initialize()
             .accounts({
-              owner: payer.publicKey,
+              owner: wallet.key(),
               config: realConfig,
               wormholeProgram: WORMHOLE_ADDRESS,
               wormholeBridge: wormholeCpi.wormholeBridge,
@@ -254,7 +247,7 @@ describe(" 1: Hello World", () => {
               web3.sendAndConfirmTransaction(
                 connection,
                 new web3.Transaction().add(ix),
-                [payer]
+                [wallet.signer()]
               )
             )
             .catch((reason) => {
@@ -289,7 +282,7 @@ describe(" 1: Hello World", () => {
           const initializeTx = await program.methods
             .initialize()
             .accounts({
-              owner: payer.publicKey,
+              owner: wallet.key(),
               config: realConfig,
               wormholeProgram: WORMHOLE_ADDRESS,
               wormholeBridge: wormholeCpi.wormholeBridge,
@@ -305,7 +298,7 @@ describe(" 1: Hello World", () => {
               web3.sendAndConfirmTransaction(
                 connection,
                 new web3.Transaction().add(ix),
-                [payer]
+                [wallet.signer()]
               )
             )
             .catch((reason) => {
@@ -351,7 +344,7 @@ describe(" 1: Hello World", () => {
           const initializeTx = await program.methods
             .initialize()
             .accounts({
-              owner: payer.publicKey,
+              owner: wallet.key(),
               config: realConfig,
               wormholeProgram: WORMHOLE_ADDRESS,
               wormholeBridge: wormholeCpi.wormholeBridge,
@@ -367,7 +360,7 @@ describe(" 1: Hello World", () => {
               web3.sendAndConfirmTransaction(
                 connection,
                 new web3.Transaction().add(ix),
-                [payer]
+                [wallet.signer()]
               )
             )
             .catch((reason) => {
@@ -389,14 +382,14 @@ describe(" 1: Hello World", () => {
         const initializeTx = await createInitializeInstruction(
           connection,
           HELLO_WORLD_ADDRESS,
-          payer.publicKey,
+          wallet.key(),
           WORMHOLE_ADDRESS
         )
           .then((ix) =>
             web3.sendAndConfirmTransaction(
               connection,
               new web3.Transaction().add(ix),
-              [payer]
+              [wallet.signer()]
             )
           )
           .catch((reason) => {
@@ -408,9 +401,9 @@ describe(" 1: Hello World", () => {
 
         // verify account data
         const configData = await getConfigData(connection, HELLO_WORLD_ADDRESS);
-        expect(configData.owner.equals(payer.publicKey)).is.true;
+        expect(configData.owner.equals(wallet.key())).is.true;
 
-        const wormholeCpi = getWormholeDerivedAccounts(
+        const wormholeCpi = wormhole.getWormholeDerivedAccounts(
           HELLO_WORLD_ADDRESS,
           WORMHOLE_ADDRESS
         );
@@ -427,14 +420,14 @@ describe(" 1: Hello World", () => {
         const initializeTx = await createInitializeInstruction(
           connection,
           HELLO_WORLD_ADDRESS,
-          payer.publicKey,
+          wallet.key(),
           WORMHOLE_ADDRESS
         )
           .then((ix) =>
             web3.sendAndConfirmTransaction(
               connection,
               new web3.Transaction().add(ix),
-              [payer]
+              [wallet.signer()]
             )
           )
           .catch((reason) => {
@@ -521,7 +514,7 @@ describe(" 1: Hello World", () => {
           const registerForeignEmitterTx = await program.methods
             .registerEmitter(emitterChain, [...emitterAddress])
             .accounts({
-              owner: payer.publicKey,
+              owner: wallet.key(),
               config,
               foreignEmitter: realForeignEmitter,
             })
@@ -530,7 +523,7 @@ describe(" 1: Hello World", () => {
               web3.sendAndConfirmTransaction(
                 connection,
                 new web3.Transaction().add(ix),
-                [payer]
+                [wallet.signer()]
               )
             )
             .catch((reason) => {
@@ -578,7 +571,7 @@ describe(" 1: Hello World", () => {
           const registerForeignEmitterTx = await program.methods
             .registerEmitter(emitterChain, [...emitterAddress])
             .accounts({
-              owner: payer.publicKey,
+              owner: wallet.key(),
               config: realConfig,
               foreignEmitter,
             })
@@ -587,7 +580,7 @@ describe(" 1: Hello World", () => {
               web3.sendAndConfirmTransaction(
                 connection,
                 new web3.Transaction().add(ix),
-                [payer]
+                [wallet.signer()]
               )
             )
             .catch((reason) => {
@@ -609,7 +602,7 @@ describe(" 1: Hello World", () => {
           const registerForeignEmitterTx = await program.methods
             .registerEmitter(bogusEmitterChain, [...emitterAddress])
             .accounts({
-              owner: payer.publicKey,
+              owner: wallet.key(),
               config: realConfig,
               foreignEmitter: realForeignEmitter,
             })
@@ -618,7 +611,7 @@ describe(" 1: Hello World", () => {
               web3.sendAndConfirmTransaction(
                 connection,
                 new web3.Transaction().add(ix),
-                [payer]
+                [wallet.signer()]
               )
             )
             .catch((reason) => {
@@ -639,7 +632,7 @@ describe(" 1: Hello World", () => {
           const registerForeignEmitterTx = await program.methods
             .registerEmitter(emitterChain, [...bogusEmitterAddress])
             .accounts({
-              owner: payer.publicKey,
+              owner: wallet.key(),
               config: realConfig,
               foreignEmitter: realForeignEmitter,
             })
@@ -648,7 +641,7 @@ describe(" 1: Hello World", () => {
               web3.sendAndConfirmTransaction(
                 connection,
                 new web3.Transaction().add(ix),
-                [payer]
+                [wallet.signer()]
               )
             )
             .catch((reason) => {
@@ -669,7 +662,7 @@ describe(" 1: Hello World", () => {
           const registerForeignEmitterTx = await program.methods
             .registerEmitter(emitterChain, [...bogusEmitterAddress])
             .accounts({
-              owner: payer.publicKey,
+              owner: wallet.key(),
               config: realConfig,
               foreignEmitter: realForeignEmitter,
             })
@@ -678,7 +671,7 @@ describe(" 1: Hello World", () => {
               web3.sendAndConfirmTransaction(
                 connection,
                 new web3.Transaction().add(ix),
-                [payer]
+                [wallet.signer()]
               )
             )
             .catch((reason) => {
@@ -700,7 +693,7 @@ describe(" 1: Hello World", () => {
           await createRegisterForeignEmitterInstruction(
             connection,
             HELLO_WORLD_ADDRESS,
-            payer.publicKey,
+            wallet.key(),
             emitterChain,
             emitterAddress
           )
@@ -708,7 +701,7 @@ describe(" 1: Hello World", () => {
               web3.sendAndConfirmTransaction(
                 connection,
                 new web3.Transaction().add(ix),
-                [payer]
+                [wallet.signer()]
               )
             )
             .catch((reason) => {
@@ -738,7 +731,7 @@ describe(" 1: Hello World", () => {
           await createRegisterForeignEmitterInstruction(
             connection,
             HELLO_WORLD_ADDRESS,
-            payer.publicKey,
+            wallet.key(),
             emitterChain,
             emitterAddress
           )
@@ -746,7 +739,7 @@ describe(" 1: Hello World", () => {
               web3.sendAndConfirmTransaction(
                 connection,
                 new web3.Transaction().add(ix),
-                [payer]
+                [wallet.signer()]
               )
             )
             .catch((reason) => {
@@ -776,16 +769,18 @@ describe(" 1: Hello World", () => {
 
       it("Instruction: send_message", async () => {
         // save message count to grab posted message later
-        const sequence = await getProgramSequenceTracker(
-          connection,
-          HELLO_WORLD_ADDRESS,
-          WORMHOLE_ADDRESS
-        ).then((sequenceTracker) => sequenceTracker.value() + 1n);
+        const sequence = await wormhole
+          .getProgramSequenceTracker(
+            connection,
+            HELLO_WORLD_ADDRESS,
+            WORMHOLE_ADDRESS
+          )
+          .then((sequenceTracker) => sequenceTracker.value() + 1n);
 
         const sendMessageTx = await createSendMessageInstruction(
           connection,
           HELLO_WORLD_ADDRESS,
-          payer.publicKey,
+          wallet.key(),
           WORMHOLE_ADDRESS,
           helloMessage
         )
@@ -793,7 +788,7 @@ describe(" 1: Hello World", () => {
             web3.sendAndConfirmTransaction(
               connection,
               new web3.Transaction().add(ix),
-              [payer]
+              [wallet.signer()]
             )
           )
           .catch((reason) => {
@@ -804,10 +799,12 @@ describe(" 1: Hello World", () => {
         expect(sendMessageTx).is.not.null;
 
         // verify account data
-        const payload = await getPostedMessage(
-          connection,
-          deriveWormholeMessageKey(HELLO_WORLD_ADDRESS, sequence)
-        ).then((posted) => posted.message.payload);
+        const payload = await wormhole
+          .getPostedMessage(
+            connection,
+            deriveWormholeMessageKey(HELLO_WORLD_ADDRESS, sequence)
+          )
+          .then((posted) => posted.message.payload);
 
         expect(payload.readUint8(0)).to.equal(1); // payload ID
         expect(payload.readUint16BE(1)).to.equal(helloMessage.length);
@@ -817,12 +814,12 @@ describe(" 1: Hello World", () => {
   });
 
   describe("Receive Message", () => {
-    const emitter = new MockEmitter(
+    const emitter = new mock.MockEmitter(
       foreignEmitterAddress.toString("hex"),
       foreignEmitterChain
     );
 
-    const guardians = new MockGuardians(0, [GUARDIAN_PRIVATE_KEY]);
+    const guardians = new mock.MockGuardians(0, [GUARDIAN_PRIVATE_KEY]);
 
     const batchId = 0;
     const message = Buffer.from("Somebody set up us the bomb");
@@ -847,9 +844,9 @@ describe(" 1: Hello World", () => {
       it("Post Wormhole Message", async () => {
         const response = await postVaaSolana(
           connection,
-          new NodeWallet(payer).signTransaction,
+          wallet.signTransaction,
           WORMHOLE_ADDRESS,
-          payer.publicKey,
+          wallet.key(),
           signedWormholeMessage
         ).catch((reason) => null);
         expect(response).is.not.null;
@@ -859,7 +856,7 @@ describe(" 1: Hello World", () => {
         const receiveMessageTx = await createReceiveMessageInstruction(
           connection,
           HELLO_WORLD_ADDRESS,
-          payer.publicKey,
+          wallet.key(),
           WORMHOLE_ADDRESS,
           signedWormholeMessage
         )
@@ -867,7 +864,7 @@ describe(" 1: Hello World", () => {
             web3.sendAndConfirmTransaction(
               connection,
               new web3.Transaction().add(ix),
-              [payer]
+              [wallet.signer()]
             )
           )
           .catch((reason) => {
@@ -892,7 +889,7 @@ describe(" 1: Hello World", () => {
         const receiveMessageTx = await createReceiveMessageInstruction(
           connection,
           HELLO_WORLD_ADDRESS,
-          payer.publicKey,
+          wallet.key(),
           WORMHOLE_ADDRESS,
           signedWormholeMessage
         )
@@ -900,7 +897,7 @@ describe(" 1: Hello World", () => {
             web3.sendAndConfirmTransaction(
               connection,
               new web3.Transaction().add(ix),
-              [payer]
+              [wallet.signer()]
             )
           )
           .catch((reason) => {

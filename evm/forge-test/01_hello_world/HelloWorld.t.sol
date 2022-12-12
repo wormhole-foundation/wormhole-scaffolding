@@ -17,9 +17,9 @@ contract HelloWorldTest is Test {
 
     // contract instances
     IWormhole wormhole;
-    WormholeSimulator public wormholeSimulator;
-    HelloWorld public helloWorldSource;
-    HelloWorld public helloWorldTarget;
+    WormholeSimulator wormholeSimulator;
+    HelloWorld helloWorldSource;
+    HelloWorld helloWorldTarget;
 
     /**
      * @notice Sets up the wormholeSimulator contracts and deploys HelloWorld
@@ -27,31 +27,30 @@ contract HelloWorldTest is Test {
      */
     function setUp() public {
         // verify that we're using the correct fork (AVAX mainnet in this case)
-        require(block.chainid == vm.envUint("TESTING_FORK_CHAINID"), "wrong evm");
+        require(block.chainid == vm.envUint("TESTING_AVAX_FORK_CHAINID"), "wrong evm");
 
         // this will be used to sign Wormhole messages
         guardianSigner = uint256(vm.envBytes32("TESTING_DEVNET_GUARDIAN"));
 
         // set up Wormhole using Wormhole existing on AVAX mainnet
-        wormholeSimulator = new WormholeSimulator(vm.envAddress("TESTING_WORMHOLE_ADDRESS"), guardianSigner);
+        wormholeSimulator = new WormholeSimulator(vm.envAddress("TESTING_AVAX_WORMHOLE_ADDRESS"), guardianSigner);
 
         // we may need to interact with Wormhole throughout the test
         wormhole = wormholeSimulator.wormhole();
 
         // verify Wormhole state from fork
-        require(wormhole.chainId() == uint16(vm.envUint("TESTING_WORMHOLE_CHAINID")), "wrong chainId");
-        require(wormhole.messageFee() == vm.envUint("TESTING_WORMHOLE_MESSAGE_FEE"), "wrong messageFee");
+        require(wormhole.chainId() == uint16(vm.envUint("TESTING_AVAX_WORMHOLE_CHAINID")), "wrong chainId");
+        require(wormhole.messageFee() == vm.envUint("TESTING_AVAX_WORMHOLE_MESSAGE_FEE"), "wrong messageFee");
         require(
-            wormhole.getCurrentGuardianSetIndex() == uint32(vm.envUint("TESTING_WORMHOLE_GUARDIAN_SET_INDEX")),
+            wormhole.getCurrentGuardianSetIndex() == uint32(vm.envUint("TESTING_AVAX_WORMHOLE_GUARDIAN_SET_INDEX")),
             "wrong guardian set index"
         );
 
         // initialize "source chain" HelloWorld contract
-        uint8 wormholeFinality = 15;
-        helloWorldSource = new HelloWorld(address(wormhole), wormhole.chainId(), wormholeFinality);
+        helloWorldSource = new HelloWorld(address(wormhole), wormhole.chainId(), uint8(1));
 
         // initialize "target chain" HelloWorld contract
-        helloWorldTarget = new HelloWorld(address(wormhole), uint8(2), wormholeFinality);
+        helloWorldTarget = new HelloWorld(address(wormhole), uint8(2), uint8(1));
 
         // confirm that the source and target contract addresses are different
         assertTrue(address(helloWorldSource) != address(helloWorldTarget));
@@ -176,7 +175,8 @@ contract HelloWorldTest is Test {
         // NOTE: in the wormhole-sdk, signed Wormhole messages are referred to as signed VAAs
         bytes memory encodedMessage = wormholeSimulator.fetchSignedMessageFromLogs(
             entries[0],
-            helloWorldSource.chainId()
+            helloWorldSource.chainId(),
+            address(helloWorldSource)
         );
 
         // parse and verify the message
@@ -217,7 +217,8 @@ contract HelloWorldTest is Test {
         // NOTE: in the wormhole-sdk, signed Wormhole messages are referred to as signed VAAs
         bytes memory encodedMessage = wormholeSimulator.fetchSignedMessageFromLogs(
             entries[0],
-            helloWorldTarget.chainId()
+            helloWorldTarget.chainId(),
+            address(helloWorldTarget)
         );
 
         // register the emitter on the source contract
@@ -272,7 +273,8 @@ contract HelloWorldTest is Test {
         // NOTE: in the wormhole-sdk, signed Wormhole messages are referred to as signed VAAs
         bytes memory encodedMessage = wormholeSimulator.fetchSignedMessageFromLogs(
             entries[0],
-            helloWorldSource.chainId()
+            helloWorldSource.chainId(),
+            address(helloWorldSource)
         );
 
         // register the emitter on the source contract

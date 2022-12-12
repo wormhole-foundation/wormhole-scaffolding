@@ -11,5 +11,5 @@ tilt-devnet = []
 token-bridge = []
 
 [dependencies]
-anchor-lang = { version = "0.25.0", features = ["derive"] }
+anchor-lang = "0.25.0"
 anchor-spl = "0.25.0"

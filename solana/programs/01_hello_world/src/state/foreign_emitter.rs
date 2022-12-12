@@ -28,12 +28,13 @@ impl ForeignEmitter {
 #[cfg(test)]
 pub mod test {
     use super::*;
+    use std::mem::size_of;
 
     #[test]
     fn test_foreign_emitter() -> Result<()> {
-        assert!(
-            ForeignEmitter::MAXIMUM_SIZE == 42,
-            "ForeignEmitter::MAXIMUM_SIZE wrong value"
+        assert_eq!(
+            ForeignEmitter::MAXIMUM_SIZE,
+            size_of::<u64>() + size_of::<u16>() + size_of::<[u8; 32]>()
         );
 
         let chain = 2u16;

@@ -1,0 +1,3 @@
+MD5 (dependencies/spl_token_metadata.so) = 7c7bca15d1619fd0ff0263715f65ec3f
+MD5 (dependencies/token_bridge.so) = f401706f68f0a6a6edc355f1df8ff643
+MD5 (dependencies/wormhole.so) = 2ad51c43e246fe43dabef02dc970900a

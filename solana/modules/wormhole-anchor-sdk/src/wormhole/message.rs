@@ -1,14 +1,12 @@
 use anchor_lang::prelude::*;
 
-use super::Finality;
-
 #[derive(Default, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq)]
-pub struct MessageMeta {
+pub struct PostedVaaMeta {
     /// Header of the posted VAA
     pub version: u8,
 
     /// Level of consistency requested by the emitter
-    pub finality: Finality,
+    pub finality: u8,
 
     /// Time the message was submitted
     pub timestamp: u32,

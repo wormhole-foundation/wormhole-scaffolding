@@ -1,6 +1,6 @@
 include testing.env
 
-.PHONY: dependencies test unit-test integration-test clean build-wormhole-repo all
+.PHONY: dependencies test cargo-test unit-test integration-test clean all
 
 all: test
 
@@ -13,23 +13,23 @@ dependencies: node_modules dependencies/wormhole.so dependencies/token_bridge.so
 node_modules:
 	yarn
 
-dependencies/token_bridge.so: build-wormhole-repo
-
-dependencies/wormhole.so: build-wormhole-repo
-
-.PHONY: build-wormhole-repo
-build-wormhole-repo:
+dependencies/token_bridge.so:
 	bash shell-scripts/build_wormhole_repo_bpfs.sh
 
-.PHONY: unit-test
-unit-test:
-	cargo clippy
+dependencies/wormhole.so:
+	bash shell-scripts/build_wormhole_repo_bpfs.sh
+
+.PHONY: cargo-test
+cargo-test:
+	cargo clippy -- --allow clippy::result_large_err
 	cargo test
+
+.PHONY: unit-test
+unit-test: cargo-test
 
 .PHONY: integration-test
 integration-test: dependencies
-	RELEASE_WORMHOLE_ADDRESS=${TESTING_WORMHOLE_ADDRESS} \
-	RELEASE_TOKEN_BRIDGE_ADDRESS=${TESTING_TOKEN_BRIDGE_ADDRESS} \
+	md5sum -c dependencies/checksum.txt
 	anchor test
 
 .PHONY: test
