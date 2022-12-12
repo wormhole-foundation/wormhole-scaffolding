@@ -40,14 +40,24 @@ export const HELLO_TOKEN_ADDRESS = new PublicKey(
 );
 
 // mints
-export const MINT_PRIVATE_KEY = Uint8Array.from([
+export const MINT_9_PRIVATE_KEY = Uint8Array.from([
   98, 139, 243, 120, 236, 152, 36, 219, 202, 42, 72, 178, 107, 155, 181, 134,
   120, 36, 55, 108, 253, 218, 96, 139, 80, 99, 85, 54, 116, 145, 94, 40, 227,
   10, 159, 48, 118, 75, 67, 84, 239, 36, 177, 138, 6, 214, 73, 149, 26, 100,
   255, 28, 218, 167, 251, 229, 93, 236, 25, 225, 152, 104, 223, 54,
 ]);
-export const MINT = new PublicKey(
+export const MINT_WITH_DECIMALS_9 = new PublicKey(
   "GHGwbrTCsynp7yJ9keowy2Roe5DzxFbayAaAwLyAvRKj"
+);
+
+export const MINT_8_PRIVATE_KEY = Uint8Array.from([
+  129, 227, 235, 186, 104, 13, 185, 244, 16, 185, 108, 95, 83, 214, 115, 244,
+  194, 207, 250, 150, 180, 86, 70, 198, 97, 40, 71, 3, 26, 185, 48, 222, 226,
+  136, 99, 75, 72, 182, 148, 76, 211, 140, 155, 55, 62, 44, 71, 127, 72, 42,
+  114, 4, 86, 16, 64, 54, 37, 143, 66, 162, 104, 70, 220, 47,
+]);
+export const MINT_WITH_DECIMALS_8 = new PublicKey(
+  "GFHmBkLYsPSiWbqGD54VmmVKDs9shYVdFnHuNRu1QhTL"
 );
 
 // foreign

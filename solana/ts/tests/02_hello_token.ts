@@ -34,7 +34,7 @@ import {
   GUARDIAN_PRIVATE_KEY,
   HELLO_TOKEN_ADDRESS,
   LOCALHOST,
-  MINT,
+  MINT_WITH_DECIMALS_9,
   PAYER_PRIVATE_KEY,
   TOKEN_BRIDGE_ADDRESS,
   WORMHOLE_ADDRESS,
@@ -42,6 +42,7 @@ import {
   errorExistsInLog,
   RELAYER_PRIVATE_KEY,
   WETH_ADDRESS,
+  MINT_WITH_DECIMALS_8,
 } from "./helpers";
 import { deriveWrappedMintKey } from "@certusone/wormhole-sdk/lib/cjs/solana/tokenBridge";
 
@@ -828,7 +829,7 @@ describe(" 2: Hello Token", () => {
     });
   });
 
-  describe("Send Native Tokens With Payload", () => {
+  describe("Send Native Tokens (decimals=9) With Payload", () => {
     describe("Expect Failure", () => {
       it("Cannot Send To Unregistered Foreign Contract", async () => {
         const batchId = 69;
@@ -841,7 +842,7 @@ describe(" 2: Hello Token", () => {
           wallet.key(),
           TOKEN_BRIDGE_ADDRESS,
           WORMHOLE_ADDRESS,
-          MINT,
+          MINT_WITH_DECIMALS_9,
           {
             batchId,
             amount,
@@ -873,7 +874,7 @@ describe(" 2: Hello Token", () => {
           wallet.key(),
           TOKEN_BRIDGE_ADDRESS,
           WORMHOLE_ADDRESS,
-          MINT,
+          MINT_WITH_DECIMALS_9,
           {
             batchId,
             amount: 9n,
@@ -905,7 +906,7 @@ describe(" 2: Hello Token", () => {
           wallet.key(),
           TOKEN_BRIDGE_ADDRESS,
           WORMHOLE_ADDRESS,
-          MINT,
+          MINT_WITH_DECIMALS_9,
           {
             batchId,
             amount,
@@ -942,7 +943,7 @@ describe(" 2: Hello Token", () => {
           wallet.key(),
           TOKEN_BRIDGE_ADDRESS,
           WORMHOLE_ADDRESS,
-          MINT,
+          MINT_WITH_DECIMALS_9,
           {
             batchId,
             amount,
@@ -979,7 +980,7 @@ describe(" 2: Hello Token", () => {
           wallet.key(),
           TOKEN_BRIDGE_ADDRESS,
           WORMHOLE_ADDRESS,
-          MINT,
+          MINT_WITH_DECIMALS_9,
           {
             batchId,
             amount,
@@ -1004,7 +1005,10 @@ describe(" 2: Hello Token", () => {
 
     describe("Finally Send Tokens With Payload", () => {
       it("Instruction: send_native_tokens_with_payload", async () => {
-        const tokenAccount = getAssociatedTokenAddressSync(MINT, wallet.key());
+        const tokenAccount = getAssociatedTokenAddressSync(
+          MINT_WITH_DECIMALS_9,
+          wallet.key()
+        );
 
         // will be used for balance change later
         const walletBalanceBefore = await getAccount(
@@ -1031,7 +1035,7 @@ describe(" 2: Hello Token", () => {
           wallet.key(),
           TOKEN_BRIDGE_ADDRESS,
           WORMHOLE_ADDRESS,
-          MINT,
+          MINT_WITH_DECIMALS_9,
           {
             batchId,
             amount,
@@ -1066,7 +1070,7 @@ describe(" 2: Hello Token", () => {
         // tmp_token_account should not exist
         const tmpTokenAccountKey = deriveTmpTokenAccountKey(
           HELLO_TOKEN_ADDRESS,
-          MINT
+          MINT_WITH_DECIMALS_9
         );
         const tmpTokenAccount = await getAccount(
           connection,
@@ -1094,10 +1098,13 @@ describe(" 2: Hello Token", () => {
     });
   });
 
-  describe("Receive Native Tokens With Payload (payer == recipient)", () => {
-    const tokenAccount = getAssociatedTokenAddressSync(MINT, wallet.key());
+  describe("Receive Native Tokens (decimals=9) With Payload (payer == recipient)", () => {
+    const tokenAccount = getAssociatedTokenAddressSync(
+      MINT_WITH_DECIMALS_9,
+      wallet.key()
+    );
 
-    const tokenAddress = MINT.toBuffer().toString("hex");
+    const tokenAddress = MINT_WITH_DECIMALS_9.toBuffer().toString("hex");
     const amount = 42060n;
     const tokenTransferPayload = (() => {
       const buf = Buffer.alloc(33);
@@ -1188,7 +1195,7 @@ describe(" 2: Hello Token", () => {
 
       it("Cannot Redeem From With Bogus Token Account", async () => {
         const bogusTokenAccount = getAssociatedTokenAddressSync(
-          MINT,
+          MINT_WITH_DECIMALS_9,
           relayer.key()
         );
 
@@ -1258,7 +1265,7 @@ describe(" 2: Hello Token", () => {
         // tmp_token_account should not exist
         const tmpTokenAccountKey = deriveTmpTokenAccountKey(
           HELLO_TOKEN_ADDRESS,
-          MINT
+          MINT_WITH_DECIMALS_9
         );
         const tmpTokenAccount = await getAccount(
           connection,
@@ -1294,17 +1301,17 @@ describe(" 2: Hello Token", () => {
     });
   });
 
-  describe("Receive Native Tokens With Payload (payer != recipient)", () => {
+  describe("Receive Native Tokens (decimals=9) With Payload (payer != recipient)", () => {
     const recipientTokenAccount = getAssociatedTokenAddressSync(
-      MINT,
+      MINT_WITH_DECIMALS_9,
       wallet.key()
     );
     const relayerTokenAccount = getAssociatedTokenAddressSync(
-      MINT,
+      MINT_WITH_DECIMALS_9,
       relayer.key()
     );
 
-    const tokenAddress = MINT.toBuffer().toString("hex");
+    const tokenAddress = MINT_WITH_DECIMALS_9.toBuffer().toString("hex");
     const amount = 42060n;
     const tokenTransferPayload = (() => {
       const buf = Buffer.alloc(33);
@@ -1396,7 +1403,7 @@ describe(" 2: Hello Token", () => {
 
       it("Cannot Redeem From With Bogus Token Account", async () => {
         const bogusTokenAccount = getAssociatedTokenAddressSync(
-          MINT,
+          MINT_WITH_DECIMALS_9,
           relayer.key()
         );
 
@@ -1492,7 +1499,7 @@ describe(" 2: Hello Token", () => {
         // tmp_token_account should not exist
         const tmpTokenAccountKey = deriveTmpTokenAccountKey(
           HELLO_TOKEN_ADDRESS,
-          MINT
+          MINT_WITH_DECIMALS_9
         );
         const tmpTokenAccount = await getAccount(
           connection,
@@ -1525,6 +1532,314 @@ describe(" 2: Hello Token", () => {
               return null;
             });
         expect(redeemTransferTx).is.null;
+      });
+    });
+  });
+
+  describe("Send Native Tokens (decimals=8) With Payload", () => {
+    describe("Finally Send Tokens With Payload", () => {
+      it("Instruction: send_native_tokens_with_payload", async () => {
+        const tokenAccount = getAssociatedTokenAddressSync(
+          MINT_WITH_DECIMALS_8,
+          wallet.key()
+        );
+
+        // will be used for balance change later
+        const walletBalanceBefore = await getAccount(
+          connection,
+          tokenAccount
+        ).then((account) => account.amount);
+
+        // save message count to grab posted message later
+        const sequence = await wormhole
+          .getProgramSequenceTracker(
+            connection,
+            TOKEN_BRIDGE_ADDRESS,
+            WORMHOLE_ADDRESS
+          )
+          .then((sequenceTracker) => sequenceTracker.value() + 1n);
+
+        const batchId = 69;
+        const amount = 2n * 42069n;
+        const recipientAddress = Buffer.alloc(32, "1337beef", "hex");
+        const recipientChain = 2;
+        const sendTokensTx = await createSendNativeTokensWithPayloadInstruction(
+          connection,
+          HELLO_TOKEN_ADDRESS,
+          wallet.key(),
+          TOKEN_BRIDGE_ADDRESS,
+          WORMHOLE_ADDRESS,
+          MINT_WITH_DECIMALS_8,
+          {
+            batchId,
+            amount,
+            recipientAddress,
+            recipientChain,
+          }
+        )
+          .then((ix) =>
+            web3.sendAndConfirmTransaction(
+              connection,
+              new web3.Transaction().add(ix),
+              [wallet.signer()]
+            )
+          )
+          .catch((reason) => {
+            // should not happen
+            console.log(reason);
+            return null;
+          });
+        expect(sendTokensTx).is.not.null;
+
+        const walletBalanceAfter = await getAccount(
+          connection,
+          tokenAccount
+        ).then((account) => account.amount);
+
+        // check balance change
+        expect(walletBalanceBefore - walletBalanceAfter).to.equal(amount);
+
+        // tmp_token_account should not exist
+        const tmpTokenAccountKey = deriveTmpTokenAccountKey(
+          HELLO_TOKEN_ADDRESS,
+          MINT_WITH_DECIMALS_8
+        );
+        const tmpTokenAccount = await getAccount(
+          connection,
+          tmpTokenAccountKey
+        ).catch((reason) => null);
+        expect(tmpTokenAccount).is.null;
+
+        // verify wormhole message
+        const payload = await wormhole
+          .getPostedMessage(
+            connection,
+            deriveTokenTransferMessageKey(HELLO_TOKEN_ADDRESS, sequence)
+          )
+          .then(
+            (posted) =>
+              parseTokenTransferPayload(posted.message.payload)
+                .tokenTransferPayload
+          );
+
+        expect(payload.readUint8(0)).to.equal(1); // payload ID
+        expect(
+          Buffer.compare(payload.subarray(1, 33), recipientAddress)
+        ).to.equal(0);
+      });
+    });
+  });
+
+  describe("Receive Native Tokens (decimals=8) With Payload (payer == recipient)", () => {
+    const tokenAccount = getAssociatedTokenAddressSync(
+      MINT_WITH_DECIMALS_8,
+      wallet.key()
+    );
+
+    const tokenAddress = MINT_WITH_DECIMALS_8.toBuffer().toString("hex");
+    const amount = 42069n;
+    const tokenTransferPayload = (() => {
+      const buf = Buffer.alloc(33);
+      buf.writeUInt8(1, 0); // payload ID
+      buf.write(tokenAccount.toBuffer().toString("hex"), 1, "hex");
+      return buf;
+    })();
+    const batchId = 69;
+
+    describe("Finally Receive Tokens With Payload", () => {
+      const published = ethereumTokenBridge.publishTransferTokensWithPayload(
+        tokenAddress,
+        1, // tokenChain
+        amount,
+        1, // recipientChain
+        HELLO_TOKEN_ADDRESS.toBuffer().toString("hex"),
+        foreignContractAddress,
+        tokenTransferPayload,
+        batchId
+      );
+      published[51] = 3;
+
+      const signedWormholeMessage = guardians.addSignatures(published, [0]);
+
+      it("Post Wormhole Message", async () => {
+        const response = await postVaaSolana(
+          connection,
+          wallet.signTransaction,
+          WORMHOLE_ADDRESS,
+          wallet.key(),
+          signedWormholeMessage
+        ).catch((reason) => null);
+        expect(response).is.not.null;
+      });
+
+      it("Instruction: redeem_native_transfer_with_payload", async () => {
+        // will be used for balance change later
+        const walletBalanceBefore = await getAccount(
+          connection,
+          tokenAccount
+        ).then((account) => account.amount);
+
+        const redeemTransferTx =
+          await createRedeemNativeTransferWithPayloadInstruction(
+            connection,
+            HELLO_TOKEN_ADDRESS,
+            wallet.key(),
+            TOKEN_BRIDGE_ADDRESS,
+            WORMHOLE_ADDRESS,
+            signedWormholeMessage,
+            tokenAccount
+          )
+            .then((ix) =>
+              web3.sendAndConfirmTransaction(
+                connection,
+                new web3.Transaction().add(ix),
+                [wallet.signer()]
+              )
+            )
+            .catch((reason) => {
+              // should not happen
+              console.log(reason);
+              return null;
+            });
+        expect(redeemTransferTx).is.not.null;
+
+        const walletBalanceAfter = await getAccount(
+          connection,
+          tokenAccount
+        ).then((account) => account.amount);
+
+        // check balance change
+        expect(walletBalanceAfter - walletBalanceBefore).to.equal(amount);
+
+        // tmp_token_account should not exist
+        const tmpTokenAccountKey = deriveTmpTokenAccountKey(
+          HELLO_TOKEN_ADDRESS,
+          MINT_WITH_DECIMALS_8
+        );
+        const tmpTokenAccount = await getAccount(
+          connection,
+          tmpTokenAccountKey
+        ).catch((reason) => null);
+        expect(tmpTokenAccount).is.null;
+      });
+    });
+  });
+
+  describe("Receive Native Tokens (decimals=8) With Payload (payer != recipient)", () => {
+    const recipientTokenAccount = getAssociatedTokenAddressSync(
+      MINT_WITH_DECIMALS_8,
+      wallet.key()
+    );
+    const relayerTokenAccount = getAssociatedTokenAddressSync(
+      MINT_WITH_DECIMALS_8,
+      relayer.key()
+    );
+
+    const tokenAddress = MINT_WITH_DECIMALS_8.toBuffer().toString("hex");
+    const amount = 42069n;
+    const tokenTransferPayload = (() => {
+      const buf = Buffer.alloc(33);
+      buf.writeUInt8(1, 0); // payload ID
+      buf.write(recipientTokenAccount.toBuffer().toString("hex"), 1, "hex");
+      return buf;
+    })();
+    const batchId = 69;
+
+    describe("Finally Receive Tokens With Payload", () => {
+      const published = ethereumTokenBridge.publishTransferTokensWithPayload(
+        tokenAddress,
+        1, // tokenChain
+        amount,
+        1, // recipientChain
+        HELLO_TOKEN_ADDRESS.toBuffer().toString("hex"),
+        foreignContractAddress,
+        tokenTransferPayload,
+        batchId
+      );
+      published[51] = 3;
+
+      const signedWormholeMessage = guardians.addSignatures(published, [0]);
+
+      it("Post Wormhole Message", async () => {
+        const response = await postVaaSolana(
+          connection,
+          relayer.signTransaction,
+          WORMHOLE_ADDRESS,
+          relayer.key(),
+          signedWormholeMessage
+        ).catch((reason) => null);
+        expect(response).is.not.null;
+      });
+
+      it("Instruction: redeem_native_transfer_with_payload", async () => {
+        // will be used for balance change later
+        const walletBalanceBefore = await getAccount(
+          connection,
+          recipientTokenAccount
+        ).then((account) => account.amount);
+        const relayerBalanceBefore = await getAccount(
+          connection,
+          relayerTokenAccount
+        ).then((account) => account.amount);
+
+        const redeemTransferTx =
+          await createRedeemNativeTransferWithPayloadInstruction(
+            connection,
+            HELLO_TOKEN_ADDRESS,
+            relayer.key(),
+            TOKEN_BRIDGE_ADDRESS,
+            WORMHOLE_ADDRESS,
+            signedWormholeMessage,
+            recipientTokenAccount,
+            wallet.key() // recipient
+          )
+            .then((ix) =>
+              web3.sendAndConfirmTransaction(
+                connection,
+                new web3.Transaction().add(ix),
+                [relayer.signer()]
+              )
+            )
+            .catch((reason) => {
+              // should not happen
+              console.log(reason);
+              return null;
+            });
+        expect(redeemTransferTx).is.not.null;
+
+        const walletBalanceAfter = await getAccount(
+          connection,
+          recipientTokenAccount
+        ).then((account) => account.amount);
+        const relayerBalanceAfter = await getAccount(
+          connection,
+          relayerTokenAccount
+        ).then((account) => account.amount);
+
+        // check balance change
+        const { relayerFee, relayerFeePrecision } = await getRedeemerConfigData(
+          connection,
+          HELLO_TOKEN_ADDRESS
+        );
+        const relayerAmount =
+          (BigInt(relayerFee) * amount) / BigInt(relayerFeePrecision);
+        expect(relayerBalanceAfter - relayerBalanceBefore).to.equal(
+          relayerAmount
+        );
+        expect(walletBalanceAfter - walletBalanceBefore).to.equal(
+          amount - relayerAmount
+        );
+
+        // tmp_token_account should not exist
+        const tmpTokenAccountKey = deriveTmpTokenAccountKey(
+          HELLO_TOKEN_ADDRESS,
+          MINT_WITH_DECIMALS_8
+        );
+        const tmpTokenAccount = await getAccount(
+          connection,
+          tmpTokenAccountKey
+        ).catch((reason) => null);
+        expect(tmpTokenAccount).is.null;
       });
     });
   });

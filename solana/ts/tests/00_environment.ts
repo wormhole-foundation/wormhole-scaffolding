@@ -29,14 +29,16 @@ import {
   GOVERNANCE_EMITTER_ADDRESS,
   GUARDIAN_PRIVATE_KEY,
   LOCALHOST,
-  MINT,
-  MINT_PRIVATE_KEY,
+  MINT_WITH_DECIMALS_9,
+  MINT_9_PRIVATE_KEY,
   PAYER_PRIVATE_KEY,
   TOKEN_BRIDGE_ADDRESS,
   WORMHOLE_ADDRESS,
   createMaliciousRegisterChainInstruction,
   RELAYER_PRIVATE_KEY,
   WETH_ADDRESS,
+  MINT_8_PRIVATE_KEY,
+  MINT_WITH_DECIMALS_8,
 } from "./helpers";
 import { MockEthereumTokenBridge } from "@certusone/wormhole-sdk/lib/cjs/mock";
 import { deriveWrappedMintKey } from "@certusone/wormhole-sdk/lib/cjs/solana/tokenBridge";
@@ -78,59 +80,78 @@ describe(" 0: Wormhole", () => {
       expect(balance).to.equal(1000 * web3.LAMPORTS_PER_SOL);
     });
 
-    it("Create SPL", async () => {
-      const decimals = 9;
-      const mint = await createMint(
-        connection,
-        wallet.signer(),
-        wallet.key(),
-        null, // freezeAuthority
-        decimals,
-        web3.Keypair.fromSecretKey(MINT_PRIVATE_KEY)
-      );
-      expect(mint.equals(MINT)).is.true;
+    it("Create SPL Tokens", async () => {
+      {
+        const decimals = 9;
+        const mint = await createMint(
+          connection,
+          wallet.signer(),
+          wallet.key(),
+          null, // freezeAuthority
+          decimals,
+          web3.Keypair.fromSecretKey(MINT_9_PRIVATE_KEY)
+        );
+        expect(mint.equals(MINT_WITH_DECIMALS_9)).is.true;
+      }
+
+      {
+        const decimals = 8;
+        const mint = await createMint(
+          connection,
+          wallet.signer(),
+          wallet.key(),
+          null, // freezeAuthority
+          decimals,
+          web3.Keypair.fromSecretKey(MINT_8_PRIVATE_KEY)
+        );
+        expect(mint.equals(MINT_WITH_DECIMALS_8)).is.true;
+      }
     });
 
     it("Create ATAs", async () => {
-      const walletAccount = await getOrCreateAssociatedTokenAccount(
-        connection,
-        wallet.signer(),
-        MINT,
-        wallet.key()
-      ).catch((reason) => null);
-      expect(walletAccount).is.not.null;
+      for (const mint of [MINT_WITH_DECIMALS_8, MINT_WITH_DECIMALS_9]) {
+        const walletAccount = await getOrCreateAssociatedTokenAccount(
+          connection,
+          wallet.signer(),
+          mint,
+          wallet.key()
+        ).catch((reason) => null);
+        expect(walletAccount).is.not.null;
 
-      const relayerAccount = await getOrCreateAssociatedTokenAccount(
-        connection,
-        relayer.signer(),
-        MINT,
-        relayer.key()
-      ).catch((reason) => null);
-      expect(relayerAccount).is.not.null;
+        const relayerAccount = await getOrCreateAssociatedTokenAccount(
+          connection,
+          relayer.signer(),
+          mint,
+          relayer.key()
+        ).catch((reason) => null);
+        expect(relayerAccount).is.not.null;
+      }
     });
 
-    it("Mint to Wallet's ATA", async () => {
-      const mintAmount = 69420000n * 1000000000n;
-      const destination = getAssociatedTokenAddressSync(MINT, wallet.key());
+    it("Mint to Wallet's ATAs", async () => {
+      for (const mint of [MINT_WITH_DECIMALS_8, MINT_WITH_DECIMALS_9]) {
+        const mintAmount = 69420000n * 1000000000n;
+        const destination = getAssociatedTokenAddressSync(mint, wallet.key());
 
-      const mintTx = await mintTo(
-        connection,
-        wallet.signer(),
-        MINT,
-        destination,
-        wallet.signer(),
-        mintAmount
-      ).catch((reason) => {
-        // should not happen
-        console.log(reason);
-        return null;
-      });
-      expect(mintTx).is.not.null;
+        const mintTx = await mintTo(
+          connection,
+          wallet.signer(),
+          mint,
+          destination,
+          wallet.signer(),
+          mintAmount
+        ).catch((reason) => {
+          // should not happen
+          console.log(reason);
+          return null;
+        });
+        expect(mintTx).is.not.null;
 
-      const amount = await getAccount(connection, destination).then(
-        (account) => account.amount
-      );
-      expect(amount).equals(mintAmount);
+        const amount = await getAccount(connection, destination).then(
+          (account) => account.amount
+        );
+        expect(amount).equals(mintAmount);
+      }
     });
   });
 

@@ -243,7 +243,10 @@ pub struct SendNativeTokensWithPayload<'info> {
         bump,
     )]
     /// Foreign Contract account. Send tokens to the contract specified in this
-    /// account. Read-only.
+    /// account. Funnily enough, the Token Bridge program does not have any
+    /// requirements for outbound transfers for the recipient chain to be
+    /// registered. This account provides extra protection against sending
+    /// tokens to an unregistered Wormhole chain ID. Read-only.
     pub foreign_contract: Box<Account<'info, ForeignContract>>,
 
     #[account(mut)]
@@ -542,7 +545,11 @@ pub struct SendWrappedTokensWithPayload<'info> {
         ],
         bump,
     )]
-    /// Foreign Contract account. Send tokens to this contract.
+    /// Foreign Contract account. Send tokens to the contract specified in this
+    /// account. Funnily enough, the Token Bridge program does not have any
+    /// requirements for outbound transfers for the recipient chain to be
+    /// registered. This account provides extra protection against sending
+    /// tokens to an unregistered Wormhole chain ID. Read-only.
     pub foreign_contract: Box<Account<'info, ForeignContract>>,
 
     #[account(
