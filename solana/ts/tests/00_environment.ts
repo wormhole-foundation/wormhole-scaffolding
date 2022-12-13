@@ -41,7 +41,6 @@ import {
   MINT_8_PRIVATE_KEY,
   MINT_WITH_DECIMALS_8,
 } from "./helpers";
-import { MockEthereumTokenBridge } from "@certusone/wormhole-sdk/lib/cjs/mock";
 import { deriveWrappedMintKey } from "@certusone/wormhole-sdk/lib/cjs/solana/tokenBridge";
 
 describe(" 0: Wormhole", () => {
