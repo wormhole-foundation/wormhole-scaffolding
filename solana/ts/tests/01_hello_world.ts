@@ -148,7 +148,7 @@ describe(" 1: Hello World", () => {
             )
           )
           .catch((reason) => {
-            expect(errorExistsInLog(reason, "InvalidProgramId")).to.be.true;
+            expect(errorExistsInLog(reason, "InvalidProgramId")).is.true;
             return null;
           });
         expect(initializeTx).is.null;
@@ -675,8 +675,7 @@ describe(" 1: Hello World", () => {
               )
             )
             .catch((reason) => {
-              expect(errorExistsInLog(reason, "InvalidForeignEmitter")).to.be
-                .true;
+              expect(errorExistsInLog(reason, "InvalidForeignEmitter")).is.true;
               return null;
             });
           expect(registerForeignEmitterTx).is.null;
@@ -764,6 +763,46 @@ describe(" 1: Hello World", () => {
   });
 
   describe("Send Message", () => {
+    describe("Expect Failure", () => {
+      it("Cannot Send Message With Length > 512", async () => {
+        const helloMessage = Buffer.alloc(
+          513,
+          "All your base are belong to us"
+        );
+
+        // save message count to grab posted message later
+        const sequence = await wormhole
+          .getProgramSequenceTracker(
+            connection,
+            HELLO_WORLD_ADDRESS,
+            WORMHOLE_ADDRESS
+          )
+          .then((sequenceTracker) => sequenceTracker.value() + 1n);
+
+        const sendMessageTx = await createSendMessageInstruction(
+          connection,
+          HELLO_WORLD_ADDRESS,
+          wallet.key(),
+          WORMHOLE_ADDRESS,
+          helloMessage
+        )
+          .then((ix) =>
+            web3.sendAndConfirmTransaction(
+              connection,
+              new web3.Transaction().add(ix),
+              [wallet.signer()]
+            )
+          )
+          .catch((reason) => {
+            expect(
+              errorExistsInLog(reason, "IO Error: message exceeds 512 bytes")
+            ).is.true;
+            return null;
+          });
+        expect(sendMessageTx).is.null;
+      });
+    });
+
     describe("Finally Send Message", () => {
       const helloMessage = Buffer.from("All your base are belong to us");
 
@@ -821,18 +860,73 @@ describe(" 1: Hello World", () => {
 
     const guardians = new mock.MockGuardians(0, [GUARDIAN_PRIVATE_KEY]);
 
+    const finality = 1;
     const batchId = 0;
-    const message = Buffer.from("Somebody set up us the bomb");
-    const wormholePayload = (() => {
-      const buf = Buffer.alloc(3 + message.length);
-      buf.writeUint8(1, 0);
-      buf.writeUint16BE(message.length, 1);
-      buf.write(message.toString(), 3);
-      return buf;
-    })();
+
+    describe("Expect Error", () => {
+      const message = Buffer.alloc(513, "Somebody set up us the bomb");
+      const wormholePayload = (() => {
+        const buf = Buffer.alloc(3 + message.length);
+        buf.writeUint8(1, 0);
+        buf.writeUint16BE(message.length, 1);
+        buf.write(message.toString(), 3);
+        return buf;
+      })();
+
+      const published = emitter.publishMessage(
+        batchId,
+        wormholePayload,
+        finality
+      );
+
+      const signedWormholeMessage = guardians.addSignatures(published, [0]);
+
+      it("Post Wormhole Message", async () => {
+        const response = await postVaaSolana(
+          connection,
+          wallet.signTransaction,
+          WORMHOLE_ADDRESS,
+          wallet.key(),
+          signedWormholeMessage
+        ).catch((reason) => null);
+        expect(response).is.not.null;
+      });
+
+      it("Cannot Receive Message With Length > 512", async () => {
+        const receiveMessageTx = await createReceiveMessageInstruction(
+          connection,
+          HELLO_WORLD_ADDRESS,
+          wallet.key(),
+          WORMHOLE_ADDRESS,
+          signedWormholeMessage
+        )
+          .then((ix) =>
+            web3.sendAndConfirmTransaction(
+              connection,
+              new web3.Transaction().add(ix),
+              [wallet.signer()]
+            )
+          )
+          .catch((reason) => {
+            expect(
+              errorExistsInLog(reason, "IO Error: message exceeds 512 bytes")
+            ).is.true;
+            return null;
+          });
+        expect(receiveMessageTx).is.null;
+      });
+    });
 
     describe("Finally Receive Message", () => {
-      const finality = 1;
+      const message = Buffer.from("Somebody set up us the bomb");
+      const wormholePayload = (() => {
+        const buf = Buffer.alloc(3 + message.length);
+        buf.writeUint8(1, 0);
+        buf.writeUint16BE(message.length, 1);
+        buf.write(message.toString(), 3);
+        return buf;
+      })();
+
       const published = emitter.publishMessage(
         batchId,
         wormholePayload,
@@ -901,7 +995,7 @@ describe(" 1: Hello World", () => {
             )
           )
           .catch((reason) => {
-            expect(errorExistsInLog(reason, "already in use")).to.be.true;
+            expect(errorExistsInLog(reason, "already in use")).is.true;
             return null;
           });
         expect(receiveMessageTx).is.null;
