@@ -10,6 +10,7 @@ import {
 } from "@certusone/wormhole-sdk/lib/cjs/solana";
 import {
   parseTokenTransferPayload,
+  parseTokenTransferVaa,
   tryNativeToHexString,
 } from "@certusone/wormhole-sdk";
 import {
@@ -28,6 +29,9 @@ import {
   createSendWrappedTokensWithPayloadInstruction,
   createRedeemWrappedTransferWithPayloadInstruction,
   createUpdateRelayerFeeInstruction,
+  getCompleteTransferNativeWithPayloadCpiAccounts,
+  deriveRedeemerConfigKey,
+  getCompleteTransferWrappedWithPayloadCpiAccounts,
 } from "../sdk/02_hello_token";
 import {
   ETHEREUM_TOKEN_BRIDGE_ADDRESS,
@@ -895,7 +899,7 @@ describe(" 2: Hello Token", () => {
     const tokenTransferPayload = (() => {
       const buf = Buffer.alloc(33);
       buf.writeUInt8(1, 0); // payload ID
-      buf.write(tokenAccount.toBuffer().toString("hex"), 1, "hex");
+      buf.write(wallet.key().toBuffer().toString("hex"), 1, "hex");
       return buf;
     })();
     const batchId = 69;
@@ -934,8 +938,7 @@ describe(" 2: Hello Token", () => {
             wallet.key(),
             TOKEN_BRIDGE_ADDRESS,
             WORMHOLE_ADDRESS,
-            signedWormholeMessage,
-            tokenAccount
+            signedWormholeMessage
           )
             .then((ix) =>
               web3.sendAndConfirmTransaction(
@@ -979,33 +982,66 @@ describe(" 2: Hello Token", () => {
         expect(response).is.not.null;
       });
 
-      it("Cannot Redeem From With Bogus Token Account", async () => {
+      it("Cannot Redeem With Bogus Token Account", async () => {
         const bogusTokenAccount = getAssociatedTokenAddressSync(
           MINT_WITH_DECIMALS_9,
           relayer.key()
         );
 
-        const redeemTransferTx =
-          await createRedeemNativeTransferWithPayloadInstruction(
+        const maliciousInstruction = await (async () => {
+          const program = createHelloTokenProgramInterface(
             connection,
+            HELLO_TOKEN_ADDRESS
+          );
+
+          const parsed = parseTokenTransferVaa(signedWormholeMessage);
+
+          const mint = new web3.PublicKey(parsed.tokenAddress);
+
+          const tmpTokenAccount = deriveTmpTokenAccountKey(
             HELLO_TOKEN_ADDRESS,
-            relayer.key(),
-            TOKEN_BRIDGE_ADDRESS,
-            WORMHOLE_ADDRESS,
-            signedWormholeMessage,
-            bogusTokenAccount
+            mint
+          );
+          const tokenBridgeAccounts =
+            getCompleteTransferNativeWithPayloadCpiAccounts(
+              TOKEN_BRIDGE_ADDRESS,
+              WORMHOLE_ADDRESS,
+              relayer.key(),
+              parsed,
+              tmpTokenAccount
+            );
+
+          return program.methods
+            .redeemNativeTransferWithPayload([...parsed.hash])
+            .accounts({
+              config: deriveRedeemerConfigKey(HELLO_TOKEN_ADDRESS),
+              foreignContract: deriveForeignContractKey(
+                HELLO_TOKEN_ADDRESS,
+                parsed.emitterChain
+              ),
+              tmpTokenAccount,
+              recipientTokenAccount: bogusTokenAccount,
+              recipient: relayer.key(),
+              payerTokenAccount: getAssociatedTokenAddressSync(
+                mint,
+                relayer.key()
+              ),
+              tokenBridgeProgram: TOKEN_BRIDGE_ADDRESS,
+              ...tokenBridgeAccounts,
+            })
+            .instruction();
+        })();
+
+        const redeemTransferTx = await web3
+          .sendAndConfirmTransaction(
+            connection,
+            new web3.Transaction().add(maliciousInstruction),
+            [relayer.signer()]
           )
-            .then((ix) =>
-              web3.sendAndConfirmTransaction(
-                connection,
-                new web3.Transaction().add(ix),
-                [relayer.signer()]
-              )
-            )
-            .catch((reason) => {
-              expect(errorExistsInLog(reason, "InvalidRecipient")).is.true;
-              return null;
-            });
+          .catch((reason) => {
+            expect(errorExistsInLog(reason, "InvalidRecipient")).is.true;
+            return null;
+          });
         expect(redeemTransferTx).is.null;
       });
 
@@ -1023,8 +1059,7 @@ describe(" 2: Hello Token", () => {
             wallet.key(),
             TOKEN_BRIDGE_ADDRESS,
             WORMHOLE_ADDRESS,
-            signedWormholeMessage,
-            tokenAccount
+            signedWormholeMessage
           )
             .then((ix) =>
               web3.sendAndConfirmTransaction(
@@ -1068,8 +1103,7 @@ describe(" 2: Hello Token", () => {
             wallet.key(),
             TOKEN_BRIDGE_ADDRESS,
             WORMHOLE_ADDRESS,
-            signedWormholeMessage,
-            tokenAccount
+            signedWormholeMessage
           )
             .then((ix) =>
               web3.sendAndConfirmTransaction(
@@ -1102,7 +1136,7 @@ describe(" 2: Hello Token", () => {
     const tokenTransferPayload = (() => {
       const buf = Buffer.alloc(33);
       buf.writeUInt8(1, 0); // payload ID
-      buf.write(recipientTokenAccount.toBuffer().toString("hex"), 1, "hex");
+      buf.write(wallet.key().toBuffer().toString("hex"), 1, "hex");
       return buf;
     })();
     const batchId = 69;
@@ -1141,9 +1175,7 @@ describe(" 2: Hello Token", () => {
             relayer.key(),
             TOKEN_BRIDGE_ADDRESS,
             WORMHOLE_ADDRESS,
-            signedWormholeMessage,
-            recipientTokenAccount,
-            wallet.key()
+            signedWormholeMessage
           )
             .then((ix) =>
               web3.sendAndConfirmTransaction(
@@ -1187,39 +1219,73 @@ describe(" 2: Hello Token", () => {
         expect(response).is.not.null;
       });
 
-      it("Cannot Redeem From With Bogus Token Account", async () => {
+      it("Cannot Redeem With Bogus Token Account", async () => {
         const bogusTokenAccount = getAssociatedTokenAddressSync(
           MINT_WITH_DECIMALS_9,
           relayer.key()
         );
 
-        const redeemTransferTx =
-          await createRedeemNativeTransferWithPayloadInstruction(
+        const maliciousInstruction = await (async () => {
+          const program = createHelloTokenProgramInterface(
             connection,
+            HELLO_TOKEN_ADDRESS
+          );
+
+          const parsed = parseTokenTransferVaa(signedWormholeMessage);
+
+          const mint = new web3.PublicKey(parsed.tokenAddress);
+
+          const tmpTokenAccount = deriveTmpTokenAccountKey(
             HELLO_TOKEN_ADDRESS,
-            relayer.key(),
-            TOKEN_BRIDGE_ADDRESS,
-            WORMHOLE_ADDRESS,
-            signedWormholeMessage,
-            bogusTokenAccount,
-            wallet.key() // recipient
+            mint
+          );
+          const tokenBridgeAccounts =
+            getCompleteTransferNativeWithPayloadCpiAccounts(
+              TOKEN_BRIDGE_ADDRESS,
+              WORMHOLE_ADDRESS,
+              relayer.key(),
+              parsed,
+              tmpTokenAccount
+            );
+
+          return program.methods
+            .redeemNativeTransferWithPayload([...parsed.hash])
+            .accounts({
+              config: deriveRedeemerConfigKey(HELLO_TOKEN_ADDRESS),
+              foreignContract: deriveForeignContractKey(
+                HELLO_TOKEN_ADDRESS,
+                parsed.emitterChain
+              ),
+              tmpTokenAccount,
+              recipientTokenAccount: bogusTokenAccount,
+              recipient: new web3.PublicKey(
+                parsed.tokenTransferPayload.subarray(1, 33)
+              ),
+              payerTokenAccount: getAssociatedTokenAddressSync(
+                mint,
+                relayer.key()
+              ),
+              tokenBridgeProgram: TOKEN_BRIDGE_ADDRESS,
+              ...tokenBridgeAccounts,
+            })
+            .instruction();
+        })();
+
+        const redeemTransferTx = await web3
+          .sendAndConfirmTransaction(
+            connection,
+            new web3.Transaction().add(maliciousInstruction),
+            [relayer.signer()]
           )
-            .then((ix) =>
-              web3.sendAndConfirmTransaction(
-                connection,
-                new web3.Transaction().add(ix),
-                [relayer.signer()]
+          .catch((reason) => {
+            expect(
+              errorExistsInLog(
+                reason,
+                "recipient_token_account. Error Code: ConstraintTokenOwner"
               )
-            )
-            .catch((reason) => {
-              expect(
-                errorExistsInLog(
-                  reason,
-                  "recipient_token_account. Error Code: ConstraintTokenOwner"
-                )
-              ).is.true;
-              return null;
-            });
+            ).is.true;
+            return null;
+          });
         expect(redeemTransferTx).is.null;
       });
 
@@ -1241,9 +1307,7 @@ describe(" 2: Hello Token", () => {
             relayer.key(),
             TOKEN_BRIDGE_ADDRESS,
             WORMHOLE_ADDRESS,
-            signedWormholeMessage,
-            recipientTokenAccount,
-            wallet.key() // recipient
+            signedWormholeMessage
           )
             .then((ix) =>
               web3.sendAndConfirmTransaction(
@@ -1302,9 +1366,7 @@ describe(" 2: Hello Token", () => {
             relayer.key(),
             TOKEN_BRIDGE_ADDRESS,
             WORMHOLE_ADDRESS,
-            signedWormholeMessage,
-            recipientTokenAccount,
-            wallet.key()
+            signedWormholeMessage
           )
             .then((ix) =>
               web3.sendAndConfirmTransaction(
@@ -1427,7 +1489,7 @@ describe(" 2: Hello Token", () => {
     const tokenTransferPayload = (() => {
       const buf = Buffer.alloc(33);
       buf.writeUInt8(1, 0); // payload ID
-      buf.write(tokenAccount.toBuffer().toString("hex"), 1, "hex");
+      buf.write(wallet.key().toBuffer().toString("hex"), 1, "hex");
       return buf;
     })();
     const batchId = 69;
@@ -1472,8 +1534,7 @@ describe(" 2: Hello Token", () => {
             wallet.key(),
             TOKEN_BRIDGE_ADDRESS,
             WORMHOLE_ADDRESS,
-            signedWormholeMessage,
-            tokenAccount
+            signedWormholeMessage
           )
             .then((ix) =>
               web3.sendAndConfirmTransaction(
@@ -1526,7 +1587,7 @@ describe(" 2: Hello Token", () => {
     const tokenTransferPayload = (() => {
       const buf = Buffer.alloc(33);
       buf.writeUInt8(1, 0); // payload ID
-      buf.write(recipientTokenAccount.toBuffer().toString("hex"), 1, "hex");
+      buf.write(wallet.key().toBuffer().toString("hex"), 1, "hex");
       return buf;
     })();
     const batchId = 69;
@@ -1575,9 +1636,7 @@ describe(" 2: Hello Token", () => {
             relayer.key(),
             TOKEN_BRIDGE_ADDRESS,
             WORMHOLE_ADDRESS,
-            signedWormholeMessage,
-            recipientTokenAccount,
-            wallet.key() // recipient
+            signedWormholeMessage
           )
             .then((ix) =>
               web3.sendAndConfirmTransaction(
@@ -1884,7 +1943,7 @@ describe(" 2: Hello Token", () => {
     const tokenTransferPayload = (() => {
       const buf = Buffer.alloc(33);
       buf.writeUInt8(1, 0); // payload ID
-      buf.write(tokenAccount.toBuffer().toString("hex"), 1, "hex");
+      buf.write(wallet.key().toBuffer().toString("hex"), 1, "hex");
       return buf;
     })();
     const batchId = 69;
@@ -1923,8 +1982,7 @@ describe(" 2: Hello Token", () => {
             wallet.key(),
             TOKEN_BRIDGE_ADDRESS,
             WORMHOLE_ADDRESS,
-            signedWormholeMessage,
-            tokenAccount
+            signedWormholeMessage
           )
             .then((ix) =>
               web3.sendAndConfirmTransaction(
@@ -1967,33 +2025,69 @@ describe(" 2: Hello Token", () => {
         expect(response).is.not.null;
       });
 
-      it("Cannot Redeem From With Bogus Token Account", async () => {
+      it("Cannot Redeem With Bogus Token Account", async () => {
         const bogusTokenAccount = getAssociatedTokenAddressSync(
           tokenBridgeWethMint,
           relayer.key()
         );
 
-        const redeemTransferTx =
-          await createRedeemWrappedTransferWithPayloadInstruction(
+        const maliciousInstruction = await (async () => {
+          const program = createHelloTokenProgramInterface(
             connection,
-            HELLO_TOKEN_ADDRESS,
-            relayer.key(),
+            HELLO_TOKEN_ADDRESS
+          );
+
+          const parsed = parseTokenTransferVaa(signedWormholeMessage);
+
+          const wrappedMint = deriveWrappedMintKey(
             TOKEN_BRIDGE_ADDRESS,
-            WORMHOLE_ADDRESS,
-            signedWormholeMessage,
-            bogusTokenAccount
+            parsed.tokenChain,
+            parsed.tokenAddress
+          );
+          const tmpTokenAccount = deriveTmpTokenAccountKey(
+            HELLO_TOKEN_ADDRESS,
+            wrappedMint
+          );
+          const tokenBridgeAccounts =
+            getCompleteTransferWrappedWithPayloadCpiAccounts(
+              TOKEN_BRIDGE_ADDRESS,
+              WORMHOLE_ADDRESS,
+              relayer.key(),
+              parsed,
+              tmpTokenAccount
+            );
+
+          return program.methods
+            .redeemWrappedTransferWithPayload([...parsed.hash])
+            .accounts({
+              config: deriveRedeemerConfigKey(HELLO_TOKEN_ADDRESS),
+              foreignContract: deriveForeignContractKey(
+                HELLO_TOKEN_ADDRESS,
+                parsed.emitterChain
+              ),
+              tmpTokenAccount,
+              recipientTokenAccount: bogusTokenAccount,
+              recipient: relayer.key(),
+              payerTokenAccount: getAssociatedTokenAddressSync(
+                wrappedMint,
+                relayer.key()
+              ),
+              tokenBridgeProgram: TOKEN_BRIDGE_ADDRESS,
+              ...tokenBridgeAccounts,
+            })
+            .instruction();
+        })();
+
+        const redeemTransferTx = await web3
+          .sendAndConfirmTransaction(
+            connection,
+            new web3.Transaction().add(maliciousInstruction),
+            [relayer.signer()]
           )
-            .then((ix) =>
-              web3.sendAndConfirmTransaction(
-                connection,
-                new web3.Transaction().add(ix),
-                [relayer.signer()]
-              )
-            )
-            .catch((reason) => {
-              expect(errorExistsInLog(reason, "InvalidRecipient")).is.true;
-              return null;
-            });
+          .catch((reason) => {
+            expect(errorExistsInLog(reason, "InvalidRecipient")).is.true;
+            return null;
+          });
         expect(redeemTransferTx).is.null;
       });
 
@@ -2011,8 +2105,7 @@ describe(" 2: Hello Token", () => {
             wallet.key(),
             TOKEN_BRIDGE_ADDRESS,
             WORMHOLE_ADDRESS,
-            signedWormholeMessage,
-            tokenAccount
+            signedWormholeMessage
           )
             .then((ix) =>
               web3.sendAndConfirmTransaction(
@@ -2056,8 +2149,7 @@ describe(" 2: Hello Token", () => {
             wallet.key(),
             TOKEN_BRIDGE_ADDRESS,
             WORMHOLE_ADDRESS,
-            signedWormholeMessage,
-            tokenAccount
+            signedWormholeMessage
           )
             .then((ix) =>
               web3.sendAndConfirmTransaction(
@@ -2097,7 +2189,7 @@ describe(" 2: Hello Token", () => {
     const tokenTransferPayload = (() => {
       const buf = Buffer.alloc(33);
       buf.writeUInt8(1, 0); // payload ID
-      buf.write(recipientTokenAccount.toBuffer().toString("hex"), 1, "hex");
+      buf.write(wallet.key().toBuffer().toString("hex"), 1, "hex");
       return buf;
     })();
     const batchId = 69;
@@ -2136,9 +2228,7 @@ describe(" 2: Hello Token", () => {
             relayer.key(),
             TOKEN_BRIDGE_ADDRESS,
             WORMHOLE_ADDRESS,
-            signedWormholeMessage,
-            recipientTokenAccount,
-            wallet.key()
+            signedWormholeMessage
           )
             .then((ix) =>
               web3.sendAndConfirmTransaction(
@@ -2181,39 +2271,77 @@ describe(" 2: Hello Token", () => {
         expect(response).is.not.null;
       });
 
-      it("Cannot Redeem From With Bogus Token Account", async () => {
+      it("Cannot Redeem With Bogus Token Account", async () => {
         const bogusTokenAccount = getAssociatedTokenAddressSync(
           tokenBridgeWethMint,
           relayer.key()
         );
 
-        const redeemTransferTx =
-          await createRedeemWrappedTransferWithPayloadInstruction(
+        const maliciousInstruction = await (async () => {
+          const program = createHelloTokenProgramInterface(
             connection,
-            HELLO_TOKEN_ADDRESS,
-            relayer.key(),
+            HELLO_TOKEN_ADDRESS
+          );
+
+          const parsed = parseTokenTransferVaa(signedWormholeMessage);
+
+          const wrappedMint = deriveWrappedMintKey(
             TOKEN_BRIDGE_ADDRESS,
-            WORMHOLE_ADDRESS,
-            signedWormholeMessage,
-            bogusTokenAccount,
-            wallet.key() // recipient
+            parsed.tokenChain,
+            parsed.tokenAddress
+          );
+
+          const tmpTokenAccount = deriveTmpTokenAccountKey(
+            HELLO_TOKEN_ADDRESS,
+            wrappedMint
+          );
+          const tokenBridgeAccounts =
+            getCompleteTransferWrappedWithPayloadCpiAccounts(
+              TOKEN_BRIDGE_ADDRESS,
+              WORMHOLE_ADDRESS,
+              relayer.key(),
+              parsed,
+              tmpTokenAccount
+            );
+
+          return program.methods
+            .redeemWrappedTransferWithPayload([...parsed.hash])
+            .accounts({
+              config: deriveRedeemerConfigKey(HELLO_TOKEN_ADDRESS),
+              foreignContract: deriveForeignContractKey(
+                HELLO_TOKEN_ADDRESS,
+                parsed.emitterChain
+              ),
+              tmpTokenAccount,
+              recipientTokenAccount: bogusTokenAccount,
+              recipient: new web3.PublicKey(
+                parsed.tokenTransferPayload.subarray(1, 33)
+              ),
+              payerTokenAccount: getAssociatedTokenAddressSync(
+                wrappedMint,
+                relayer.key()
+              ),
+              tokenBridgeProgram: TOKEN_BRIDGE_ADDRESS,
+              ...tokenBridgeAccounts,
+            })
+            .instruction();
+        })();
+
+        const redeemTransferTx = await web3
+          .sendAndConfirmTransaction(
+            connection,
+            new web3.Transaction().add(maliciousInstruction),
+            [relayer.signer()]
           )
-            .then((ix) =>
-              web3.sendAndConfirmTransaction(
-                connection,
-                new web3.Transaction().add(ix),
-                [relayer.signer()]
+          .catch((reason) => {
+            expect(
+              errorExistsInLog(
+                reason,
+                "recipient_token_account. Error Code: ConstraintTokenOwner"
               )
-            )
-            .catch((reason) => {
-              expect(
-                errorExistsInLog(
-                  reason,
-                  "recipient_token_account. Error Code: ConstraintTokenOwner"
-                )
-              ).is.true;
-              return null;
-            });
+            ).is.true;
+            return null;
+          });
         expect(redeemTransferTx).is.null;
       });
 
@@ -2235,9 +2363,7 @@ describe(" 2: Hello Token", () => {
             relayer.key(),
             TOKEN_BRIDGE_ADDRESS,
             WORMHOLE_ADDRESS,
-            signedWormholeMessage,
-            recipientTokenAccount,
-            wallet.key()
+            signedWormholeMessage
           )
             .then((ix) =>
               web3.sendAndConfirmTransaction(
@@ -2296,9 +2422,7 @@ describe(" 2: Hello Token", () => {
             relayer.key(),
             TOKEN_BRIDGE_ADDRESS,
             WORMHOLE_ADDRESS,
-            signedWormholeMessage,
-            recipientTokenAccount,
-            wallet.key()
+            signedWormholeMessage
           )
             .then((ix) =>
               web3.sendAndConfirmTransaction(
