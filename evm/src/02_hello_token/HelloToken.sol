@@ -347,7 +347,7 @@ contract HelloToken is HelloTokenGovernance, HelloTokenMessages, ReentrancyGuard
     function normalizeAmount(
         uint256 amount,
         uint8 decimals
-    ) public pure returns(uint256) {
+    ) internal pure returns(uint256) {
         if (decimals > 8) {
             amount /= 10 ** (decimals - 8);
         }
