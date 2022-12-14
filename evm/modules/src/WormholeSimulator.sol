@@ -189,6 +189,62 @@ contract WormholeSimulator {
     }
 
     /**
+     * @notice Formats and signs a simulated Wormhole batch VAA given an array of Wormhole log entries 
+     * @param logs The forge Vm.log entries captured when recording events during test execution
+     * @param nonce The nonce of the messages to be accumulated into the batch VAA
+     * @return signedMessage Formatted and signed Wormhole message
+     */
+    function fetchSignedBatchVAAFromLogs(
+        Vm.Log memory logs,
+        uint32 nonce
+    ) public returns (bytes memory signedMessage) {
+
+        uint16 numObservations = 0;
+        IWormhole.VM[] memory vm_ = new IWormhole.VM[](logs.length);
+
+        for(int i=0; i<logs.length; i++) {
+            vm_[i] = parseVMFromLogs(logs[i]);
+            if(vm_[i].nonce == nonce) {
+                numObservations += 1;
+            }
+        }
+
+        bytes[] memory observations = new bytes32[](numObservations);
+        bytes[] memory hashes = new bytes32[](numObservations);
+
+        uint16 counter = 0;
+        for(int i=0; i<logs.length; i++) {
+            if(vm_[i].nonce == nonce) {
+                observations[counter] = logs[i];
+                hashes[counter] = doubleKeccak256(logs[i]);
+                counter++;
+            }
+        }
+    
+        bytes32 batchHash = doubleKeccak256(abi.encodePacked(uint8(2), keccak256(abi.encodePacked(hashes))));\
+
+        IWormhole.Signature[] memory sigs = new IWormhole.Signature[](1);
+        (sigs[0].v, sigs[0].r, sigs[0].s) = vm.sign(devnetGuardianPK, batchHash);
+        sigs[0].guardianIndex = 0;
+
+        bytes memory VM2 = abi.encodePacked(
+            uint8(2),
+            wormhole.getCurrentGuardianSetIndex(),
+            1,
+            sigs[0].guardianIndex,
+            sigs[0].r,
+            sigs[0].s,
+            sigs[0].v - 27,
+            numObservations,
+            hashes,
+            numObservations,
+            observations
+        );
+
+        return VM2;
+    }
+
+    /**
      * @notice Signs and preformatted simulated Wormhole message
      * @param vm_ The preformatted Wormhole message
      * @return signedMessage Formatted and signed Wormhole message
