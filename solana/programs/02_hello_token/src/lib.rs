@@ -276,11 +276,10 @@ pub mod hello_token {
             HelloTokenError::AlreadyRedeemed
         );
 
-        // The intended recipient must agree with the recipient's token
-        // account.
+        // The intended recipient must agree with the recipient.
         let HelloTokenMessage::Hello { recipient } = ctx.accounts.vaa.message().data();
         require!(
-            ctx.accounts.recipient_token_account.key().to_bytes() == *recipient,
+            ctx.accounts.recipient.key().to_bytes() == *recipient,
             HelloTokenError::InvalidRecipient
         );
 
@@ -531,11 +530,10 @@ pub mod hello_token {
             HelloTokenError::AlreadyRedeemed
         );
 
-        // The intended recipient must agree with the recipient's token
-        // account.
+        // The intended recipient must agree with the recipient.
         let HelloTokenMessage::Hello { recipient } = ctx.accounts.vaa.message().data();
         require!(
-            ctx.accounts.recipient_token_account.key().to_bytes() == *recipient,
+            ctx.accounts.recipient.key().to_bytes() == *recipient,
             HelloTokenError::InvalidRecipient
         );
 

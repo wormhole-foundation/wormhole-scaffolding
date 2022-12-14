@@ -7,24 +7,16 @@ import {
   SYSVAR_RENT_PUBKEY,
   TransactionInstruction,
 } from "@solana/web3.js";
-import { BN } from "@project-serum/anchor";
-import {
-  CompleteTransferNativeWithPayloadCpiAccounts,
-  //getCompleteTransferNativeWithPayloadCpiAccounts,
-} from "@certusone/wormhole-sdk/lib/cjs/solana";
+import { CompleteTransferNativeWithPayloadCpiAccounts } from "@certusone/wormhole-sdk/lib/cjs/solana";
 import { createHelloTokenProgramInterface } from "../program";
 import {
   deriveForeignContractKey,
-  deriveSenderConfigKey,
-  deriveTokenTransferMessageKey,
   deriveTmpTokenAccountKey,
   deriveRedeemerConfigKey,
 } from "../accounts";
 import {
   deriveClaimKey,
   derivePostedVaaKey,
-  getPostedVaa,
-  getProgramSequenceTracker,
 } from "@certusone/wormhole-sdk/lib/cjs/solana/wormhole";
 import {
   getAssociatedTokenAddressSync,
@@ -33,20 +25,15 @@ import {
 import {
   isBytes,
   ParsedTokenTransferVaa,
-  ParsedVaa,
-  parseTokenTransferPayload,
   parseTokenTransferVaa,
-  parseVaa,
   SignedVaa,
 } from "@certusone/wormhole-sdk";
-import { deriveWormholeMessageKey } from "../../01_hello_world";
 import {
   deriveCustodyKey,
   deriveCustodySignerKey,
   deriveEndpointKey,
   deriveRedeemerAccountKey,
   deriveTokenBridgeConfigKey,
-  getEndpointRegistration,
 } from "@certusone/wormhole-sdk/lib/cjs/solana/tokenBridge";
 
 export async function createRedeemNativeTransferWithPayloadInstruction(
@@ -56,8 +43,6 @@ export async function createRedeemNativeTransferWithPayloadInstruction(
   tokenBridgeProgramId: PublicKeyInitData,
   wormholeProgramId: PublicKeyInitData,
   wormholeMessage: SignedVaa | ParsedTokenTransferVaa,
-  recipientTokenAccount: PublicKeyInitData,
-  recipient?: PublicKeyInitData,
   commitment?: Commitment
 ): Promise<TransactionInstruction> {
   const program = createHelloTokenProgramInterface(connection, programId);
@@ -77,14 +62,17 @@ export async function createRedeemNativeTransferWithPayloadInstruction(
     tmpTokenAccount
   );
 
+  const recipient = new PublicKey(parsed.tokenTransferPayload.subarray(1, 33));
+  const recipientTokenAccount = getAssociatedTokenAddressSync(mint, recipient);
+
   return program.methods
     .redeemNativeTransferWithPayload([...parsed.hash])
     .accounts({
       config: deriveRedeemerConfigKey(programId),
       foreignContract: deriveForeignContractKey(programId, parsed.emitterChain),
       tmpTokenAccount,
-      recipientTokenAccount: new PublicKey(recipientTokenAccount),
-      recipient: new PublicKey(recipient === undefined ? payer : recipient),
+      recipientTokenAccount,
+      recipient,
       payerTokenAccount: getAssociatedTokenAddressSync(
         mint,
         new PublicKey(payer)
@@ -96,7 +84,7 @@ export async function createRedeemNativeTransferWithPayloadInstruction(
 }
 
 // Temporary
-function getCompleteTransferNativeWithPayloadCpiAccounts(
+export function getCompleteTransferNativeWithPayloadCpiAccounts(
   tokenBridgeProgramId: PublicKeyInitData,
   wormholeProgramId: PublicKeyInitData,
   payer: PublicKeyInitData,

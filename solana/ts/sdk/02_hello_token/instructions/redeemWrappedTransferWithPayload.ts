@@ -7,51 +7,34 @@ import {
   SYSVAR_RENT_PUBKEY,
   TransactionInstruction,
 } from "@solana/web3.js";
-import { BN } from "@project-serum/anchor";
-import {
-  CompleteTransferNativeWithPayloadCpiAccounts,
-  CompleteTransferWrappedWithPayloadCpiAccounts,
-  //getCompleteTransferNativeWithPayloadCpiAccounts,
-} from "@certusone/wormhole-sdk/lib/cjs/solana";
+import { CompleteTransferWrappedWithPayloadCpiAccounts } from "@certusone/wormhole-sdk/lib/cjs/solana";
 import { createHelloTokenProgramInterface } from "../program";
 import {
   deriveForeignContractKey,
-  deriveSenderConfigKey,
-  deriveTokenTransferMessageKey,
   deriveTmpTokenAccountKey,
   deriveRedeemerConfigKey,
 } from "../accounts";
 import {
   deriveClaimKey,
   derivePostedVaaKey,
-  getPostedVaa,
-  getProgramSequenceTracker,
 } from "@certusone/wormhole-sdk/lib/cjs/solana/wormhole";
 import {
   getAssociatedTokenAddressSync,
-  getMint,
   TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
 import {
   isBytes,
   ParsedTokenTransferVaa,
-  ParsedVaa,
-  parseTokenTransferPayload,
   parseTokenTransferVaa,
-  parseVaa,
   SignedVaa,
 } from "@certusone/wormhole-sdk";
-import { deriveWormholeMessageKey } from "../../01_hello_world";
 import {
-  deriveCustodyKey,
-  deriveCustodySignerKey,
   deriveEndpointKey,
   deriveMintAuthorityKey,
   deriveRedeemerAccountKey,
   deriveTokenBridgeConfigKey,
   deriveWrappedMetaKey,
   deriveWrappedMintKey,
-  getEndpointRegistration,
 } from "@certusone/wormhole-sdk/lib/cjs/solana/tokenBridge";
 
 export async function createRedeemWrappedTransferWithPayloadInstruction(
@@ -61,8 +44,6 @@ export async function createRedeemWrappedTransferWithPayloadInstruction(
   tokenBridgeProgramId: PublicKeyInitData,
   wormholeProgramId: PublicKeyInitData,
   wormholeMessage: SignedVaa | ParsedTokenTransferVaa,
-  recipientTokenAccount: PublicKeyInitData,
-  recipient?: PublicKeyInitData,
   commitment?: Commitment
 ): Promise<TransactionInstruction> {
   const program = createHelloTokenProgramInterface(connection, programId);
@@ -86,14 +67,20 @@ export async function createRedeemWrappedTransferWithPayloadInstruction(
     tmpTokenAccount
   );
 
+  const recipient = new PublicKey(parsed.tokenTransferPayload.subarray(1, 33));
+  const recipientTokenAccount = getAssociatedTokenAddressSync(
+    wrappedMint,
+    recipient
+  );
+
   return program.methods
     .redeemWrappedTransferWithPayload([...parsed.hash])
     .accounts({
       config: deriveRedeemerConfigKey(programId),
       foreignContract: deriveForeignContractKey(programId, parsed.emitterChain),
       tmpTokenAccount,
-      recipientTokenAccount: new PublicKey(recipientTokenAccount),
-      recipient: new PublicKey(recipient === undefined ? payer : recipient),
+      recipientTokenAccount,
+      recipient,
       payerTokenAccount: getAssociatedTokenAddressSync(
         wrappedMint,
         new PublicKey(payer)
@@ -105,7 +92,7 @@ export async function createRedeemWrappedTransferWithPayloadInstruction(
 }
 
 // Temporary
-function getCompleteTransferWrappedWithPayloadCpiAccounts(
+export function getCompleteTransferWrappedWithPayloadCpiAccounts(
   tokenBridgeProgramId: PublicKeyInitData,
   wormholeProgramId: PublicKeyInitData,
   payer: PublicKeyInitData,
