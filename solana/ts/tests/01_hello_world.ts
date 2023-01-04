@@ -68,7 +68,7 @@ describe(" 1: Hello World", () => {
         deriveAddress([Buffer.from("alive")], HELLO_WORLD_ADDRESS)
       );
 
-      it("Invalid Account: config", async () => {
+      it("Invalid Account PDA: config", async () => {
         const possibleConfigs: web3.PublicKey[] = [];
         for (let i = 255; i >= 0; --i) {
           const bumpBytes = Buffer.alloc(1);
@@ -122,7 +122,7 @@ describe(" 1: Hello World", () => {
         }
       });
 
-      it("Invalid Account: wormhole_program", async () => {
+      it("Invalid Account PDA: wormhole_program", async () => {
         const wormholeProgram = web3.Ed25519Program.programId;
 
         const initializeTx = await program.methods
@@ -148,13 +148,13 @@ describe(" 1: Hello World", () => {
             )
           )
           .catch((reason) => {
-            expect(errorExistsInLog(reason, "InvalidProgramId")).to.be.true;
+            expect(errorExistsInLog(reason, "InvalidProgramId")).is.true;
             return null;
           });
         expect(initializeTx).is.null;
       });
 
-      it("Invalid Account: wormhole_bridge", async () => {
+      it("Invalid Account PDA: wormhole_bridge", async () => {
         const possibleWormholeBridges: web3.PublicKey[] = [];
         for (let i = 255; i >= 0; --i) {
           const bumpBytes = Buffer.alloc(1);
@@ -205,7 +205,7 @@ describe(" 1: Hello World", () => {
         }
       });
 
-      it("Invalid Account: wormhole_fee_collector", async () => {
+      it("Invalid Account PDA: wormhole_fee_collector", async () => {
         const possibleWormholeFeeCollectors: web3.PublicKey[] = [];
         for (let i = 255; i >= 0; --i) {
           const bumpBytes = Buffer.alloc(1);
@@ -258,7 +258,7 @@ describe(" 1: Hello World", () => {
         }
       });
 
-      it("Invalid Account: wormhole_emitter", async () => {
+      it("Invalid Account PDA: wormhole_emitter", async () => {
         const possibleWormholeEmitters: web3.PublicKey[] = [];
         for (let i = 255; i >= 0; --i) {
           const bumpBytes = Buffer.alloc(1);
@@ -314,7 +314,7 @@ describe(" 1: Hello World", () => {
         }
       });
 
-      it("Invalid Account: wormhole_sequence", async () => {
+      it("Invalid Account PDA: wormhole_sequence", async () => {
         const possibleWormholeSequences: web3.PublicKey[] = [];
         for (let i = 255; i >= 0; --i) {
           const bumpBytes = Buffer.alloc(1);
@@ -450,7 +450,7 @@ describe(" 1: Hello World", () => {
       const emitterChain = foreignEmitterChain;
       const emitterAddress = foreignEmitterAddress;
 
-      it("Invalid Account: owner", async () => {
+      it("Invalid Account PDA: owner", async () => {
         const nonOwners = [];
 
         for (let i = 0; i < FUZZ_TEST_ITERATIONS; ++i) {
@@ -492,7 +492,7 @@ describe(" 1: Hello World", () => {
         }
       });
 
-      it("Invalid Account: config", async () => {
+      it("Invalid Account PDA: config", async () => {
         const possibleConfigs: web3.PublicKey[] = [];
         for (let i = 255; i >= 0; --i) {
           const bumpBytes = Buffer.alloc(1);
@@ -539,7 +539,7 @@ describe(" 1: Hello World", () => {
         }
       });
 
-      it("Invalid Account: foreign_emitter", async () => {
+      it("Invalid Account PDA: foreign_emitter", async () => {
         const possibleForeignEmitters: web3.PublicKey[] = [];
         for (let i = 255; i >= 0; --i) {
           const bumpBytes = Buffer.alloc(1);
@@ -594,19 +594,58 @@ describe(" 1: Hello World", () => {
             });
           expect(registerForeignEmitterTx).is.null;
         }
+      });
+    });
 
-        // Now try to pass PDAs that do not agree with chain from instruction data
-        {
-          const bogusEmitterChain = emitterChain + 1;
+    describe("Expect Failure", () => {
+      const emitterChain = foreignEmitterChain;
+      const emitterAddress = foreignEmitterAddress;
 
-          const registerForeignEmitterTx = await program.methods
-            .registerEmitter(bogusEmitterChain, [...emitterAddress])
-            .accounts({
-              owner: wallet.key(),
-              config: realConfig,
-              foreignEmitter: realForeignEmitter,
-            })
-            .instruction()
+      it("Cannot Register Emitter With Conflicting Chain ID", async () => {
+        // program interface
+        const program = createHelloWorldProgramInterface(
+          connection,
+          HELLO_WORLD_ADDRESS
+        );
+
+        const bogusEmitterChain = emitterChain + 1;
+
+        const registerForeignEmitterTx = await program.methods
+          .registerEmitter(bogusEmitterChain, [...emitterAddress])
+          .accounts({
+            owner: wallet.key(),
+            config: realConfig,
+            foreignEmitter: realForeignEmitter,
+          })
+          .instruction()
+          .then((ix) =>
+            web3.sendAndConfirmTransaction(
+              connection,
+              new web3.Transaction().add(ix),
+              [wallet.signer()]
+            )
+          )
+          .catch((reason) => {
+            expect(
+              errorExistsInLog(
+                reason,
+                "Cross-program invocation with unauthorized signer or writable account"
+              )
+            ).is.true;
+            return null;
+          });
+        expect(registerForeignEmitterTx).is.null;
+      });
+
+      it("Cannot Register Chain ID == 0", async () => {
+        const registerForeignEmitterTx =
+          await createRegisterForeignEmitterInstruction(
+            connection,
+            HELLO_WORLD_ADDRESS,
+            wallet.key(),
+            0, // emitterChain
+            emitterAddress
+          )
             .then((ix) =>
               web3.sendAndConfirmTransaction(
                 connection,
@@ -615,28 +654,68 @@ describe(" 1: Hello World", () => {
               )
             )
             .catch((reason) => {
-              expect(
-                errorExistsInLog(
-                  reason,
-                  "Cross-program invocation with unauthorized signer or writable account"
-                )
-              ).is.true;
+              expect(errorExistsInLog(reason, "InvalidForeignEmitter")).is.true;
               return null;
             });
-          expect(registerForeignEmitterTx).is.null;
-        }
+        expect(registerForeignEmitterTx).is.null;
+      });
 
-        // Now try to pass emitter address with length != 32 bytes
-        {
-          const bogusEmitterAddress = Buffer.alloc(20, "deadbeef", "hex");
-          const registerForeignEmitterTx = await program.methods
-            .registerEmitter(emitterChain, [...bogusEmitterAddress])
-            .accounts({
-              owner: wallet.key(),
-              config: realConfig,
-              foreignEmitter: realForeignEmitter,
-            })
-            .instruction()
+      it("Cannot Register Chain ID == 1", async () => {
+        const registerForeignEmitterTx =
+          await createRegisterForeignEmitterInstruction(
+            connection,
+            HELLO_WORLD_ADDRESS,
+            wallet.key(),
+            1, // emitterChain
+            emitterAddress
+          )
+            .then((ix) =>
+              web3.sendAndConfirmTransaction(
+                connection,
+                new web3.Transaction().add(ix),
+                [wallet.signer()]
+              )
+            )
+            .catch((reason) => {
+              expect(errorExistsInLog(reason, "InvalidForeignEmitter")).is.true;
+              return null;
+            });
+        expect(registerForeignEmitterTx).is.null;
+      });
+
+      it("Cannot Register Zero Address", async () => {
+        const registerForeignEmitterTx =
+          await createRegisterForeignEmitterInstruction(
+            connection,
+            HELLO_WORLD_ADDRESS,
+            wallet.key(),
+            emitterChain,
+            Buffer.alloc(32) // emitterAddress
+          )
+            .then((ix) =>
+              web3.sendAndConfirmTransaction(
+                connection,
+                new web3.Transaction().add(ix),
+                [wallet.signer()]
+              )
+            )
+            .catch((reason) => {
+              expect(errorExistsInLog(reason, "InvalidForeignEmitter")).is.true;
+              return null;
+            });
+        expect(registerForeignEmitterTx).is.null;
+      });
+
+      it("Cannot Register Emitter Address Length != 32", async () => {
+        const bogusEmitterAddress = Buffer.alloc(20, "deadbeef", "hex");
+        const registerForeignEmitterTx =
+          await createRegisterForeignEmitterInstruction(
+            connection,
+            HELLO_WORLD_ADDRESS,
+            wallet.key(),
+            emitterChain,
+            bogusEmitterAddress
+          )
             .then((ix) =>
               web3.sendAndConfirmTransaction(
                 connection,
@@ -653,34 +732,7 @@ describe(" 1: Hello World", () => {
               ).is.true;
               return null;
             });
-          expect(registerForeignEmitterTx).is.null;
-        }
-
-        // Now try to pass zero emitter address
-        {
-          const bogusEmitterAddress = Buffer.alloc(32);
-          const registerForeignEmitterTx = await program.methods
-            .registerEmitter(emitterChain, [...bogusEmitterAddress])
-            .accounts({
-              owner: wallet.key(),
-              config: realConfig,
-              foreignEmitter: realForeignEmitter,
-            })
-            .instruction()
-            .then((ix) =>
-              web3.sendAndConfirmTransaction(
-                connection,
-                new web3.Transaction().add(ix),
-                [wallet.signer()]
-              )
-            )
-            .catch((reason) => {
-              expect(errorExistsInLog(reason, "InvalidForeignEmitter")).to.be
-                .true;
-              return null;
-            });
-          expect(registerForeignEmitterTx).is.null;
-        }
+        expect(registerForeignEmitterTx).is.null;
       });
     });
 
@@ -764,6 +816,37 @@ describe(" 1: Hello World", () => {
   });
 
   describe("Send Message", () => {
+    describe("Expect Failure", () => {
+      it("Cannot Send Message With Length > 512", async () => {
+        const helloMessage = Buffer.alloc(
+          513,
+          "All your base are belong to us"
+        );
+
+        const sendMessageTx = await createSendMessageInstruction(
+          connection,
+          HELLO_WORLD_ADDRESS,
+          wallet.key(),
+          WORMHOLE_ADDRESS,
+          helloMessage
+        )
+          .then((ix) =>
+            web3.sendAndConfirmTransaction(
+              connection,
+              new web3.Transaction().add(ix),
+              [wallet.signer()]
+            )
+          )
+          .catch((reason) => {
+            expect(
+              errorExistsInLog(reason, "IO Error: message exceeds 512 bytes")
+            ).is.true;
+            return null;
+          });
+        expect(sendMessageTx).is.null;
+      });
+    });
+
     describe("Finally Send Message", () => {
       const helloMessage = Buffer.from("All your base are belong to us");
 
@@ -818,21 +901,227 @@ describe(" 1: Hello World", () => {
       foreignEmitterAddress.toString("hex"),
       foreignEmitterChain
     );
-
     const guardians = new mock.MockGuardians(0, [GUARDIAN_PRIVATE_KEY]);
 
+    const finality = 1;
     const batchId = 0;
-    const message = Buffer.from("Somebody set up us the bomb");
-    const wormholePayload = (() => {
-      const buf = Buffer.alloc(3 + message.length);
-      buf.writeUint8(1, 0);
-      buf.writeUint16BE(message.length, 1);
-      buf.write(message.toString(), 3);
-      return buf;
-    })();
+
+    describe("Expect Failure", () => {
+      it("Cannot Receive Message With Unregistered Emitter", async () => {
+        const bogusEmitter = new mock.MockEmitter(
+          Buffer.alloc(32, "deafbeef").toString("hex"),
+          foreignEmitterChain
+        );
+
+        const message = Buffer.from("Somebody set up us the bomb");
+        const wormholePayload = (() => {
+          const buf = Buffer.alloc(3 + message.length);
+          buf.writeUint8(1, 0);
+          buf.writeUint16BE(message.length, 1);
+          buf.write(message.toString(), 3);
+          return buf;
+        })();
+
+        const published = bogusEmitter.publishMessage(
+          batchId,
+          wormholePayload,
+          finality
+        );
+
+        const signedWormholeMessage = guardians.addSignatures(published, [0]);
+
+        const receiveMessageTx = await postVaaSolana(
+          connection,
+          wallet.signTransaction,
+          WORMHOLE_ADDRESS,
+          wallet.key(),
+          signedWormholeMessage
+        )
+          .then((_) =>
+            createReceiveMessageInstruction(
+              connection,
+              HELLO_WORLD_ADDRESS,
+              wallet.key(),
+              WORMHOLE_ADDRESS,
+              signedWormholeMessage
+            )
+          )
+          .then((ix) =>
+            web3.sendAndConfirmTransaction(
+              connection,
+              new web3.Transaction().add(ix),
+              [wallet.signer()]
+            )
+          )
+          .catch((reason) => {
+            expect(errorExistsInLog(reason, "InvalidForeignEmitter")).is.true;
+            return null;
+          });
+        expect(receiveMessageTx).is.null;
+      });
+
+      it("Cannot Receive Message With Invalid Payload ID", async () => {
+        const message = Buffer.from("Somebody set up us the bomb");
+        const wormholePayload = (() => {
+          const buf = Buffer.alloc(3 + message.length);
+          buf.writeUint8(
+            2, // payload ID
+            0
+          );
+          buf.writeUint16BE(message.length, 1);
+          buf.write(message.toString(), 3);
+          return buf;
+        })();
+
+        const published = emitter.publishMessage(
+          batchId,
+          wormholePayload,
+          finality
+        );
+
+        const signedWormholeMessage = guardians.addSignatures(published, [0]);
+
+        const receiveMessageTx = await postVaaSolana(
+          connection,
+          wallet.signTransaction,
+          WORMHOLE_ADDRESS,
+          wallet.key(),
+          signedWormholeMessage
+        )
+          .then((_) =>
+            createReceiveMessageInstruction(
+              connection,
+              HELLO_WORLD_ADDRESS,
+              wallet.key(),
+              WORMHOLE_ADDRESS,
+              signedWormholeMessage
+            )
+          )
+          .then((ix) =>
+            web3.sendAndConfirmTransaction(
+              connection,
+              new web3.Transaction().add(ix),
+              [wallet.signer()]
+            )
+          )
+          .catch((reason) => {
+            expect(errorExistsInLog(reason, "IO Error: invalid payload ID")).is
+              .true;
+            return null;
+          });
+        expect(receiveMessageTx).is.null;
+      });
+
+      it("Cannot Receive Message With Payload ID == 0 (Alive)", async () => {
+        const wormholePayload = (() => {
+          const buf = Buffer.alloc(33);
+          buf.writeUint8(
+            0, // payload ID
+            0
+          );
+          buf.write(HELLO_WORLD_ADDRESS.toBuffer().toString("hex"), 1, "hex");
+          return buf;
+        })();
+
+        const published = emitter.publishMessage(
+          batchId,
+          wormholePayload,
+          finality
+        );
+
+        const signedWormholeMessage = guardians.addSignatures(published, [0]);
+
+        const receiveMessageTx = await postVaaSolana(
+          connection,
+          wallet.signTransaction,
+          WORMHOLE_ADDRESS,
+          wallet.key(),
+          signedWormholeMessage
+        )
+          .then((_) =>
+            createReceiveMessageInstruction(
+              connection,
+              HELLO_WORLD_ADDRESS,
+              wallet.key(),
+              WORMHOLE_ADDRESS,
+              signedWormholeMessage
+            )
+          )
+          .then((ix) =>
+            web3.sendAndConfirmTransaction(
+              connection,
+              new web3.Transaction().add(ix),
+              [wallet.signer()]
+            )
+          )
+          .catch((reason) => {
+            expect(errorExistsInLog(reason, "InvalidMessage")).is.true;
+            return null;
+          });
+        expect(receiveMessageTx).is.null;
+      });
+
+      it("Cannot Receive Message With Length > 512", async () => {
+        const message = Buffer.alloc(513, "Somebody set up us the bomb");
+        const wormholePayload = (() => {
+          const buf = Buffer.alloc(3 + message.length);
+          buf.writeUint8(1, 0);
+          buf.writeUint16BE(message.length, 1);
+          buf.write(message.toString(), 3);
+          return buf;
+        })();
+
+        const published = emitter.publishMessage(
+          batchId,
+          wormholePayload,
+          finality
+        );
+
+        const signedWormholeMessage = guardians.addSignatures(published, [0]);
+
+        const receiveMessageTx = await postVaaSolana(
+          connection,
+          wallet.signTransaction,
+          WORMHOLE_ADDRESS,
+          wallet.key(),
+          signedWormholeMessage
+        )
+          .then((_) =>
+            createReceiveMessageInstruction(
+              connection,
+              HELLO_WORLD_ADDRESS,
+              wallet.key(),
+              WORMHOLE_ADDRESS,
+              signedWormholeMessage
+            )
+          )
+          .then((ix) =>
+            web3.sendAndConfirmTransaction(
+              connection,
+              new web3.Transaction().add(ix),
+              [wallet.signer()]
+            )
+          )
+          .catch((reason) => {
+            expect(
+              errorExistsInLog(reason, "IO Error: message exceeds 512 bytes")
+            ).is.true;
+            return null;
+          });
+        expect(receiveMessageTx).is.null;
+      });
+    });
 
     describe("Finally Receive Message", () => {
-      const finality = 1;
+      const message = Buffer.from("Somebody set up us the bomb");
+      const wormholePayload = (() => {
+        const buf = Buffer.alloc(3 + message.length);
+        buf.writeUint8(1, 0);
+        buf.writeUint16BE(message.length, 1);
+        buf.write(message.toString(), 3);
+        return buf;
+      })();
+
       const published = emitter.publishMessage(
         batchId,
         wormholePayload,
@@ -901,7 +1190,7 @@ describe(" 1: Hello World", () => {
             )
           )
           .catch((reason) => {
-            expect(errorExistsInLog(reason, "already in use")).to.be.true;
+            expect(errorExistsInLog(reason, "already in use")).is.true;
             return null;
           });
         expect(receiveMessageTx).is.null;
