@@ -1,0 +1,23 @@
+{
+    "name": "xdapp-starter",
+    "version": "1.0.0",
+    "description": "A simple template for getting started with xDapps.",
+    "main": "starter.js",
+    "scripts": {
+        "setup": "bash setup.bash",
+        "wormhole": "npm run setup && bash wormhole.bash",
+        "evm": "npm run setup && bash evm.bash",
+        "solana": "npm run setup && bash solana-binary-deploy.bash",
+        "aptos": "npm run setup && bash aptos.bash",
+        "cleanup": "npx pm2 kill"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "MIT",
+    "workspaces": [],
+    "type": "module",
+    "dependencies": {
+        "ganache": "^7.3.1",
+        "pm2": "^5.2.0"
+    }
+}
