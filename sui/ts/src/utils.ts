@@ -85,7 +85,7 @@ version = "0.69.420"
 [dependencies.Sui]
 git = "https://github.com/MystenLabs/sui.git"
 subdir = "crates/sui-framework"
-rev = "devnet"
+rev = "2d709054a08d904b9229a2472af679f210af3827"
 
 [dependencies.TokenBridge]
 local = "${fullPathToTokenBridgeDependency}"
