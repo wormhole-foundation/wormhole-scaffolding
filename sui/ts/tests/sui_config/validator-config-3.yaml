@@ -1,0 +1,61 @@
+---
+protocol-key-pair:
+  value: WDUktfu4/UnnoJaFLxl5r348Bm/bTRu6XswZGN00mBU=
+worker-key-pair:
+  value: AD7k5l29ZqFYnR0Sqa/sNg4wKStotyfNZMjuNl/YxchJ
+account-key-pair:
+  value: AMzl1ud7JEgGdWGB5R7lJr5T8LvbnNyUOPfqvC3BhfY4
+network-key-pair:
+  value: AOWONUJf8DhyXEENeqdEACM+ulLIBybVul57W1VNt2B3
+db-path: ts/tests/sui_config/authorities_db/9287b7fc8422cd51d13149ff2bf92ff212be5a84db907b2aefe226000e2c0b6049931220c9e7313374dddb321c4cc5c000badd9141d46312d666c0946e568d14fa7807f92648712d9fdfc54ae182f9f5fdee0901694b0eacc467126f99fcafc4
+network-address: /ip4/127.0.0.1/tcp/42257/http
+json-rpc-address: "127.0.0.1:39549"
+metrics-address: "127.0.0.1:34667"
+admin-interface-port: 40769
+consensus-config:
+  address: /ip4/127.0.0.1/tcp/40149/http
+  db-path: ts/tests/sui_config/consensus_db/9287b7fc8422cd51d13149ff2bf92ff212be5a84db907b2aefe226000e2c0b6049931220c9e7313374dddb321c4cc5c000badd9141d46312d666c0946e568d14fa7807f92648712d9fdfc54ae182f9f5fdee0901694b0eacc467126f99fcafc4
+  internal-worker-address: ~
+  timeout-secs: 60
+  narwhal-config:
+    header_num_of_batches_threshold: 32
+    max_header_num_of_batches: 1000
+    max_header_delay: 100ms
+    gc_depth: 50
+    sync_retry_delay: 5000ms
+    sync_retry_nodes: 3
+    batch_size: 500000
+    max_batch_delay: 100ms
+    block_synchronizer:
+      range_synchronize_timeout: 30000ms
+      certificates_synchronize_timeout: 30000ms
+      payload_synchronize_timeout: 30000ms
+      payload_availability_timeout: 30000ms
+      handler_certificate_deliver_timeout: 30000ms
+    consensus_api_grpc:
+      socket_addr: /ip4/127.0.0.1/tcp/39483/http
+      get_collections_timeout: 5000ms
+      remove_collections_timeout: 5000ms
+    max_concurrent_requests: 500000
+    prometheus_metrics:
+      socket_addr: /ip4/127.0.0.1/tcp/35051/http
+    network_admin_server:
+      primary_network_admin_server_port: 33235
+      worker_network_admin_server_base_port: 40483
+enable-event-processing: false
+checkpoints-per-epoch: 3000
+grpc-load-shed: ~
+grpc-concurrency-limit: 20000000000
+p2p-config:
+  listen-address: "127.0.0.1:46255"
+  external-address: /ip4/127.0.0.1/udp/46255
+genesis:
+  genesis-file-location: ts/tests/sui_config/genesis.blob
+authority-store-pruning-config:
+  objects-num-latest-versions-to-retain: 2
+  objects-pruning-period-secs: 86400
+  objects-pruning-initial-delay-secs: 3600
+checkpoint-executor-config:
+  checkpoint-execution-max-concurrency: 100
+  end-of-epoch-broadcast-channel-capacity: 128
+  local-execution-timeout-sec: 10

@@ -1,0 +1,40 @@
+---
+protocol-key-pair:
+  value: I5qs0wR75uXpsifA7StTBCstDHXaIukiXyXeJNlJ+Rc=
+worker-key-pair:
+  value: ADhe2cgN9ax9TMoLdKQZlHbD6pldtQ1MlmUoTtXjdhtK
+account-key-pair:
+  value: AEKjABCHwwK4RpqL75jkMrOq0dX83xNUtx98slW9MSbo
+network-key-pair:
+  value: AHvs8WvfzD8PUF0tmjRA1nyWIJGlYYj6fcfQ9nBk043R
+db-path: ts/tests/sui_config/authorities_db/full_node_db
+network-address: /ip4/127.0.0.1/tcp/36251/http
+json-rpc-address: "0.0.0.0:9000"
+metrics-address: "127.0.0.1:46659"
+admin-interface-port: 45075
+enable-event-processing: true
+checkpoints-per-epoch: 3000
+grpc-load-shed: ~
+grpc-concurrency-limit: ~
+p2p-config:
+  listen-address: "127.0.0.1:46505"
+  external-address: /ip4/127.0.0.1/udp/46505
+  seed-peers:
+    - peer-id: cf801d79a543d34c6ae4c8e95a5bb2c0d0f5ef353f84a77010f2281173f5cb52
+      address: /ip4/127.0.0.1/udp/34855
+    - peer-id: 42b46c6e4a0057c223132c4541b23778f5b8f38c2e6043e424a319dc89f475c1
+      address: /ip4/127.0.0.1/udp/45763
+    - peer-id: 6be989425899a2a39b7de6f2c05d708d0aca752135726c1d8480146c3c3feb6b
+      address: /ip4/127.0.0.1/udp/34647
+    - peer-id: 1413ab85c48778bc10aa45dfe31e822994f64002770ffc724ba3d0aedc7548ca
+      address: /ip4/127.0.0.1/udp/46255
+genesis:
+  genesis-file-location: ts/tests/sui_config/genesis.blob
+authority-store-pruning-config:
+  objects-num-latest-versions-to-retain: 5
+  objects-pruning-period-secs: 86400
+  objects-pruning-initial-delay-secs: 3600
+checkpoint-executor-config:
+  checkpoint-execution-max-concurrency: 100
+  end-of-epoch-broadcast-channel-capacity: 128
+  local-execution-timeout-sec: 10
