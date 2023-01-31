@@ -18,7 +18,8 @@ contract WormholeSimulator {
     using BytesLib for bytes;
 
     // Taken from forge-std/Script.sol
-    address private constant VM_ADDRESS = address(bytes20(uint160(uint256(keccak256("hevm cheat code")))));
+    address private constant VM_ADDRESS =
+        address(bytes20(uint160(uint256(keccak256("hevm cheat code")))));
     Vm public constant vm = Vm(VM_ADDRESS);
 
     // Allow access to Wormhole
@@ -52,7 +53,8 @@ contract WormholeSimulator {
             uint256 numGuardians = uint256(vm.load(address(wormhole), guardianSetSlot));
             for (uint256 i = 1; i < numGuardians;) {
                 vm.store(
-                    address(wormhole), bytes32(uint256(keccak256(abi.encodePacked(guardianSetSlot))) + i), bytes32(0)
+                    address(wormhole),
+                    bytes32(uint256(keccak256(abi.encodePacked(guardianSetSlot))) + i), bytes32(0)
                 );
                 unchecked {
                     i += 1;
@@ -85,7 +87,9 @@ contract WormholeSimulator {
         return keccak256(abi.encodePacked(keccak256(body)));
     }
 
-    function parseVMFromLogs(Vm.Log memory log) internal pure returns (IWormhole.VM memory vm_) {
+    function parseVMFromLogs(
+        Vm.Log memory log
+    ) internal pure returns (IWormhole.VM memory vm_) {
         uint256 index = 0;
 
         // emitterAddress
@@ -151,7 +155,9 @@ contract WormholeSimulator {
      * @param vm_ Wormhole VM struct
      * @return encodedObservation Wormhole message body encoded into bytes
      */
-    function encodeObservation(IWormhole.VM memory vm_) public pure returns (bytes memory encodedObservation) {
+    function encodeObservation(
+        IWormhole.VM memory vm_
+    ) public pure returns (bytes memory encodedObservation) {
         encodedObservation = abi.encodePacked(
             vm_.timestamp,
             vm_.nonce,
@@ -189,7 +195,7 @@ contract WormholeSimulator {
     }
 
     /**
-     * @notice Formats and signs a simulated Wormhole batch VAA given an array of Wormhole log entries 
+     * @notice Formats and signs a simulated Wormhole batch VAA given an array of Wormhole log entries
      * @param logs The forge Vm.log entries captured when recording events during test execution
      * @param nonce The nonce of the messages to be accumulated into the batch VAA
      * @return signedMessage Formatted and signed Wormhole message
@@ -199,7 +205,7 @@ contract WormholeSimulator {
         uint32 nonce,
         uint16 emitterChainId,
         address emitterAddress
-    ) public view returns (bytes memory signedMessage) {
+    ) public returns (bytes memory signedMessage) {
 
         uint8 numObservations = 0;
         IWormhole.VM[] memory vm_ = new IWormhole.VM[](logs.length);
@@ -220,14 +226,30 @@ contract WormholeSimulator {
         uint8 counter = 0;
         for(uint256 i=0; i<logs.length; i++) {
             if(vm_[i].nonce == nonce) {
-                bytes memory observation = abi.encodePacked(vm_[i].timestamp, vm_[i].nonce, vm_[i].emitterChainId, vm_[i].emitterAddress, vm_[i].sequence, vm_[i].consistencyLevel, vm_[i].payload);
+                bytes memory observation = abi.encodePacked(
+                    vm_[i].timestamp,
+                    vm_[i].nonce,
+                    vm_[i].emitterChainId,
+                    vm_[i].emitterAddress,
+                    vm_[i].sequence,
+                    vm_[i].consistencyLevel,
+                    vm_[i].payload
+                );
                 hashes[counter] = doubleKeccak256(observation);
-                packedObservations = abi.encodePacked(packedObservations, uint8(counter), uint32(observation.length), observation);
+                packedObservations = abi.encodePacked(
+                    packedObservations,
+                    uint8(counter),
+                    uint32(observation.length),
+                    observation
+                );
                 counter++;
             }
         }
-    
-        bytes32 batchHash = doubleKeccak256(abi.encodePacked(uint8(2), keccak256(abi.encodePacked(hashes))));
+
+        bytes32 batchHash = doubleKeccak256(
+            abi.encodePacked(uint8(2),
+            keccak256(abi.encodePacked(hashes)))
+        );
 
         IWormhole.Signature[] memory sigs = new IWormhole.Signature[](1);
         (sigs[0].v, sigs[0].r, sigs[0].s) = vm.sign(devnetGuardianPK, batchHash);
