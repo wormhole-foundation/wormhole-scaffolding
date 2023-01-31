@@ -301,8 +301,8 @@ contract WormholeSimulator {
     }
 
     /**
-     * @notice Sets the wormhole message fee
-     * @param uint256 The new wormhole fee
+     * @notice Sets the wormhole protocol fee
+     * @param newFee The new wormhole fee
      */
      function setMessageFee(uint256 newFee) public {
         bytes32 coreModule = 0x00000000000000000000000000000000000000000000000000000000436f7265;
@@ -311,7 +311,7 @@ contract WormholeSimulator {
             version: 1,
             timestamp: uint32(block.timestamp),
             nonce: 0,
-            emitterChainId: wormhole.governanceChainId(), 
+            emitterChainId: wormhole.governanceChainId(),
             emitterAddress: wormhole.governanceContract(),
             sequence: 0,
             consistencyLevel: 200,
