@@ -11,5 +11,5 @@ rev = "2d709054a08d904b9229a2472af679f210af3827"
 local = "../wormhole"
 
 [addresses]
-wormhole = "0x38810bd2025fa87ceabba5f471228ab9d4092077"
+wormhole = "0x08b2feda11e87a94ba96ae86b910828eeeedae04"
 token_bridge = "0x0"

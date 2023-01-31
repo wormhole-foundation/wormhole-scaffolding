@@ -645,11 +645,13 @@ describe(" 0: Wormhole", () => {
         .then((result) => result.data);
       expect(tokenBridgeDynamicData).has.length(3);
 
+      const dynamicItem = tokenBridgeDynamicData.find((item) =>
+        item.name.includes(WRAPPED_WETH_COIN_TYPE)
+      );
+      expect(dynamicItem).is.not.undefined;
+
       const wrappedAssetInfo = await provider
-        .getDynamicFieldObject(
-          TOKEN_BRIDGE_STATE_ID,
-          tokenBridgeDynamicData[2].name
-        )
+        .getDynamicFieldObject(TOKEN_BRIDGE_STATE_ID, dynamicItem!.name)
         .then((result) => {
           if (
             typeof result.details !== "string" &&
