@@ -41,6 +41,7 @@ module hello_token::owner {
         _: &OwnerCapability,
         state_cap: StateCapability,
         emitter_cap: EmitterCapability,
+        relayer_fee: u64,
         ctx: &mut TxContext
     ) {
         // We use this capability as a mechanism to disallow the state to be
@@ -50,10 +51,10 @@ module hello_token::owner {
         object::delete(id);
 
         // Create and share state.
-        transfer::share_object(state::new(emitter_cap, ctx))
+        transfer::share_object(state::new(emitter_cap, relayer_fee, ctx))
     }
 
-    // Only owner. This method registers a foreign contract address.
+    /// Only owner. This method registers a foreign contract address.
     public entry fun register_foreign_contract(
         _: &OwnerCapability,
         t_state: &mut State,
@@ -62,6 +63,15 @@ module hello_token::owner {
         ctx: &mut TxContext
     ) {
         state::register_foreign_contract(t_state, chain, contract_address, ctx)
+    }
+
+    /// Only owner. This method updates the relayer fee for this chain.
+    public entry fun update_relayer_fee(
+        _: &OwnerCapability,
+        t_state: &mut State,
+        relayer_fee: u64
+    ) {
+        state::update_relayer_fee(t_state, relayer_fee)
     }
 
     #[test_only]
@@ -80,6 +90,8 @@ module hello_token::init_tests {
     use wormhole::emitter::EmitterCapability;
     use hello_token::state::{Self};
     use hello_token::owner::{Self, OwnerCapability, StateCapability};
+
+    const TEST_RELAYER_FEE: u64 = 42069;
 
     #[test]
     public fun init() {
@@ -218,6 +230,7 @@ module hello_token::init_tests {
                 &owner_cap,
                 state_cap,
                 emitter_cap,
+                TEST_RELAYER_FEE,
                 test_scenario::ctx(scenario)
             );
 

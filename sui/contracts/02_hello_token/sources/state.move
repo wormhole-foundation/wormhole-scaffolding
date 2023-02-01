@@ -18,15 +18,20 @@ module hello_token::state {
         /// HelloToken owned emitter capability
         emitter_cap: EmitterCapability,
 
+        /// Fee to pay relayer
+        relayer_fee: u64,
+
     }
 
     public(friend) fun new(
         emitter_cap: EmitterCapability,
-        ctx: &mut TxContext,
+        relayer_fee: u64,
+        ctx: &mut TxContext
     ): State {
         let state = State {
             id: object::new(ctx),
             emitter_cap,
+            relayer_fee
         };
         
         // Make new foreign contracts map.
@@ -47,6 +52,13 @@ module hello_token::state {
         } else {
             foreign_contracts::add(&mut state.id, chain, contract_address, ctx);
         }
+    }
+
+    public(friend) fun update_relayer_fee(
+        state: &mut State,
+        relayer_fee: u64
+    ) {
+        state.relayer_fee = relayer_fee;
     }
 
     public fun emitter_cap(state: &State): &EmitterCapability {
