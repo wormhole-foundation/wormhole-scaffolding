@@ -3,7 +3,8 @@ module hello_token::foreign_contracts {
     use sui::object::{Self, UID};
     use sui::object_table::{Self, ObjectTable};
     use sui::tx_context::{TxContext};
-    use std::vector::{Self};
+
+    use hello_token::utils::{Self};
 
     // State will be warehousing the foreign contracts dynamic table
     friend hello_token::state;
@@ -44,7 +45,7 @@ module hello_token::foreign_contracts {
         ctx: &mut TxContext
     ) {
         assert!(chain != 0, E_INVALID_CHAIN);
-        assert!(is_valid(&contract_address), E_INVALID_CONTRACT_ADDRESS);
+        assert!(utils::is_nonzero_address(&contract_address), E_INVALID_CONTRACT_ADDRESS);
 
         let foreign_contract = ForeignContract {
             id: object::new(ctx),
@@ -54,7 +55,7 @@ module hello_token::foreign_contracts {
     }
 
     public(friend) fun modify(state_uid: &mut UID, chain: u16, contract_address: vector<u8>) {
-        assert!(is_valid(&contract_address), E_INVALID_CONTRACT_ADDRESS);
+        assert!(utils::is_nonzero_address(&contract_address), E_INVALID_CONTRACT_ADDRESS);
 
         let foreign_contract =
             object_table::borrow_mut<u16, ForeignContract>(borrow_mut(state_uid), chain);
@@ -65,23 +66,7 @@ module hello_token::foreign_contracts {
     // public fun id(foreign_contract: &ForeignContract): &ID {
     //     object::borrow_id(foreign_contract)
     // }
-
-    public fun is_valid(contract_address: &vector<u8>): bool {
-        if (vector::length(contract_address) != 32) {
-            return false
-        };
-
-        let i = 0;
-        while (i < 32) {
-            if (*vector::borrow(contract_address, i) > 0) {
-                return true
-            };
-            i = i + 1;
-        };
-
-        false
-    }
-
+    
     fun borrow(state_uid: &UID): &ObjectTable<u16, ForeignContract> {
         dynamic_object_field::borrow(state_uid, KEY)
     }

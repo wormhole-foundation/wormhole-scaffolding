@@ -64,6 +64,13 @@ module hello_token::state {
         relayer_fee::update(&mut state.relayer_fee, relayer_fee, relayer_fee_precision);
     }
 
+    public fun compute_relayer_fee(
+        state: &State,
+        amount: u64,
+    ): u64 {
+        relayer_fee::compute(&state.relayer_fee, amount)
+    }
+
     public fun emitter_cap(state: &State): &EmitterCapability {
         &state.emitter_cap
     }

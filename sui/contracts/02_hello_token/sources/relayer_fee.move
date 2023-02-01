@@ -29,7 +29,7 @@ module hello_token::relayer_fee {
         params.precision = precision;
     }
 
-    public fun compute_fee(
+    public fun compute(
         params: &RelayerFeeParameters,
         amount: u64
     ): u64 {
