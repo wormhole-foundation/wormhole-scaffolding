@@ -1,8 +1,10 @@
 include testing.env
 
-.PHONY: dependencies all clean build test integration-test
+CONTRACTS := $(wildcard contracts/*/.)
 
-all: build
+.PHONY: dependencies all clean build test integration-test $(CONTRACTS)
+
+all:
 
 .PHONY: clean
 clean:
@@ -18,11 +20,14 @@ dependencies/token_bridge/build: dependencies/wormhole/build
 dependencies/wormhole/build:
 	bash shell-scripts/fetch_wormhole_contracts.sh
 
-build: dependencies
-	sui move build -p contracts/*
-
 .PHONY: test
 test: integration-test
+
+.PHONY: unit-test
+unit-test: $(CONTRACTS)
+
+$(CONTRACTS):
+	$(MAKE) -C $@ test
 
 .PHONY: integration-test
 integration-test: dependencies
