@@ -52,7 +52,12 @@ module hello_token::state {
         if (contract_registered(state, chain)) {
             foreign_contracts::modify(&mut state.id, chain, contract_address);
         } else {
-            foreign_contracts::add(&mut state.id, chain, contract_address, ctx);
+            foreign_contracts::add(
+                &mut state.id,
+                chain,
+                contract_address,
+                ctx
+            );
         }
     }
 
@@ -61,7 +66,11 @@ module hello_token::state {
         relayer_fee: u64,
         relayer_fee_precision: u64
     ) {
-        relayer_fee::update(&mut state.relayer_fee, relayer_fee, relayer_fee_precision);
+        relayer_fee::update(
+            &mut state.relayer_fee,
+            relayer_fee,
+            relayer_fee_precision
+        );
     }
 
     public fun compute_relayer_fee(
@@ -83,7 +92,10 @@ module hello_token::state {
         foreign_contracts::has(&state.id, chain)
     }
 
-    public fun foreign_contract_address(state: &State, chain: u16): &vector<u8> {
+    public fun foreign_contract_address(
+        state: &State,
+        chain: u16
+    ): &vector<u8> {
         foreign_contracts::contract_address(&state.id, chain)
     }
 }

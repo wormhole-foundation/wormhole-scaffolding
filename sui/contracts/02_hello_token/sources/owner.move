@@ -52,7 +52,9 @@ module hello_token::owner {
         object::delete(id);
 
         // Create and share state.
-        transfer::share_object(state::new(emitter_cap, relayer_fee, relayer_fee_precision, ctx))
+        transfer::share_object(
+            state::new(emitter_cap, relayer_fee, relayer_fee_precision, ctx)
+        )
     }
 
     /// Only owner. This method registers a foreign contract address.
@@ -89,9 +91,10 @@ module hello_token::init_tests {
     use sui::object::{Self};
     use sui::test_scenario::{Self, Scenario, TransactionEffects};
 
-    use wormhole::emitter::EmitterCapability;
     use hello_token::state::{Self};
     use hello_token::owner::{Self, OwnerCapability, StateCapability};
+    use wormhole::emitter::EmitterCapability;
+    use wormhole::state::{DeployerCapability as WormholeDeployerCapability};
 
     const TEST_RELAYER_FEE: u64 = 42069; // 4.2069%
     const TEST_RELAYER_FEE_PRECISION: u64 = 1000000;
@@ -179,10 +182,11 @@ module hello_token::init_tests {
 
         // Verify that the contract isn't already registered
         {
-            let is_registered = hello_token::state::contract_registered(
-                &state,
-                target_chain
-            );
+            let is_registered =
+                hello_token::state::contract_registered(
+                    &state,
+                    target_chain
+                );
             assert!(!is_registered, 0);
         };
 
@@ -197,10 +201,8 @@ module hello_token::init_tests {
 
         // Verify that the contract was registered correctly
         {
-            let is_registered = hello_token::state::contract_registered(
-                &state,
-                target_chain
-            );
+            let is_registered =
+                hello_token::state::contract_registered(&state, target_chain);
             assert!(is_registered, 0);
 
             let registered_contract =
@@ -237,7 +239,9 @@ module hello_token::init_tests {
             test_scenario::next_tx(scenario, creator);
 
             let deployer =
-                test_scenario::take_from_sender<wormhole::state::DeployerCapability>(scenario);
+                test_scenario::take_from_sender<WormholeDeployerCapability>(
+                    scenario
+                );
 
             // Share Wormhole state.
             wormhole::state::init_and_share_state(
@@ -297,7 +301,10 @@ module hello_token::init_tests {
             );
 
             // Bye bye.
-            test_scenario::return_to_sender<OwnerCapability>(scenario, owner_cap);
+            test_scenario::return_to_sender<OwnerCapability>(
+                scenario,
+                owner_cap
+            );
         };
 
         let effects = test_scenario::next_tx(scenario, creator);

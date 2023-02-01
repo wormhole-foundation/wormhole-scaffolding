@@ -32,9 +32,16 @@ module hello_token::foreign_contracts {
         object_table::contains(borrow(state_uid), chain)
     }
 
-    public(friend) fun contract_address(state_uid: &UID, chain: u16): &vector<u8> {
+    public(friend) fun contract_address(
+        state_uid: &UID,
+        chain: u16
+    ): &vector<u8> {
         let foreign_contract =
-            object_table::borrow<u16, ForeignContract>(borrow(state_uid), chain);
+            object_table::borrow<u16, ForeignContract>(
+                borrow(state_uid),
+                chain
+            );
+
         &foreign_contract.address
     }
 
@@ -45,7 +52,10 @@ module hello_token::foreign_contracts {
         ctx: &mut TxContext
     ) {
         assert!(chain != 0, E_INVALID_CHAIN);
-        assert!(utils::is_nonzero_address(&contract_address), E_INVALID_CONTRACT_ADDRESS);
+        assert!(
+            utils::is_nonzero_address(&contract_address),
+            E_INVALID_CONTRACT_ADDRESS
+        );
 
         let foreign_contract = ForeignContract {
             id: object::new(ctx),
@@ -54,11 +64,21 @@ module hello_token::foreign_contracts {
         object_table::add(borrow_mut(state_uid), chain, foreign_contract);
     }
 
-    public(friend) fun modify(state_uid: &mut UID, chain: u16, contract_address: vector<u8>) {
-        assert!(utils::is_nonzero_address(&contract_address), E_INVALID_CONTRACT_ADDRESS);
+    public(friend) fun modify(
+        state_uid: &mut UID,
+        chain: u16,
+        contract_address: vector<u8>
+    ) {
+        assert!(
+            utils::is_nonzero_address(&contract_address),
+            E_INVALID_CONTRACT_ADDRESS
+        );
 
         let foreign_contract =
-            object_table::borrow_mut<u16, ForeignContract>(borrow_mut(state_uid), chain);
+            object_table::borrow_mut<u16, ForeignContract>(
+                borrow_mut(state_uid),
+                chain
+            );
 
         foreign_contract.address = contract_address;
     }
@@ -71,7 +91,9 @@ module hello_token::foreign_contracts {
         dynamic_object_field::borrow(state_uid, KEY)
     }
 
-    fun borrow_mut(state_uid: &mut UID): &mut ObjectTable<u16, ForeignContract> {
+    fun borrow_mut(
+        state_uid: &mut UID
+    ): &mut ObjectTable<u16, ForeignContract> {
         dynamic_object_field::borrow_mut(state_uid, KEY)
     }
 }
