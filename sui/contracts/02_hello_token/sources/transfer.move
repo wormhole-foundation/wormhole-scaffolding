@@ -40,7 +40,6 @@ module hello_token::transfer {
         let foreign_contract =
             state::foreign_contract_address(t_state, target_chain);
 
-        // TODO: encode target_recipient
         let msg = message::new(target_recipient);
         transfer_tokens_with_payload(
             state::emitter_cap(t_state),

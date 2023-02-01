@@ -16,6 +16,7 @@ module hello_token::message {
 
     public fun new(recipient: vector<u8>): Message {
         assert!(utils::is_nonzero_address(&recipient), E_INVALID_RECIPIENT);
+
         Message {
             recipient
         }
@@ -28,7 +29,7 @@ module hello_token::message {
     public fun encode(message: &Message): vector<u8> {
         let out = vector::empty<u8>();
         vector::push_back(&mut out, MESSAGE_HELLO);
-        vector::append(&mut out, *target_recipient(message));
+        vector::append(&mut out, message.recipient);
 
         out
     }
