@@ -235,7 +235,7 @@ module hello_token::init_tests {
         // Fetch the HelloToken state object and owner capability
         let state = test_scenario::take_shared<state::State>(scenario);
         let owner_cap =
-                test_scenario::take_from_sender<OwnerCapability>(scenario);
+                test_scenario::take_from_sender<OwnerCap>(scenario);
 
         // Register the emitter
         hello_token::owner::register_foreign_contract(
@@ -284,7 +284,7 @@ module hello_token::init_tests {
 
         // Bye bye.
         test_scenario::return_shared<state::State>(state);
-        test_scenario::return_to_sender<OwnerCapability>(scenario, owner_cap);
+        test_scenario::return_to_sender<OwnerCap>(scenario, owner_cap);
 
         // Done.
         test_scenario::end(my_scenario);
@@ -305,7 +305,7 @@ module hello_token::init_tests {
         // Fetch the HelloToken state object and owner capability
         let state = test_scenario::take_shared<state::State>(scenario);
         let owner_cap =
-                test_scenario::take_from_sender<OwnerCapability>(scenario);
+                test_scenario::take_from_sender<OwnerCap>(scenario);
 
         // Register the emitter
         hello_token::owner::register_foreign_contract(
@@ -318,7 +318,7 @@ module hello_token::init_tests {
 
         // Bye bye.
         test_scenario::return_shared<state::State>(state);
-        test_scenario::return_to_sender<OwnerCapability>(scenario, owner_cap);
+        test_scenario::return_to_sender<OwnerCap>(scenario, owner_cap);
 
         // Done.
         test_scenario::end(my_scenario);
@@ -339,7 +339,7 @@ module hello_token::init_tests {
         // Fetch the HelloToken state object and owner capability
         let state = test_scenario::take_shared<state::State>(scenario);
         let owner_cap =
-                test_scenario::take_from_sender<OwnerCapability>(scenario);
+                test_scenario::take_from_sender<OwnerCap>(scenario);
 
         // Register the emitter
         hello_token::owner::register_foreign_contract(
@@ -352,7 +352,7 @@ module hello_token::init_tests {
 
         // Bye bye.
         test_scenario::return_shared<state::State>(state);
-        test_scenario::return_to_sender<OwnerCapability>(scenario, owner_cap);
+        test_scenario::return_to_sender<OwnerCap>(scenario, owner_cap);
 
         // Done.
         test_scenario::end(my_scenario);
