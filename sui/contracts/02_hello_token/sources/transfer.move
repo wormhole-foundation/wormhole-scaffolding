@@ -9,7 +9,6 @@ module hello_token::transfer {
 
     use hello_token::message::{Self};
     use hello_token::state::{Self, State};
-    use hello_token::utils::{Self};
 
     // Errors.
     const E_INVALID_TARGET_RECIPIENT: u64 = 0;
@@ -26,12 +25,6 @@ module hello_token::transfer {
         batch_id: u32,
         target_recipient: vector<u8>,
     ) {
-        // `target_recipient` cannot be the zero address.
-        assert!(
-            utils::is_nonzero_address(&target_recipient),
-            E_INVALID_TARGET_RECIPIENT
-        );
-
         // We must have already registered a foreign contract before we can
         // bridge tokens to it.
         assert!(
@@ -41,7 +34,11 @@ module hello_token::transfer {
         let foreign_contract =
             state::foreign_contract_address(t_state, target_chain);
 
+        // When we create the message, `target_recipient` cannot be the zero
+        // address.
         let msg = message::new(target_recipient);
+
+        // Finally transfer tokens via Token Bridge.
         transfer_tokens_with_payload(
             state::emitter_cap(t_state),
             wormhole_state,

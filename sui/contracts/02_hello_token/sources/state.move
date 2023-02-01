@@ -1,7 +1,7 @@
 module hello_token::state {
     use sui::object::{Self, UID, ID};
     use sui::tx_context::{TxContext};
-    use wormhole::emitter::{EmitterCapability};
+    use wormhole::emitter::{EmitterCapability as EmitterCap};
 
     use hello_token::foreign_contracts::{Self};
     use hello_token::relayer_fee::{Self, RelayerFeeParameters};
@@ -12,21 +12,18 @@ module hello_token::state {
     const E_INVALID_CHAIN: u64 = 0;
     const E_INVALID_CONTRACT_ADDRESS: u64 = 1;
 
-    // TODO: Do we keep this as a constant? Or do we read this from wormhole?
-    const CHAIN_ID_SUI: u16 = 21;
-
     struct State has key, store {
         id: UID,
 
         /// HelloToken owned emitter capability
-        emitter_cap: EmitterCapability,
+        emitter_cap: EmitterCap,
 
         /// Fee to pay relayer
         relayer_fee: RelayerFeeParameters,
     }
 
     public(friend) fun new(
-        emitter_cap: EmitterCapability,
+        emitter_cap: EmitterCap,
         relayer_fee: u64,
         relayer_fee_precision: u64,
         ctx: &mut TxContext
@@ -81,7 +78,7 @@ module hello_token::state {
         relayer_fee::compute(&state.relayer_fee, amount)
     }
 
-    public fun emitter_cap(state: &State): &EmitterCapability {
+    public fun emitter_cap(state: &State): &EmitterCap {
         &state.emitter_cap
     }
 

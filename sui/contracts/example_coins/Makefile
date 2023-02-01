@@ -9,3 +9,7 @@ clean:
 .PHONY: check
 check:
 	sui move build -d
+
+.PHONY: test
+test:
+	sui move test -d

@@ -54,7 +54,7 @@ module hello_token::foreign_contracts {
     ) {
         assert!(chain != 0, E_INVALID_CHAIN);
         assert!(
-            utils::is_nonzero_address(&contract_address),
+            utils::is_nonzero_bytes32(&contract_address),
             E_INVALID_CONTRACT_ADDRESS
         );
 
@@ -71,7 +71,7 @@ module hello_token::foreign_contracts {
         contract_address: vector<u8>
     ) {
         assert!(
-            utils::is_nonzero_address(&contract_address),
+            utils::is_nonzero_bytes32(&contract_address),
             E_INVALID_CONTRACT_ADDRESS
         );
 

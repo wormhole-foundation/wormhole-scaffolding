@@ -1,7 +1,7 @@
 module example_coins::coin_8 {
-    use std::option;
-    use sui::coin;
-    use sui::transfer;
+    use std::option::{Self};
+    use sui::coin::{Self};
+    use sui::transfer::{Self};
     use sui::tx_context::{Self, TxContext};
 
     /// The type identifier of coin. The coin will have a type
@@ -23,5 +23,36 @@ module example_coins::coin_8 {
         );
         transfer::freeze_object(metadata);
         transfer::transfer(treasury, tx_context::sender(ctx))
+    }
+
+    #[test_only]
+    public fun init_test_only(ctx: &mut TxContext) {
+        init(COIN_8 {}, ctx)
+    }
+}
+
+#[test_only]
+module example_coins::coin_8_tests {
+    use sui::test_scenario::{Self};
+
+    use example_coins::coin_8::{Self};
+
+    #[test]
+    public fun init() {
+        let my_scenario = test_scenario::begin(@0x0);
+        let scenario = &mut my_scenario;
+        let creator = @0xDEADBEEF;
+        
+        // Proceed.
+        test_scenario::next_tx(scenario, creator);
+
+        // Init.
+        coin_8::init_test_only(test_scenario::ctx(scenario));
+        
+        // Proceed.
+        test_scenario::next_tx(scenario, creator);
+
+        // Done.
+        test_scenario::end(my_scenario);
     }
 }

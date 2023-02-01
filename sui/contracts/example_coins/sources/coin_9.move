@@ -24,4 +24,35 @@ module example_coins::coin_9 {
         transfer::freeze_object(metadata);
         transfer::transfer(treasury, tx_context::sender(ctx))
     }
+
+    #[test_only]
+    public fun init_test_only(ctx: &mut TxContext) {
+        init(COIN_9 {}, ctx)
+    }
+}
+
+#[test_only]
+module example_coins::coin_9_tests {
+    use sui::test_scenario::{Self};
+
+    use example_coins::coin_9::{Self};
+
+    #[test]
+    public fun init() {
+        let my_scenario = test_scenario::begin(@0x0);
+        let scenario = &mut my_scenario;
+        let creator = @0xDEADBEEF;
+        
+        // Proceed.
+        test_scenario::next_tx(scenario, creator);
+
+        // Init.
+        coin_9::init_test_only(test_scenario::ctx(scenario));
+        
+        // Proceed.
+        test_scenario::next_tx(scenario, creator);
+
+        // Done.
+        test_scenario::end(my_scenario);
+    }
 }

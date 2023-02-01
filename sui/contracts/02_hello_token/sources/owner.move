@@ -2,36 +2,33 @@ module hello_token::owner {
     use sui::object::{Self, UID};
     use sui::transfer::{Self};
     use sui::tx_context::{Self, TxContext};
-    use wormhole::emitter::{EmitterCapability};
+    use wormhole::emitter::{EmitterCapability as EmitterCap};
 
     use hello_token::state::{Self, State};
 
-    // Errors.
-    const E_INVALID_CHAIN: u64 = 0;
-
     /// The one of a kind - created in the module initializer.
-    struct OwnerCapability has key {
+    struct OwnerCap has key {
         id: UID
     }
 
-    struct StateCapability has key, store {
+    struct StateCap has key, store {
         id: UID
     }
 
     /// This function is only called once on module publish.
     /// Use it to make sure something has happened only once, like
     /// here - only module author will own a version of a
-    /// `OwnerCapability` struct.
+    /// `OwnerCap` struct.
     fun init(ctx: &mut TxContext) {
         // Transfer owner capability to caller.
-        transfer::transfer(OwnerCapability {
+        transfer::transfer(OwnerCap {
             id: object::new(ctx),
         }, tx_context::sender(ctx));
 
         // And transfer state capability to caller. This will be destroyed once
         // `create_state` is called (to prevent more than one state from being
         // created).
-        transfer::transfer(StateCapability {
+        transfer::transfer(StateCap {
             id: object::new(ctx),
         }, tx_context::sender(ctx));
     }
@@ -39,9 +36,9 @@ module hello_token::owner {
     /// Only owner. This creates a new state object that also acts as dynamic
     /// storage.
     public entry fun create_state(
-        _: &OwnerCapability,
-        state_cap: StateCapability,
-        emitter_cap: EmitterCapability,
+        _: &OwnerCap,
+        state_cap: StateCap,
+        emitter_cap: EmitterCap,
         relayer_fee: u64,
         relayer_fee_precision: u64,
         ctx: &mut TxContext
@@ -49,7 +46,7 @@ module hello_token::owner {
         // We use this capability as a mechanism to disallow the state to be
         // created more than once. This method consumes `state_cap` and
         // destroys it.
-        let StateCapability{ id } = state_cap;
+        let StateCap{ id } = state_cap;
         object::delete(id);
 
         // Create and share state.
@@ -60,7 +57,7 @@ module hello_token::owner {
 
     /// Only owner. This method registers a foreign contract address.
     public entry fun register_foreign_contract(
-        _: &OwnerCapability,
+        _: &OwnerCap,
         t_state: &mut State,
         chain: u16,
         contract_address: vector<u8>,
@@ -71,7 +68,7 @@ module hello_token::owner {
 
     /// Only owner. This method updates the relayer fee for this chain.
     public entry fun update_relayer_fee(
-        _: &OwnerCapability,
+        _: &OwnerCap,
         t_state: &mut State,
         relayer_fee: u64,
         relayer_fee_precision: u64
@@ -93,9 +90,9 @@ module hello_token::init_tests {
     use sui::test_scenario::{Self, Scenario, TransactionEffects};
 
     use hello_token::state::{Self};
-    use hello_token::owner::{Self, OwnerCapability, StateCapability};
-    use wormhole::emitter::EmitterCapability;
-    use wormhole::state::{DeployerCapability as WormholeDeployerCapability};
+    use hello_token::owner::{Self, OwnerCap, StateCap};
+    use wormhole::emitter::{EmitterCapability as EmitterCap};
+    use wormhole::state::{DeployerCapability as WormholeDeployerCap};
 
     const TEST_RELAYER_FEE: u64 = 42069; // 4.2069%
     const TEST_RELAYER_FEE_PRECISION: u64 = 1000000;
@@ -119,19 +116,19 @@ module hello_token::init_tests {
             let created_ids = test_scenario::created(&effects);
             assert!(vector::length(&created_ids) == 2, 0);
 
-            // Verify that the created ID matches the OwnerCapability's ID.
+            // Verify that the created ID matches the OwnerCap's ID.
             let owner_cap_id = vector::borrow(&created_ids, 0);
             let owner_cap =
-                test_scenario::take_from_sender<OwnerCapability>(scenario);
+                test_scenario::take_from_sender<OwnerCap>(scenario);
             assert!(*owner_cap_id == object::id(&owner_cap), 0);
-            test_scenario::return_to_sender<OwnerCapability>(scenario, owner_cap);
+            test_scenario::return_to_sender<OwnerCap>(scenario, owner_cap);
 
-            // Verify that the created ID matches the StateCapability's ID.
+            // Verify that the created ID matches the StateCap's ID.
             let state_cap_id = vector::borrow(&created_ids, 1);
             let state_cap =
-                test_scenario::take_from_sender<StateCapability>(scenario);
+                test_scenario::take_from_sender<StateCap>(scenario);
             assert!(*state_cap_id == object::id(&state_cap), 0);
-            test_scenario::return_to_sender<StateCapability>(scenario, state_cap);
+            test_scenario::return_to_sender<StateCap>(scenario, state_cap);
         };
 
         // Done.
@@ -179,7 +176,7 @@ module hello_token::init_tests {
         // Fetch the HelloToken state object and owner capability
         let state = test_scenario::take_shared<state::State>(scenario);
         let owner_cap =
-                test_scenario::take_from_sender<OwnerCapability>(scenario);
+                test_scenario::take_from_sender<OwnerCap>(scenario);
 
         // Verify that the contract isn't already registered
         {
@@ -216,7 +213,7 @@ module hello_token::init_tests {
 
         // Bye bye.
         test_scenario::return_shared<state::State>(state);
-        test_scenario::return_to_sender<OwnerCapability>(scenario, owner_cap);
+        test_scenario::return_to_sender<OwnerCap>(scenario, owner_cap);
 
         // Done.
         test_scenario::end(my_scenario);
@@ -240,7 +237,7 @@ module hello_token::init_tests {
             test_scenario::next_tx(scenario, creator);
 
             let deployer =
-                test_scenario::take_from_sender<WormholeDeployerCapability>(
+                test_scenario::take_from_sender<WormholeDeployerCap>(
                     scenario
                 );
 
@@ -286,11 +283,11 @@ module hello_token::init_tests {
 
         {
             let owner_cap =
-                test_scenario::take_from_sender<OwnerCapability>(scenario);
+                test_scenario::take_from_sender<OwnerCap>(scenario);
             let state_cap =
-                test_scenario::take_from_sender<StateCapability>(scenario);
+                test_scenario::take_from_sender<StateCap>(scenario);
             let emitter_cap =
-                test_scenario::take_from_sender<EmitterCapability>(scenario);
+                test_scenario::take_from_sender<EmitterCap>(scenario);
 
             hello_token::owner::create_state(
                 &owner_cap,
@@ -302,7 +299,7 @@ module hello_token::init_tests {
             );
 
             // Bye bye.
-            test_scenario::return_to_sender<OwnerCapability>(
+            test_scenario::return_to_sender<OwnerCap>(
                 scenario,
                 owner_cap
             );
