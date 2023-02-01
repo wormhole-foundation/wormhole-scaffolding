@@ -179,11 +179,11 @@ module hello_token::init_tests {
 
         // Verify that the contract isn't already registered
         {
-            let isRegistered = hello_token::state::contract_registered(
+            let is_registered = hello_token::state::contract_registered(
                 &state,
                 target_chain
             );
-            assert!(!isRegistered, 0);
+            assert!(!is_registered, 0);
         };
 
         // Register the emitter
@@ -197,11 +197,11 @@ module hello_token::init_tests {
 
         // Verify that the contract was registered correctly
         {
-            let isRegistered = hello_token::state::contract_registered(
+            let is_registered = hello_token::state::contract_registered(
                 &state,
                 target_chain
             );
-            assert!(isRegistered, 0);
+            assert!(is_registered, 0);
 
             let registered_contract =
                 hello_token::state::foreign_contract_address(
