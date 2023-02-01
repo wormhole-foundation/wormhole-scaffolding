@@ -28,7 +28,7 @@ module hello_token::owner {
         }, tx_context::sender(ctx));
 
         // And transfer state capability to caller. This will be destroyed once
-        // `create_shared` is called (to prevent more than one state from being
+        // `create_state` is called (to prevent more than one state from being
         // created).
         transfer::transfer(StateCapability {
             id: object::new(ctx),
@@ -37,7 +37,7 @@ module hello_token::owner {
 
     /// Only owner. This creates a new state object that also acts as dynamic
     /// storage.
-    public entry fun create_shared(
+    public entry fun create_state(
         _: &OwnerCapability,
         state_cap: StateCapability,
         emitter_cap: EmitterCapability,
@@ -120,7 +120,7 @@ module hello_token::init_tests {
     }
 
     #[test]
-    public fun create_shared() {
+    public fun create_state() {
         let (creator, _) = people();
         let (my_scenario, effects) = set_up(creator);
         let scenario = &mut my_scenario;
@@ -214,7 +214,7 @@ module hello_token::init_tests {
             let emitter_cap =
                 test_scenario::take_from_sender<EmitterCapability>(scenario);
 
-            hello_token::owner::create_shared(
+            hello_token::owner::create_state(
                 &owner_cap,
                 state_cap,
                 emitter_cap,
