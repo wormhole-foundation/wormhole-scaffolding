@@ -65,7 +65,7 @@ module hello_token::foreign_contracts {
     // public fun id(foreign_contract: &ForeignContract): &ID {
     //     object::borrow_id(foreign_contract)
     // }
-    
+
     public fun is_valid(contract_address: &vector<u8>): bool {
         if (vector::length(contract_address) != 32) {
             return false

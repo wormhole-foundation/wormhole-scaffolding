@@ -22,7 +22,6 @@ module hello_token::state {
 
         /// Fee to pay relayer
         relayer_fee: RelayerFeeParameters,
-
     }
 
     public(friend) fun new(
@@ -36,7 +35,7 @@ module hello_token::state {
             emitter_cap,
             relayer_fee: relayer_fee::new(relayer_fee, relayer_fee_precision),
         };
-        
+
         // Make new foreign contracts map.
         foreign_contracts::new(&mut state.id, ctx);
 
