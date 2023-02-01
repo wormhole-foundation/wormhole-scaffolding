@@ -1,5 +1,5 @@
 module hello_token::utils {
-    use std::vector;
+    use std::vector::{Self};
 
     public fun is_nonzero_address(contract_address: &vector<u8>): bool {
         if (vector::length(contract_address) != 32) {

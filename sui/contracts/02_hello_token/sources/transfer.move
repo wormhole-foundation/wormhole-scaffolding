@@ -11,6 +11,7 @@ module hello_token::transfer {
     use hello_token::state::{Self, State};
     use hello_token::utils::{Self};
 
+    // Errors.
     const E_INVALID_TARGET_RECIPIENT: u64 = 0;
     const E_UNREGISTERED_FOREIGN_CONTRACT: u64 = 1;
 

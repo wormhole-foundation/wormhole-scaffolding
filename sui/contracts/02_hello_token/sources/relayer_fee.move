@@ -1,6 +1,8 @@
 module hello_token::relayer_fee {
+    // `RelayerFeeParameters` is an element of `State`
     friend hello_token::state;
 
+    // Errors.
     const E_INVALID_RELAYER_FEE: u64 = 0;
 
     struct RelayerFeeParameters has store {

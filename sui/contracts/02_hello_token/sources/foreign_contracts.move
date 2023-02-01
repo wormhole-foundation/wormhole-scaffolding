@@ -9,6 +9,7 @@ module hello_token::foreign_contracts {
     // State will be warehousing the foreign contracts dynamic table
     friend hello_token::state;
 
+    // Errors.
     const E_INVALID_CHAIN: u64 = 0;
     const E_INVALID_CONTRACT_ADDRESS: u64 = 1;
 

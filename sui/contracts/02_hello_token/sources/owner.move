@@ -2,10 +2,11 @@ module hello_token::owner {
     use sui::object::{Self, UID};
     use sui::transfer::{Self};
     use sui::tx_context::{Self, TxContext};
-    use wormhole::emitter::EmitterCapability;
+    use wormhole::emitter::{EmitterCapability};
 
     use hello_token::state::{Self, State};
 
+    // Errors.
     const E_INVALID_CHAIN: u64 = 0;
 
     /// The one of a kind - created in the module initializer.

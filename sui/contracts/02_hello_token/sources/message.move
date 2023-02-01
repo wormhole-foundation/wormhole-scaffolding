@@ -1,7 +1,7 @@
 module hello_token::message {
     use std::vector::{Self};
 
-    use hello_token::utils;
+    use hello_token::utils::{Self};
 
     // Errors.
     const E_INVALID_RECIPIENT: u64 = 0;

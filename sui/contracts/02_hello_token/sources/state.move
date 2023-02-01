@@ -1,13 +1,14 @@
 module hello_token::state {
     use sui::object::{Self, UID, ID};
     use sui::tx_context::{TxContext};
-    use wormhole::emitter::EmitterCapability;
+    use wormhole::emitter::{EmitterCapability};
 
     use hello_token::foreign_contracts::{Self};
     use hello_token::relayer_fee::{Self, RelayerFeeParameters};
 
     friend hello_token::owner;
 
+    // Errors.
     const E_INVALID_CHAIN: u64 = 0;
     const E_INVALID_CONTRACT_ADDRESS: u64 = 1;
 
