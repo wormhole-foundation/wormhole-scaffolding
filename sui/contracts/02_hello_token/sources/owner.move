@@ -163,7 +163,7 @@ module hello_token::init_tests {
     }
 
     #[test]
-    public fun register_new_foreign_contract() {
+    public fun register_foreign_contract() {
         let (creator, _) = people();
         let (my_scenario, _) = set_up(creator);
         let scenario = &mut my_scenario;
@@ -214,6 +214,145 @@ module hello_token::init_tests {
         // Bye bye.
         test_scenario::return_shared<state::State>(state);
         test_scenario::return_to_sender<OwnerCap>(scenario, owner_cap);
+
+        // Done.
+        test_scenario::end(my_scenario);
+    }
+
+    #[test]
+    public fun replace_foreign_contract() {
+        let (creator, _) = people();
+        let (my_scenario, _) = set_up(creator);
+        let scenario = &mut my_scenario;
+
+        // Create mock chain ID and address pair
+        let target_chain: u16 = 69;
+        let target_contract =
+            x"000000000000000000000000beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe";
+        let target_contract2 =
+            x"0000000000000000000000000000000000000000000000000000000000000069";
+
+        // Fetch the HelloToken state object and owner capability
+        let state = test_scenario::take_shared<state::State>(scenario);
+        let owner_cap =
+                test_scenario::take_from_sender<OwnerCapability>(scenario);
+
+        // Register the emitter
+        hello_token::owner::register_foreign_contract(
+            &owner_cap,
+            &mut state,
+            target_chain,
+            target_contract,
+            test_scenario::ctx(scenario)
+        );
+
+        // Verify that the contract was registered correctly
+        {
+            let is_registered =
+                hello_token::state::contract_registered(&state, target_chain);
+            assert!(is_registered, 0);
+
+            let registered_contract =
+                hello_token::state::foreign_contract_address(
+                    &state,
+                    target_chain
+                );
+            assert!(*registered_contract == target_contract, 0);
+        };
+
+        // Proceed.
+        test_scenario::next_tx(scenario, creator);
+
+        // Register an emitter with the same chain ID
+        hello_token::owner::register_foreign_contract(
+            &owner_cap,
+            &mut state,
+            target_chain,
+            target_contract2,
+            test_scenario::ctx(scenario)
+        );
+
+        // Verify that the contract was registered correctly
+        {
+            let registered_contract =
+                hello_token::state::foreign_contract_address(
+                    &state,
+                    target_chain
+                );
+            assert!(*registered_contract == target_contract2, 0);
+        };
+
+        // Bye bye.
+        test_scenario::return_shared<state::State>(state);
+        test_scenario::return_to_sender<OwnerCapability>(scenario, owner_cap);
+
+        // Done.
+        test_scenario::end(my_scenario);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = hello_token::foreign_contracts::E_INVALID_CHAIN)]
+    public fun register_foreign_contract_chain_zero() {
+        let (creator, _) = people();
+        let (my_scenario, _) = set_up(creator);
+        let scenario = &mut my_scenario;
+
+        // Create mock chain ID and address pair
+        let target_chain: u16 = 0;
+        let target_contract =
+            x"000000000000000000000000beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe";
+
+        // Fetch the HelloToken state object and owner capability
+        let state = test_scenario::take_shared<state::State>(scenario);
+        let owner_cap =
+                test_scenario::take_from_sender<OwnerCapability>(scenario);
+
+        // Register the emitter
+        hello_token::owner::register_foreign_contract(
+            &owner_cap,
+            &mut state,
+            target_chain,
+            target_contract,
+            test_scenario::ctx(scenario)
+        );
+
+        // Bye bye.
+        test_scenario::return_shared<state::State>(state);
+        test_scenario::return_to_sender<OwnerCapability>(scenario, owner_cap);
+
+        // Done.
+        test_scenario::end(my_scenario);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = hello_token::foreign_contracts::E_INVALID_CONTRACT_ADDRESS)]
+    public fun register_foreign_contract_zero_address() {
+        let (creator, _) = people();
+        let (my_scenario, _) = set_up(creator);
+        let scenario = &mut my_scenario;
+
+        // Create mock chain ID and address pair
+        let target_chain: u16 = 69;
+        let target_contract =
+            x"0000000000000000000000000000000000000000000000000000000000000000";
+
+        // Fetch the HelloToken state object and owner capability
+        let state = test_scenario::take_shared<state::State>(scenario);
+        let owner_cap =
+                test_scenario::take_from_sender<OwnerCapability>(scenario);
+
+        // Register the emitter
+        hello_token::owner::register_foreign_contract(
+            &owner_cap,
+            &mut state,
+            target_chain,
+            target_contract,
+            test_scenario::ctx(scenario)
+        );
+
+        // Bye bye.
+        test_scenario::return_shared<state::State>(state);
+        test_scenario::return_to_sender<OwnerCapability>(scenario, owner_cap);
 
         // Done.
         test_scenario::end(my_scenario);
