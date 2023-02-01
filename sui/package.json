@@ -6,7 +6,7 @@
   },
   "dependencies": {
     "@certusone/wormhole-sdk": "^0.9.9",
-    "@mysten/sui.js": "^0.24.0",
+    "@mysten/sui.js": "^0.25.0",
     "ethers": "^5.7.2",
     "ts-node": "^10.9.1",
     "yaml": "^2.2.1",
