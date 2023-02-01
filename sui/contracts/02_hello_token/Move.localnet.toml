@@ -1,0 +1,19 @@
+[package]
+name = "HelloToken"
+version = "0.1.0"
+
+[dependencies.Sui]
+git = "https://github.com/MystenLabs/sui.git"
+subdir = "crates/sui-framework"
+rev = "2d709054a08d904b9229a2472af679f210af3827"
+
+[dependencies.Wormhole]
+local = "../../dependencies/wormhole"
+
+[dependencies.TokenBridge]
+local = "../../dependencies/token_bridge"
+
+[addresses]
+wormhole = "0x08b2feda11e87a94ba96ae86b910828eeeedae04"
+token_bridge = "0x7603d64ea2f804a93eb787bb16b8ca3bbcb2f80c"
+hello_token = "0x0"
