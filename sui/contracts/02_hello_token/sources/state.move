@@ -4,12 +4,14 @@ module hello_token::state {
     use wormhole::emitter::EmitterCapability;
 
     use hello_token::foreign_contracts::{Self};
+    use hello_token::relayer_fee::{Self, RelayerFeeParameters};
 
     friend hello_token::owner;
 
     const E_INVALID_CHAIN: u64 = 0;
     const E_INVALID_CONTRACT_ADDRESS: u64 = 1;
 
+    // TODO: Do we keep this as a constant? Or do we read this from wormhole?
     const CHAIN_ID_SUI: u16 = 21;
 
     struct State has key, store {
@@ -19,19 +21,20 @@ module hello_token::state {
         emitter_cap: EmitterCapability,
 
         /// Fee to pay relayer
-        relayer_fee: u64,
+        relayer_fee: RelayerFeeParameters,
 
     }
 
     public(friend) fun new(
         emitter_cap: EmitterCapability,
         relayer_fee: u64,
+        relayer_fee_precision: u64,
         ctx: &mut TxContext
     ): State {
         let state = State {
             id: object::new(ctx),
             emitter_cap,
-            relayer_fee
+            relayer_fee: relayer_fee::new(relayer_fee, relayer_fee_precision),
         };
         
         // Make new foreign contracts map.
@@ -56,9 +59,10 @@ module hello_token::state {
 
     public(friend) fun update_relayer_fee(
         state: &mut State,
-        relayer_fee: u64
+        relayer_fee: u64,
+        relayer_fee_precision: u64
     ) {
-        state.relayer_fee = relayer_fee;
+        relayer_fee::update(&mut state.relayer_fee, relayer_fee, relayer_fee_precision);
     }
 
     public fun emitter_cap(state: &State): &EmitterCapability {
