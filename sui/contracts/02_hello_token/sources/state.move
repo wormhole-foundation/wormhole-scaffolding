@@ -96,4 +96,16 @@ module hello_token::state {
     ): &vector<u8> {
         foreign_contracts::contract_address(&state.id, chain)
     }
+
+    public fun fee_value(
+        state: &State
+    ): u64 {
+        relayer_fee::value(&state.relayer_fee)
+    }
+
+    public fun fee_precision(
+        state: &State
+    ): u64 {
+        relayer_fee::precision(&state.relayer_fee)
+    }
 }

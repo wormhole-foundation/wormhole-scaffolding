@@ -358,6 +358,64 @@ module hello_token::init_tests {
         test_scenario::end(my_scenario);
     }
 
+    #[test]
+    public fun update_relayer_fee() {
+        let (creator, _) = people();
+        let (my_scenario, _) = set_up(creator);
+        let scenario = &mut my_scenario;
+
+        // Set the test fee and fee precision variables
+        let test_fee: u64 = 500000; // 5%
+        let test_precision: u64 = 10000000;
+        assert!(
+            test_precision != TEST_RELAYER_FEE_PRECISION &&
+            test_fee != TEST_RELAYER_FEE,
+            0
+        );
+
+        // Fetch the HelloToken state object and owner capability
+        let state = test_scenario::take_shared<state::State>(scenario);
+        let owner_cap =
+                test_scenario::take_from_sender<OwnerCap>(scenario);
+
+        // Verify the initial state
+        {
+            let fee_value = hello_token::state::fee_value(&state);
+            let fee_precision = hello_token::state::fee_precision(&state);
+            assert!(
+                fee_precision == TEST_RELAYER_FEE_PRECISION &&
+                fee_value == TEST_RELAYER_FEE,
+                0
+            );
+        };
+
+        // Update the relayer fee
+        hello_token::owner::update_relayer_fee(
+            &owner_cap,
+            &mut state,
+            test_fee,
+            test_precision
+        );
+
+        // Verify that the state was updated correctly
+        {
+            let fee_value = hello_token::state::fee_value(&state);
+            let fee_precision = hello_token::state::fee_precision(&state);
+            assert!(
+                fee_precision == test_precision &&
+                fee_value == test_fee,
+                0
+            );
+        };
+
+        // Bye bye.
+        test_scenario::return_shared<state::State>(state);
+        test_scenario::return_to_sender<OwnerCap>(scenario, owner_cap);
+
+        // Done.
+        test_scenario::end(my_scenario);
+    }
+
     // utilities
     fun people(): (address, address) { (@0xBEEF, @0x1337) }
 
