@@ -9,7 +9,7 @@ import { execSync } from "child_process";
 import yargs from "yargs";
 import YAML from "yaml";
 import * as fs from "fs";
-import { getCreatedFromResponse } from "../src";
+import { getCreatedFromTransaction } from "../src";
 
 const VERSION = "0.1.0";
 
@@ -73,7 +73,7 @@ async function main() {
     gasBudget: 10000,
   });
 
-  const createdObjects = await getCreatedFromResponse(publishTx);
+  const createdObjects = await getCreatedFromTransaction(publishTx);
 
   let contractAddress = undefined;
   const createdInfos: CreatedInfo[] = [];

@@ -20,7 +20,7 @@ export async function getObjectFields(
   return Promise.reject("not shared object");
 }
 
-export async function getCreatedFromResponse(
+export async function getCreatedFromTransaction(
   txResponse: SuiExecuteTransactionResponse
 ) {
   if ("EffectsCert" in txResponse) {
@@ -31,6 +31,34 @@ export async function getCreatedFromResponse(
   }
 
   return Promise.reject("no created objects in transaction response");
+}
+
+export async function getEventsFromTransaction(
+  provider: JsonRpcProvider,
+  txResponse: SuiExecuteTransactionResponse
+) {
+  if ("EffectsCert" in txResponse && "certificate" in txResponse.EffectsCert) {
+    return provider
+      .getEvents(
+        {
+          Transaction: txResponse.EffectsCert.certificate.transactionDigest,
+        },
+        null,
+        null
+      )
+      .then((result) => result.data);
+  }
+
+  return Promise.reject("no effects found in transaction response");
+}
+
+export async function getMoveEventsFromTransaction(
+  provider: JsonRpcProvider,
+  txResponse: SuiExecuteTransactionResponse
+) {
+  return getEventsFromTransaction(provider, txResponse).then((events) =>
+    events.filter((evt) => "moveEvent" in evt.event)
+  );
 }
 
 export interface DeployedWrappedCoin {
