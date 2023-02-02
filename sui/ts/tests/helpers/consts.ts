@@ -47,10 +47,6 @@ export const WRAPPED_WETH_ID = process.env.TESTING_WRAPPED_WETH_ID!;
 // testing
 export const FUZZ_TEST_ITERATIONS = 64;
 
-// scaffold apps
-export const HELLO_WORLD_ID = process.env.TESTING_HELLO_WORLD_ID!;
-export const HELLO_TOKEN_ID = process.env.TESTING_HELLO_TOKEN_ID!;
-
 // mints
 // export const MINT_9_PRIVATE_KEY = Uint8Array.from([
 //   98, 139, 243, 120, 236, 152, 36, 219, 202, 42, 72, 178, 107, 155, 181, 134,

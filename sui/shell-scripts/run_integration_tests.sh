@@ -31,8 +31,17 @@ yarn deploy contracts/example_coins \
     -c ts/tests/sui_config/client.yaml \
     -m contracts/example_coins/Move.localnet.toml
 
-## run tests here
-npx ts-mocha -t 1000000 $TEST_DIR/*.ts
+## run environment check here
+npx ts-mocha -t 1000000 $TEST_DIR/00_environment.ts
+
+## deploy scaffolding contracts
+echo "deploying scaffolding examples"
+yarn deploy contracts/02_hello_token \
+    -c ts/tests/sui_config/client.yaml \
+    -m contracts/02_hello_token/Move.localnet.toml
+
+## run contract tests here
+npx ts-mocha -t 1000000 $TEST_DIR/0[1-9]*.ts
 
 # nuke
 pkill sui
