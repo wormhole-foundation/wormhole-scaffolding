@@ -56,9 +56,16 @@ export async function getMoveEventsFromTransaction(
   provider: JsonRpcProvider,
   txResponse: SuiExecuteTransactionResponse
 ) {
-  return getEventsFromTransaction(provider, txResponse).then((events) =>
-    events.filter((evt) => "moveEvent" in evt.event)
+  const events = await getEventsFromTransaction(provider, txResponse).then(
+    (events) => events.map((evt) => evt.event)
   );
+  const moveEvents = [];
+  for (const event of events) {
+    if ("moveEvent" in event) {
+      moveEvents.push(event.moveEvent);
+    }
+  }
+  return moveEvents;
 }
 
 export interface DeployedWrappedCoin {

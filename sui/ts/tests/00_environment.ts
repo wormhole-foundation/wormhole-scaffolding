@@ -39,7 +39,8 @@ import {
 } from "@mysten/sui.js";
 import {
   buildAndDeployWrappedCoin,
-  getCreatedFromResponse,
+  getCreatedFromTransaction,
+  getWormholeMessagesFromTransaction,
   getObjectFields,
 } from "../src";
 
@@ -231,7 +232,7 @@ describe(" 0: Wormhole", () => {
       }
 
       // Transaction is successful, so check Wormhole state.
-      const createdObjects = await getCreatedFromResponse(tx!);
+      const createdObjects = await getCreatedFromTransaction(tx!);
       expect(createdObjects).has.length(1);
 
       const created = createdObjects[0];
@@ -294,7 +295,7 @@ describe(" 0: Wormhole", () => {
       expect(getNewEmitterTx).is.not.null;
 
       // Transaction is successful, so check emitter ID.
-      const createdObjects = await getCreatedFromResponse(getNewEmitterTx!);
+      const createdObjects = await getCreatedFromTransaction(getNewEmitterTx!);
       expect(createdObjects).has.length(1);
 
       const created = createdObjects[0];
@@ -331,7 +332,7 @@ describe(" 0: Wormhole", () => {
       }
 
       // Transaction is successful, so check Token Bridge state.
-      const createdObjects = await getCreatedFromResponse(initTx!);
+      const createdObjects = await getCreatedFromTransaction(initTx!);
       expect(createdObjects).has.length(1);
 
       const created = createdObjects[0];
@@ -445,6 +446,18 @@ describe(" 0: Wormhole", () => {
           });
         expect(attestTokensTx).is.not.null;
 
+        // Check event.
+        const wormholeMessages = await getWormholeMessagesFromTransaction(
+          provider,
+          WORMHOLE_ID,
+          attestTokensTx!
+        );
+        expect(wormholeMessages).has.length(1);
+
+        const message = wormholeMessages[0];
+        expect(message.emitter).equals(TOKEN_BRIDGE_ID);
+        expect(message.sequence).equals("0");
+
         // Check state.
         const tokenBridgeState = await getObjectFields(
           provider,
@@ -490,6 +503,18 @@ describe(" 0: Wormhole", () => {
             return null;
           });
         expect(attestTokensTx).is.not.null;
+
+        // Check event.
+        const wormholeMessages = await getWormholeMessagesFromTransaction(
+          provider,
+          WORMHOLE_ID,
+          attestTokensTx!
+        );
+        expect(wormholeMessages).has.length(1);
+
+        const message = wormholeMessages[0];
+        expect(message.emitter).equals(TOKEN_BRIDGE_ID);
+        expect(message.sequence).equals("1");
 
         // Check state.
         const tokenBridgeState = await getObjectFields(
@@ -538,7 +563,7 @@ describe(" 0: Wormhole", () => {
           gasBudget: 1000,
         })
         .then(async (tx) => {
-          const created = await getCreatedFromResponse(tx).then(
+          const created = await getCreatedFromTransaction(tx).then(
             (objects) => objects[0]
           );
           return "reference" in created ? created.reference.objectId : null;
@@ -577,6 +602,18 @@ describe(" 0: Wormhole", () => {
         const info = await provider.getObject(splitCoin!);
         expect(info.status).equals("Deleted");
       }
+
+      // Check event.
+      const wormholeMessages = await getWormholeMessagesFromTransaction(
+        provider,
+        WORMHOLE_ID,
+        transferTokensTx!
+      );
+      expect(wormholeMessages).has.length(1);
+
+      const message = wormholeMessages[0];
+      expect(message.emitter).equals(TOKEN_BRIDGE_ID);
+      expect(message.sequence).equals("2");
 
       // Check state.
       const tokenBridgeState = await getObjectFields(
