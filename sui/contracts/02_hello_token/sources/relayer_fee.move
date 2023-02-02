@@ -8,45 +8,45 @@ module hello_token::relayer_fee {
     // Errors.
     const E_INVALID_RELAYER_FEE: u64 = 0;
 
-    struct RelayerFeeParameters has store, drop {
-        fee: u64,
+    struct RelayerFee has store, drop {
+        value: u64,
         precision: u64,
     }
 
     public(friend) fun new(
         fee: u64,
         precision: u64
-    ): RelayerFeeParameters {
+    ): RelayerFee {
         assert!(is_valid(fee, precision), E_INVALID_RELAYER_FEE);
-        RelayerFeeParameters {
-            fee,
+        RelayerFee {
+            value: fee,
             precision,
         }
     }
 
     public(friend) fun update(
-        params: &mut RelayerFeeParameters,
+        self: &mut RelayerFee,
         fee: u64,
         precision: u64
     ) {
         assert!(is_valid(fee, precision), E_INVALID_RELAYER_FEE);
-        params.fee = fee;
-        params.precision = precision;
+        self.value = fee;
+        self.precision = precision;
     }
 
-    public fun value(params: &RelayerFeeParameters): u64 {
-        params.fee
+    public fun value(self: &RelayerFee): u64 {
+        self.value
     }
 
-    public fun precision(params: &RelayerFeeParameters): u64 {
-        params.precision
+    public fun precision(self: &RelayerFee): u64 {
+        self.precision
     }
 
     public fun compute(
-        params: &RelayerFeeParameters,
+        self: &RelayerFee,
         amount: u64
     ): u64 {
-        (amount * params.fee) / params.precision
+        (amount * self.value) / self.precision
     }
 
     fun is_valid(fee: u64, precision: u64): bool {

@@ -4,7 +4,7 @@ module hello_token::state {
     use wormhole::emitter::{EmitterCapability as EmitterCap};
 
     use hello_token::foreign_contracts::{Self};
-    use hello_token::relayer_fee::{Self, RelayerFeeParameters};
+    use hello_token::relayer_fee::{Self, RelayerFee};
 
     friend hello_token::owner;
 
@@ -19,7 +19,7 @@ module hello_token::state {
         emitter_cap: EmitterCap,
 
         /// Fee to pay relayer
-        relayer_fee: RelayerFeeParameters,
+        relayer_fee: RelayerFee,
     }
 
     public(friend) fun new(
