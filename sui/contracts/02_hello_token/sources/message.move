@@ -59,20 +59,15 @@ module hello_token::message_tests {
     #[test]
     #[expected_failure(abort_code = 0, location=message)]
     public fun cannot_new_non_32_byte_recipient() {
-        let recipient = x"deadbeef";
-
-        let msg = message::new(recipient);
-        assert!(*message::recipient(&msg) == recipient, 0);
+        message::new(x"deadbeef");
     }
 
     #[test]
     #[expected_failure(abort_code = 0, location=message)]
     public fun cannot_new_zero_address() {
-        let recipient =
-            x"0000000000000000000000000000000000000000000000000000000000000000";
-
-        let msg = message::new(recipient);
-        assert!(*message::recipient(&msg) == recipient, 0);
+        message::new(
+            x"0000000000000000000000000000000000000000000000000000000000000000"
+        );
     }
 
     #[test]
@@ -100,15 +95,15 @@ module hello_token::message_tests {
 
     #[test]
     #[expected_failure(abort_code = 1, location=message)]
-    public fun cannot_decode_invalid_payload() {
-        let recipient =
-            x"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
-
-        let serialized = message::encode(&message::new(recipient));
-        *std::vector::borrow_mut(&mut serialized, 0) = 2; // payload ID == 2
-        assert!(
-            *message::recipient(&message::decode(serialized)) == recipient,
-            0
+    public fun cannot_decode_invalid_payload_id() {
+        message::decode(
+            x"02deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
         );
+    }
+
+    #[test]
+    #[expected_failure(abort_code = 0, location=message)]
+    public fun cannot_decode_invalid_recipient() {
+        message::decode(x"01deadbeef");
     }
 }
