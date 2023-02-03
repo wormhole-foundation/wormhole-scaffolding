@@ -42,13 +42,13 @@ module example_coins::coin_8_tests {
         let my_scenario = test_scenario::begin(@0x0);
         let scenario = &mut my_scenario;
         let creator = @0xDEADBEEF;
-        
+
         // Proceed.
         test_scenario::next_tx(scenario, creator);
 
         // Init.
         coin_8::init_test_only(test_scenario::ctx(scenario));
-        
+
         // Proceed.
         test_scenario::next_tx(scenario, creator);
 

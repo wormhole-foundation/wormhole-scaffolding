@@ -22,7 +22,11 @@ local = "../../dependencies/wormhole"
 [dev-dependencies.TokenBridge]
 local = "../../dependencies/token_bridge"
 
+[dev-dependencies.ExampleCoins]
+local = "../example_coins"
+
 [dev-addresses]
 wormhole = "0x69"
 token_bridge = "0x420"
 hello_token = "0x0"
+example_coins = "0x89"

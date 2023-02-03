@@ -8,4 +8,7 @@ subdir = "crates/sui-framework"
 rev = "2d709054a08d904b9229a2472af679f210af3827"
 
 [addresses]
+example_coins = "_"
+
+[dev-addresses]
 example_coins = "0x0"
