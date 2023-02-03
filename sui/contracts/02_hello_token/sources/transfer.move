@@ -64,6 +64,7 @@ module hello_token::transfer {
 
 #[test_only]
 module hello_token::transfer_tests {
+    use sui::sui::SUI;
     use sui::test_scenario::{Self, Scenario, TransactionEffects};
     use sui::coin::{Self, TreasuryCap};
 
@@ -74,6 +75,7 @@ module hello_token::transfer_tests {
     use example_coins::coin_8::{Self};
 
     const TEST_TOKEN_8_SUPPLY: u64 = 42069;
+    const TEST_SUI_SUPPLY: u64 = 69420;
     const TEST_RELAYER_FEE: u64 = 42069; // 4.2069%
     const TEST_RELAYER_FEE_PRECISION: u64 = 1000000;
 
@@ -108,11 +110,29 @@ module hello_token::transfer_tests {
         // Proceed.
         test_scenario::next_tx(scenario, creator);
 
-        // Destory for testing
-        coin::destroy_for_testing(test_coin);
+        // Mint SUI tokens.
+        let sui_coin = sui::coin::mint_for_testing<SUI>(
+            TEST_SUI_SUPPLY,
+            test_scenario::ctx(scenario)
+        );
+
+        // Balance check the new coin object
+        assert!(coin::value(&sui_coin) == TEST_SUI_SUPPLY, 0);
 
         // Fetch the coin metadata
-        // let coin_meta = take_shared<CoinMetadata<coin_8::COIN_8>>(&test);
+        /*let test_coin_meta =
+            test_scenario::take_shared<coin::CoinMetadata<coin_8::COIN_8>>(
+                scenario
+            );
+
+        // DREW: Temporary delete until it's used
+        test_scenario::return_shared<coin::CoinMetadata<coin_8::COIN_8>>(
+            test_coin_meta
+        );*/
+
+        // DREW: Temporary destroy until it's used
+        coin::destroy_for_testing(test_coin);
+        coin::destroy_for_testing(sui_coin);
 
         // Done.
         test_scenario::end(my_scenario);
