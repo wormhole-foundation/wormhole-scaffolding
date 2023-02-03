@@ -22,24 +22,24 @@ module hello_token::message {
         }
     }
 
-    public fun recipient(message: &Message): &vector<u8> {
-        &message.recipient
+    public fun recipient(self: &Message): &vector<u8> {
+        &self.recipient
     }
 
-    public fun encode(message: &Message): vector<u8> {
+    public fun encode(self: &Message): vector<u8> {
         let serialized = vector::empty<u8>();
         vector::push_back(&mut serialized, MESSAGE_HELLO);
-        vector::append(&mut serialized, message.recipient);
+        vector::append(&mut serialized, self.recipient);
 
         serialized
     }
 
-    public fun decode(serialized: vector<u8>): Message {
+    public fun decode(buf: vector<u8>): Message {
         assert!(
-            vector::remove(&mut serialized, 0) == MESSAGE_HELLO,
+            vector::remove(&mut buf, 0) == MESSAGE_HELLO,
             E_INVALID_MESSAGE
         );
-        new(serialized)
+        new(buf)
     }
 }
 
