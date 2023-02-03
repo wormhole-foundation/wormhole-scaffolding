@@ -45,7 +45,6 @@ module hello_token::state {
         state: &mut State,
         chain: u16,
         contract_address: vector<u8>,
-        ctx: &mut TxContext
     ) {
         if (contract_registered(state, chain)) {
             foreign_contracts::modify(&mut state.id, chain, contract_address);
@@ -54,7 +53,6 @@ module hello_token::state {
                 &mut state.id,
                 chain,
                 contract_address,
-                ctx
             );
         }
     }

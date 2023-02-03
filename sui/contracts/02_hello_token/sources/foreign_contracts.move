@@ -1,7 +1,7 @@
 module hello_token::foreign_contracts {
     use sui::dynamic_object_field::{Self};
-    use sui::object::{Self, UID};
-    use sui::object_table::{Self, ObjectTable};
+    use sui::object::{UID};
+    use sui::table::{Self, Table};
     use sui::tx_context::{TxContext};
 
     use hello_token::utils::{Self};
@@ -15,22 +15,20 @@ module hello_token::foreign_contracts {
 
     const KEY: vector<u8> = b"foreign_contracts";
 
-    struct ForeignContract has key, store {
-        id: UID,
-
+    struct ForeignContract has store {
         /// Must be 32-bytes
         address: vector<u8>,
     }
 
     public(friend) fun new(state_uid: &mut UID, ctx: &mut TxContext) {
         // Create registered contract table.
-        let table = object_table::new<u16, ForeignContract>(ctx);
+        let table = table::new<u16, ForeignContract>(ctx);
 
         dynamic_object_field::add(state_uid, KEY, table);
     }
 
     public(friend) fun has(state_uid: &UID, chain: u16): bool {
-        object_table::contains(borrow(state_uid), chain)
+        table::contains<u16, ForeignContract>(borrow(state_uid), chain)
     }
 
     public(friend) fun contract_address(
@@ -38,7 +36,7 @@ module hello_token::foreign_contracts {
         chain: u16
     ): &vector<u8> {
         let foreign_contract =
-            object_table::borrow<u16, ForeignContract>(
+            table::borrow<u16, ForeignContract>(
                 borrow(state_uid),
                 chain
             );
@@ -50,7 +48,6 @@ module hello_token::foreign_contracts {
         state_uid: &mut UID,
         chain: u16,
         contract_address: vector<u8>,
-        ctx: &mut TxContext
     ) {
         assert!(chain != 0, E_INVALID_CHAIN);
         assert!(
@@ -59,10 +56,9 @@ module hello_token::foreign_contracts {
         );
 
         let foreign_contract = ForeignContract {
-            id: object::new(ctx),
             address: contract_address
         };
-        object_table::add(borrow_mut(state_uid), chain, foreign_contract);
+        table::add(borrow_mut(state_uid), chain, foreign_contract);
     }
 
     public(friend) fun modify(
@@ -76,7 +72,7 @@ module hello_token::foreign_contracts {
         );
 
         let foreign_contract =
-            object_table::borrow_mut<u16, ForeignContract>(
+            table::borrow_mut<u16, ForeignContract>(
                 borrow_mut(state_uid),
                 chain
             );
@@ -88,13 +84,13 @@ module hello_token::foreign_contracts {
     //     object::borrow_id(foreign_contract)
     // }
     
-    fun borrow(state_uid: &UID): &ObjectTable<u16, ForeignContract> {
+    fun borrow(state_uid: &UID): &Table<u16, ForeignContract> {
         dynamic_object_field::borrow(state_uid, KEY)
     }
 
     fun borrow_mut(
         state_uid: &mut UID
-    ): &mut ObjectTable<u16, ForeignContract> {
+    ): &mut Table<u16, ForeignContract> {
         dynamic_object_field::borrow_mut(state_uid, KEY)
     }
 }

@@ -61,9 +61,8 @@ module hello_token::owner {
         t_state: &mut State,
         chain: u16,
         contract_address: vector<u8>,
-        ctx: &mut TxContext
     ) {
-        state::register_foreign_contract(t_state, chain, contract_address, ctx)
+        state::register_foreign_contract(t_state, chain, contract_address)
     }
 
     /// Only owner. This method updates the relayer fee for this chain.
@@ -194,7 +193,6 @@ module hello_token::init_tests {
             &mut state,
             target_chain,
             target_contract,
-            test_scenario::ctx(scenario)
         );
 
         // Verify that the contract was registered correctly
@@ -243,7 +241,6 @@ module hello_token::init_tests {
             &mut state,
             target_chain,
             target_contract,
-            test_scenario::ctx(scenario)
         );
 
         // Verify that the contract was registered correctly
@@ -269,7 +266,6 @@ module hello_token::init_tests {
             &mut state,
             target_chain,
             target_contract2,
-            test_scenario::ctx(scenario)
         );
 
         // Verify that the contract was registered correctly
@@ -313,7 +309,6 @@ module hello_token::init_tests {
             &mut state,
             target_chain,
             target_contract,
-            test_scenario::ctx(scenario)
         );
 
         // Bye bye.
@@ -347,7 +342,6 @@ module hello_token::init_tests {
             &mut state,
             target_chain,
             target_contract,
-            test_scenario::ctx(scenario)
         );
 
         // Bye bye.
