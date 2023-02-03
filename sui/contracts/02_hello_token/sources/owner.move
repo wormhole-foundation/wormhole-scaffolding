@@ -4,6 +4,7 @@ module hello_token::owner {
     use sui::tx_context::{Self, TxContext};
     use wormhole::emitter::{EmitterCapability as EmitterCap};
 
+    use hello_token::bytes32::{Self};
     use hello_token::state::{Self, State};
 
     /// The one of a kind - created in the module initializer.
@@ -62,7 +63,11 @@ module hello_token::owner {
         chain: u16,
         contract_address: vector<u8>,
     ) {
-        state::register_foreign_contract(t_state, chain, contract_address)
+        state::register_foreign_contract(
+            t_state,
+            chain,
+            bytes32::new(contract_address)
+        )
     }
 
     /// Only owner. This method updates the relayer fee for this chain.
@@ -88,6 +93,7 @@ module hello_token::init_tests {
     use sui::object::{Self};
     use sui::test_scenario::{Self, Scenario, TransactionEffects};
 
+    use hello_token::bytes32::{Self};
     use hello_token::state::{Self};
     use hello_token::owner::{Self, OwnerCap, StateCap};
     use wormhole::emitter::{EmitterCapability as EmitterCap};
@@ -206,7 +212,7 @@ module hello_token::init_tests {
                     &state,
                     target_chain
                 );
-            assert!(*registered_contract == target_contract, 0);
+            assert!(bytes32::data(registered_contract) == target_contract, 0);
         };
 
         // Bye bye.
@@ -254,7 +260,7 @@ module hello_token::init_tests {
                     &state,
                     target_chain
                 );
-            assert!(*registered_contract == target_contract, 0);
+            assert!(bytes32::data(registered_contract) == target_contract, 0);
         };
 
         // Proceed.
@@ -275,7 +281,7 @@ module hello_token::init_tests {
                     &state,
                     target_chain
                 );
-            assert!(*registered_contract == target_contract2, 0);
+            assert!(bytes32::data(registered_contract) == target_contract2, 0);
         };
 
         // Bye bye.

@@ -7,6 +7,7 @@ module hello_token::transfer {
     use wormhole::myu16::{Self as wormhole_u16};
     use wormhole::state::{State as WormholeState};
 
+    use hello_token::bytes32::{Self};
     use hello_token::message::{Self};
     use hello_token::state::{Self, State};
 
@@ -47,7 +48,7 @@ module hello_token::transfer {
             metadata,
             wormhole_fee,
             wormhole_u16::from_u64((target_chain as u64)),
-            make_external(foreign_contract),
+            make_external(&bytes32::data(foreign_contract)),
             0, // relayer_fee, which will be taken out in a future release
             (batch_id as u64),
             message::encode(&msg)

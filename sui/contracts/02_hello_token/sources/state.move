@@ -3,6 +3,7 @@ module hello_token::state {
     use sui::tx_context::{TxContext};
     use wormhole::emitter::{EmitterCapability as EmitterCap};
 
+    use hello_token::bytes32::{Bytes32};
     use hello_token::foreign_contracts::{Self};
     use hello_token::relayer_fee::{Self, RelayerFee};
 
@@ -44,7 +45,7 @@ module hello_token::state {
     public(friend) fun register_foreign_contract(
         state: &mut State,
         chain: u16,
-        contract_address: vector<u8>,
+        contract_address: Bytes32,
     ) {
         if (contract_registered(state, chain)) {
             foreign_contracts::modify(&mut state.id, chain, contract_address);
@@ -91,7 +92,7 @@ module hello_token::state {
     public fun foreign_contract_address(
         state: &State,
         chain: u16
-    ): &vector<u8> {
+    ): &Bytes32 {
         foreign_contracts::contract_address(&state.id, chain)
     }
 

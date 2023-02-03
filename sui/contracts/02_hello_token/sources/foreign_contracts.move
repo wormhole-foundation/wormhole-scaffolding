@@ -4,7 +4,7 @@ module hello_token::foreign_contracts {
     use sui::table::{Self, Table};
     use sui::tx_context::{TxContext};
 
-    use hello_token::utils::{Self};
+    use hello_token::bytes32::{Self, Bytes32};
 
     // State will be warehousing the foreign contracts dynamic table
     friend hello_token::state;
@@ -17,7 +17,7 @@ module hello_token::foreign_contracts {
 
     struct ForeignContract has store {
         /// Must be 32-bytes
-        address: vector<u8>,
+        address: Bytes32,
     }
 
     public(friend) fun new(state_uid: &mut UID, ctx: &mut TxContext) {
@@ -34,7 +34,7 @@ module hello_token::foreign_contracts {
     public(friend) fun contract_address(
         state_uid: &UID,
         chain: u16
-    ): &vector<u8> {
+    ): &Bytes32 {
         let foreign_contract =
             table::borrow<u16, ForeignContract>(
                 borrow(state_uid),
@@ -47,11 +47,11 @@ module hello_token::foreign_contracts {
     public(friend) fun add(
         state_uid: &mut UID,
         chain: u16,
-        contract_address: vector<u8>,
+        contract_address: Bytes32,
     ) {
         assert!(chain != 0, E_INVALID_CHAIN);
         assert!(
-            utils::is_nonzero_bytes32(&contract_address),
+            bytes32::is_nonzero(&contract_address),
             E_INVALID_CONTRACT_ADDRESS
         );
 
@@ -64,10 +64,10 @@ module hello_token::foreign_contracts {
     public(friend) fun modify(
         state_uid: &mut UID,
         chain: u16,
-        contract_address: vector<u8>
+        contract_address: Bytes32
     ) {
         assert!(
-            utils::is_nonzero_bytes32(&contract_address),
+            bytes32::is_nonzero(&contract_address),
             E_INVALID_CONTRACT_ADDRESS
         );
 
