@@ -44,9 +44,8 @@ import {
   getObjectFields,
 } from "../src";
 
-const HELLO_TOKEN_ID = "0x8f64875505ac36acef5ebe37722414d699b9ef3c";
-const HELLO_TOKEN_OWNER_CAP_ID = "0x46eaa1793dbd68ea45909149ac4b283422584604";
-const HELLO_TOKEN_STATE_CAP_ID = "0x06e881c32292cbca9807876d335b029b9f09c37e";
+const HELLO_TOKEN_ID = "0x39d67de4e26c7d66feceab6b143d81507278c1bf";
+const HELLO_TOKEN_OWNER_CAP_ID = "0x68843a6116289396258d1183e4a4f4d71aa1b9fd";
 
 describe(" 2: Hello Token", () => {
   const provider = new JsonRpcProvider("http://localhost:9000", {
@@ -124,7 +123,6 @@ describe(" 2: Hello Token", () => {
             typeArguments: [],
             arguments: [
               HELLO_TOKEN_OWNER_CAP_ID,
-              HELLO_TOKEN_STATE_CAP_ID,
               emitterCapId,
               relayerFee,
               relayerFeePrecision,
@@ -153,7 +151,6 @@ describe(" 2: Hello Token", () => {
             typeArguments: [],
             arguments: [
               HELLO_TOKEN_OWNER_CAP_ID,
-              HELLO_TOKEN_STATE_CAP_ID,
               emitterCapId,
               relayerFee,
               relayerFeePrecision,
@@ -195,7 +192,6 @@ describe(" 2: Hello Token", () => {
             typeArguments: [],
             arguments: [
               HELLO_TOKEN_OWNER_CAP_ID,
-              HELLO_TOKEN_STATE_CAP_ID,
               emitterCapId,
               relayerFee,
               relayerFeePrecision,
@@ -206,9 +202,7 @@ describe(" 2: Hello Token", () => {
             expect(
               reason
                 .toString()
-                .includes(
-                  `Object deleted at reference (${HELLO_TOKEN_STATE_CAP_ID}`
-                )
+                .includes(`Object deleted at reference (${emitterCapId}`)
             ).is.true;
             return null;
           });
@@ -218,7 +212,7 @@ describe(" 2: Hello Token", () => {
   });
 
   describe("Register Foreign Contract", () => {
-    const foreignChain = 69;
+    const foreignChain = 2;
     const foreignContractAddress = Buffer.alloc(32, "deadbeef");
 
     describe("Expect Failure", () => {
@@ -275,6 +269,44 @@ describe(" 2: Hello Token", () => {
             return null;
           });
         expect(registerTx).is.not.null;
+
+        // TODO: check state
+      });
+    });
+  });
+
+  describe("Send Tokens With Payload", () => {
+    const targetChain = 2;
+    const targetRecipient = Buffer.alloc(32, "deadbeef");
+
+    describe("Finally Send Tokens With Payload", () => {
+      it("transfer::send_tokens_with_payload", async () => {
+        expect(localVariables.stateId).is.not.undefined;
+        const stateId: string = localVariables.stateId;
+
+        // TODO
+
+        // // Call `owner::create_state` on HelloToken
+        // const registerTx = await creator
+        //   .executeMoveCall({
+        //     packageObjectId: HELLO_TOKEN_ID,
+        //     module: "owner",
+        //     function: "register_foreign_contract",
+        //     typeArguments: [],
+        //     arguments: [
+        //       HELLO_TOKEN_OWNER_CAP_ID,
+        //       stateId,
+        //       foreignChain,
+        //       Array.from(foreignContractAddress),
+        //     ],
+        //     gasBudget: 20000,
+        //   })
+        //   .catch((reason) => {
+        //     // should not happen
+        //     console.log(reason);
+        //     return null;
+        //   });
+        // expect(registerTx).is.not.null;
 
         // TODO: check state
       });

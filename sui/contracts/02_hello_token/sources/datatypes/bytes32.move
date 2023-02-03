@@ -192,7 +192,6 @@ module hello_token::bytes32_tests {
         let data =
             x"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
         let actual = bytes32::new(data);
-
         assert!(bytes32::is_nonzero(&actual), 0);
 
         let zeros = bytes32::default();
