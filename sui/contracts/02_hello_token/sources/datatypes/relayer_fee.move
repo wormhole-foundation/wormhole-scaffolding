@@ -1,10 +1,4 @@
 module hello_token::relayer_fee {
-    // `RelayerFeeParameters` is an element of `State`
-    friend hello_token::state;
-
-    #[test_only]
-    friend hello_token::relayer_fee_tests;
-
     // Errors.
     const E_INVALID_RELAYER_FEE: u64 = 0;
 
@@ -13,7 +7,7 @@ module hello_token::relayer_fee {
         precision: u64,
     }
 
-    public(friend) fun new(
+    public fun new(
         fee: u64,
         precision: u64
     ): RelayerFee {
@@ -24,7 +18,7 @@ module hello_token::relayer_fee {
         }
     }
 
-    public(friend) fun update(
+    public fun update(
         self: &mut RelayerFee,
         fee: u64,
         precision: u64

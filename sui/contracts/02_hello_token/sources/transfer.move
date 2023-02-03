@@ -36,7 +36,7 @@ module hello_token::transfer {
 
         // When we create the message, `target_recipient` cannot be the zero
         // address.
-        let msg = message::new(target_recipient);
+        let msg = message::from_bytes(target_recipient);
 
         // Finally transfer tokens via Token Bridge.
         transfer_tokens_with_payload(
