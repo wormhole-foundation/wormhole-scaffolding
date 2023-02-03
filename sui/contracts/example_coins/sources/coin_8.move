@@ -1,6 +1,6 @@
 module example_coins::coin_8 {
     use std::option::{Self};
-    use sui::coin::{Self};
+    use sui::coin::{Self, TreasuryCap, CoinMetadata};
     use sui::transfer::{Self};
     use sui::tx_context::{Self, TxContext};
 
@@ -12,7 +12,16 @@ module example_coins::coin_8 {
     /// Module initializer is called once on module publish. A treasury
     /// cap is sent to the publisher, who then controls minting and burning
     fun init(witness: COIN_8, ctx: &mut TxContext) {
-        let (treasury, metadata) = coin::create_currency(
+        let (treasury, metadata) = create_coin(witness, ctx);
+        transfer::freeze_object(metadata);
+        transfer::transfer(treasury, tx_context::sender(ctx))
+    }
+
+    fun create_coin(
+        witness: COIN_8,
+        ctx: &mut TxContext
+    ): (TreasuryCap<COIN_8>, CoinMetadata<COIN_8>) {
+        coin::create_currency(
             witness,
             8, // decimals
             b"COIN_8", // symbol
@@ -20,9 +29,14 @@ module example_coins::coin_8 {
             b"", // description
             option::none(), // icon_url
             ctx
-        );
-        transfer::freeze_object(metadata);
-        transfer::transfer(treasury, tx_context::sender(ctx))
+        )
+    }
+
+    #[test_only]
+    public fun create_coin_test_only(
+        ctx: &mut TxContext
+    ): (TreasuryCap<COIN_8>, CoinMetadata<COIN_8>) {
+        create_coin(COIN_8 {}, ctx)
     }
 
     #[test_only]

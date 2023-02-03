@@ -66,9 +66,14 @@ module hello_token::transfer {
 module hello_token::transfer_tests {
     use sui::sui::SUI;
     use sui::test_scenario::{Self, Scenario, TransactionEffects};
-    use sui::coin::{Self, TreasuryCap};
+    use sui::coin::{Self, Coin, CoinMetadata};
+    use sui::transfer::{Self as native_transfer};
+    use sui::tx_context::{TxContext};
 
     use hello_token::owner::{Self, OwnerCap};
+    use hello_token::transfer::{Self};
+    use hello_token::state::{State};
+
     use wormhole::emitter::{EmitterCapability as EmitterCap};
     use wormhole::state::{
         DeployerCapability as WormholeDeployerCap,
@@ -76,8 +81,11 @@ module hello_token::transfer_tests {
     };
     use token_bridge::bridge_state::{
         Self,
-        DeployerCapability as BridgeDeployerCap
+        DeployerCapability as BridgeDeployerCap,
+        BridgeState
     };
+
+    // example coins
     use example_coins::coin_8::{Self};
 
     const TEST_TOKEN_8_SUPPLY: u64 = 42069;
@@ -86,59 +94,49 @@ module hello_token::transfer_tests {
     const TEST_RELAYER_FEE_PRECISION: u64 = 1000000;
 
     #[test]
-    public fun send_tokens_with_payload() {
+    #[expected_failure(abort_code = 1, location=transfer)]
+    public fun cannot_send_tokens_with_payload_contract_not_registered() {
         let (creator, _) = people();
         let (my_scenario, _) = set_up(creator);
         let scenario = &mut my_scenario;
 
-        // Fetch the cap
-        let treasury_cap =
-            test_scenario::take_from_sender<TreasuryCap<coin_8::COIN_8>>(
-                scenario
-            );
-
-        // Mint tokens.
-        let test_coin = coin::mint(
-            &mut treasury_cap,
+        // Mint token 8 and fetch the metadata.
+        let (test_coin, test_metadata) = mint_coin_8(
             TEST_TOKEN_8_SUPPLY,
             test_scenario::ctx(scenario)
         );
-
-        // Balance check the new coin object
-        assert!(coin::value(&test_coin) == TEST_TOKEN_8_SUPPLY, 0);
-
-        // Bye bye.
-        test_scenario::return_to_sender<TreasuryCap<coin_8::COIN_8>>(
-            scenario,
-            treasury_cap
-        );
-
-        // Proceed.
         test_scenario::next_tx(scenario, creator);
 
-        // Mint SUI tokens.
-        let sui_coin = sui::coin::mint_for_testing<SUI>(
-            TEST_SUI_SUPPLY,
-            test_scenario::ctx(scenario)
+        // Mint SUI token.
+        let sui_coin = mint_sui(TEST_SUI_SUPPLY, test_scenario::ctx(scenario));
+        test_scenario::next_tx(scenario, creator);
+
+        // Fetch state objects.
+        let hello_token_state =
+            test_scenario::take_shared<State>(scenario);
+        let bridge_state =
+            test_scenario::take_shared<BridgeState>(scenario);
+        let wormhole_state =
+            test_scenario::take_shared<WormholeState>(scenario);
+
+        // Send a test transfer.
+        transfer::send_tokens_with_payload(
+            &hello_token_state,
+            &mut wormhole_state,
+            &mut bridge_state,
+            test_coin,
+            &test_metadata,
+            sui_coin,
+            69, // Unregistered chain ID.
+            0,
+            x"beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe" // Unregistered contract.
         );
 
-        // Balance check the new coin object
-        assert!(coin::value(&sui_coin) == TEST_SUI_SUPPLY, 0);
-
-        // Fetch the coin metadata
-        /*let test_coin_meta =
-            test_scenario::take_shared<coin::CoinMetadata<coin_8::COIN_8>>(
-                scenario
-            );
-
-        // DREW: Temporary delete until it's used
-        test_scenario::return_shared<coin::CoinMetadata<coin_8::COIN_8>>(
-            test_coin_meta
-        );*/
-
-        // DREW: Temporary destroy until it's used
-        coin::destroy_for_testing(test_coin);
-        coin::destroy_for_testing(sui_coin);
+        // Return the goods.
+        test_scenario::return_shared<State>(hello_token_state);
+        test_scenario::return_shared<BridgeState>(bridge_state);
+        test_scenario::return_shared<WormholeState>(wormhole_state);
+        native_transfer::transfer(test_metadata, @0x0);
 
         // Done.
         test_scenario::end(my_scenario);
@@ -153,13 +151,6 @@ module hello_token::transfer_tests {
 
         // Proceed.
         test_scenario::next_tx(scenario, creator);
-
-        // Initialize token 8
-        {
-            coin_8::init_test_only(test_scenario::ctx(scenario));
-
-            test_scenario::next_tx(scenario, creator);
-        };
 
         // Set up Wormhole contract.
         {
@@ -279,5 +270,40 @@ module hello_token::transfer_tests {
 
         let effects = test_scenario::next_tx(scenario, creator);
         (my_scenario, effects)
+    }
+
+    public fun mint_coin_8(
+        amount: u64,
+        ctx: &mut TxContext
+    ): (Coin<coin_8::COIN_8>, CoinMetadata<coin_8::COIN_8>) {
+        // Initialize token 8.
+        let (treasury_cap, metadata) = coin_8::create_coin_test_only(ctx);
+
+        // Mint tokens.
+        let test_coin = coin::mint(
+            &mut treasury_cap,
+            amount,
+            ctx
+        );
+
+        // Balance check the new coin object.
+        assert!(coin::value(&test_coin) == amount, 0);
+
+        // Bye bye.
+        native_transfer::transfer(treasury_cap, @0x0);
+
+        // Return.
+        (test_coin, metadata)
+    }
+
+    public fun mint_sui(amount: u64, ctx: &mut TxContext): Coin<SUI> {
+        // Mint SUI tokens.
+        let sui_coin = sui::coin::mint_for_testing<SUI>(
+            amount,
+            ctx
+        );
+        assert!(coin::value(&sui_coin) == amount, 0);
+
+        sui_coin
     }
 }
