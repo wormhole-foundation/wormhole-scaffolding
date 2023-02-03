@@ -70,7 +70,7 @@ module hello_token::owner {
             t_state,
             chain,
             bytes32::new(contract_address)
-        )
+        );
     }
 
     /// Only owner. This method updates the relayer fee for this chain.
