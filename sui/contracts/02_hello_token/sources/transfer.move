@@ -49,7 +49,7 @@ module hello_token::transfer {
             wormhole_fee,
             wormhole_u16::from_u64((target_chain as u64)),
             make_external(&bytes32::data(foreign_contract)),
-            0, // relayer_fee, which will be taken out in a future release
+            0, // relayer_fee, which will be taken out in abridge_state:: future release
             (batch_id as u64),
             message::encode(&msg)
         );
@@ -68,10 +68,16 @@ module hello_token::transfer_tests {
     use sui::test_scenario::{Self, Scenario, TransactionEffects};
     use sui::coin::{Self, TreasuryCap};
 
-    use hello_token::owner::{Self, OwnerCap, StateCap};
+    use hello_token::owner::{Self, OwnerCap};
     use wormhole::emitter::{EmitterCapability as EmitterCap};
-    use wormhole::state::{DeployerCapability as WormholeDeployerCap};
-    use token_bridge::bridge_state::{Self as bridge_state, DeployerCapability as BridgeDeployerCap};
+    use wormhole::state::{
+        DeployerCapability as WormholeDeployerCap,
+        State as WormholeState
+    };
+    use token_bridge::bridge_state::{
+        Self,
+        DeployerCapability as BridgeDeployerCap
+    };
     use example_coins::coin_8::{Self};
 
     const TEST_TOKEN_8_SUPPLY: u64 = 42069;
@@ -184,14 +190,14 @@ module hello_token::transfer_tests {
         {
             // We need the Wormhole state to create a new emitter.
             let wormhole_state =
-                test_scenario::take_shared<wormhole::state::State>(scenario);
+                test_scenario::take_shared<WormholeState>(scenario);
             wormhole::wormhole::get_new_emitter(
                 &mut wormhole_state,
                 test_scenario::ctx(scenario)
             );
 
             // Bye bye.
-            test_scenario::return_shared<wormhole::state::State>(wormhole_state);
+            test_scenario::return_shared<WormholeState>(wormhole_state);
 
             // Proceed.
             test_scenario::next_tx(scenario, creator);
@@ -229,14 +235,14 @@ module hello_token::transfer_tests {
         {
             // Create another emitter for the HelloToken module
             let wormhole_state =
-                test_scenario::take_shared<wormhole::state::State>(scenario);
+                test_scenario::take_shared<WormholeState>(scenario);
             wormhole::wormhole::get_new_emitter(
                 &mut wormhole_state,
                 test_scenario::ctx(scenario)
             );
 
             // Bye bye.
-            test_scenario::return_shared<wormhole::state::State>(wormhole_state);
+            test_scenario::return_shared<WormholeState>(wormhole_state);
 
             // Proceed.
             test_scenario::next_tx(scenario, creator);
@@ -253,14 +259,11 @@ module hello_token::transfer_tests {
         {
             let owner_cap =
                 test_scenario::take_from_sender<OwnerCap>(scenario);
-            let state_cap =
-                test_scenario::take_from_sender<StateCap>(scenario);
             let emitter_cap =
                 test_scenario::take_from_sender<EmitterCap>(scenario);
 
             hello_token::owner::create_state(
-                &owner_cap,
-                state_cap,
+                &mut owner_cap,
                 emitter_cap,
                 TEST_RELAYER_FEE,
                 TEST_RELAYER_FEE_PRECISION,
