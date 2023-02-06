@@ -1,6 +1,6 @@
 module example_coins::coin_9 {
     use std::option;
-    use sui::coin;
+    use sui::coin::{Self, TreasuryCap, CoinMetadata};
     use sui::transfer;
     use sui::tx_context::{Self, TxContext};
 
@@ -12,7 +12,16 @@ module example_coins::coin_9 {
     /// Module initializer is called once on module publish. A treasury
     /// cap is sent to the publisher, who then controls minting and burning
     fun init(witness: COIN_9, ctx: &mut TxContext) {
-        let (treasury, metadata) = coin::create_currency(
+        let (treasury, metadata) = create_coin(witness, ctx);
+        transfer::freeze_object(metadata);
+        transfer::transfer(treasury, tx_context::sender(ctx));
+    }
+
+    fun create_coin(
+        witness: COIN_9,
+        ctx: &mut TxContext
+    ): (TreasuryCap<COIN_9>, CoinMetadata<COIN_9>) {
+        coin::create_currency(
             witness,
             9, // decimals
             b"COIN_9", // symbol
@@ -20,9 +29,14 @@ module example_coins::coin_9 {
             b"", // description
             option::none(), // icon_url
             ctx
-        );
-        transfer::freeze_object(metadata);
-        transfer::transfer(treasury, tx_context::sender(ctx))
+        )
+    }
+
+    #[test_only]
+    public fun create_coin_test_only(
+        ctx: &mut TxContext
+    ): (TreasuryCap<COIN_9>, CoinMetadata<COIN_9>) {
+        create_coin(COIN_9 {}, ctx)
     }
 
     #[test_only]
@@ -42,13 +56,13 @@ module example_coins::coin_9_tests {
         let my_scenario = test_scenario::begin(@0x0);
         let scenario = &mut my_scenario;
         let creator = @0xDEADBEEF;
-        
+
         // Proceed.
         test_scenario::next_tx(scenario, creator);
 
         // Init.
         coin_9::init_test_only(test_scenario::ctx(scenario));
-        
+
         // Proceed.
         test_scenario::next_tx(scenario, creator);
 

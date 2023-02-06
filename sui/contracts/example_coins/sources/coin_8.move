@@ -14,7 +14,7 @@ module example_coins::coin_8 {
     fun init(witness: COIN_8, ctx: &mut TxContext) {
         let (treasury, metadata) = create_coin(witness, ctx);
         transfer::freeze_object(metadata);
-        transfer::transfer(treasury, tx_context::sender(ctx))
+        transfer::transfer(treasury, tx_context::sender(ctx));
     }
 
     fun create_coin(
