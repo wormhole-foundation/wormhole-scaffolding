@@ -104,6 +104,10 @@ module hello_token::init_tests {
         DeployerCapability as WormholeDeployerCap,
         State as WormholeState
     };
+    use token_bridge::bridge_state::{
+        Self,
+        DeployerCapability as BridgeDeployerCap
+    };
 
     const TEST_RELAYER_FEE: u64 = 42069; // 4.2069%
     const TEST_RELAYER_FEE_PRECISION: u64 = 1000000;
@@ -416,7 +420,7 @@ module hello_token::init_tests {
     }
 
     // utilities
-    fun people(): (address, address) { (@0xBEEF, @0x1337) }
+    public fun people(): (address, address) { (@0xBEEF, @0x1337) }
 
     public fun set_up(creator: address): (Scenario, TransactionEffects) {
         let my_scenario = test_scenario::begin(@0x0);
@@ -451,10 +455,53 @@ module hello_token::init_tests {
             test_scenario::next_tx(scenario, creator);
         };
 
-        // TODO: Set up Token Bridge contract.
-
         {
             // We need the Wormhole state to create a new emitter.
+            let wormhole_state =
+                test_scenario::take_shared<WormholeState>(scenario);
+            wormhole::wormhole::get_new_emitter(
+                &mut wormhole_state,
+                test_scenario::ctx(scenario)
+            );
+
+            // Bye bye.
+            test_scenario::return_shared<WormholeState>(wormhole_state);
+
+            // Proceed.
+            test_scenario::next_tx(scenario, creator);
+        };
+
+        // Set up Token Bridge contract.
+        {
+            bridge_state::test_init(test_scenario::ctx(scenario));
+
+            // Proceed.
+            test_scenario::next_tx(scenario, creator);
+            assert!(
+                test_scenario::has_most_recent_for_sender<BridgeDeployerCap>(scenario),
+                0
+            );
+
+            let deployer_cap =
+                test_scenario::take_from_sender<BridgeDeployerCap>(
+                    scenario
+                );
+            let emitter_cap =
+                test_scenario::take_from_sender<EmitterCap>(scenario);
+
+            // Init the bridge state
+            bridge_state::init_and_share_state(
+                deployer_cap,
+                emitter_cap,
+                test_scenario::ctx(scenario)
+            );
+
+            // Proceed.
+            test_scenario::next_tx(scenario, creator);
+        };
+
+        {
+            // Create another emitter for the HelloToken module
             let wormhole_state =
                 test_scenario::take_shared<WormholeState>(scenario);
             wormhole::wormhole::get_new_emitter(

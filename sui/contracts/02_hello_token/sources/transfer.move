@@ -58,8 +58,6 @@ module hello_token::transfer {
             ),
             decimals
         );
-
-        // Confirm that the transformed amount is greater than 0.
         assert!(transformed_amount > 0, E_INSUFFICIENT_AMOUNT);
 
         // Split the coins object and send dust back to the user if
@@ -100,7 +98,7 @@ module hello_token::transfer {
 #[test_only]
 module hello_token::transfer_tests {
     use sui::sui::SUI;
-    use sui::test_scenario::{Self, Scenario, TransactionEffects};
+    use sui::test_scenario::{Self};
     use sui::coin::{Self, Coin, CoinMetadata};
     use sui::object::{Self};
     use sui::transfer::{Self as native_transfer};
@@ -109,18 +107,13 @@ module hello_token::transfer_tests {
     use hello_token::owner::{Self, OwnerCap};
     use hello_token::transfer::{Self};
     use hello_token::state::{State};
+    use hello_token::init_tests::{set_up, people};
 
-    use wormhole::emitter::{EmitterCapability as EmitterCap};
     use wormhole::state::{
         Self as wormhole_state_module,
-        DeployerCapability as WormholeDeployerCap,
         State as WormholeState
     };
-    use token_bridge::bridge_state::{
-        Self,
-        DeployerCapability as BridgeDeployerCap,
-        BridgeState
-    };
+    use token_bridge::bridge_state::{BridgeState};
     use token_bridge::attest_token::{Self};
 
     // example coins
@@ -486,136 +479,6 @@ module hello_token::transfer_tests {
 
         // Done.
         test_scenario::end(my_scenario);
-    }
-
-    // utilities
-    fun people(): (address, address) { (@0xBEEF, @0x1337) }
-
-    public fun set_up(creator: address): (Scenario, TransactionEffects) {
-        let my_scenario = test_scenario::begin(@0x0);
-        let scenario = &mut my_scenario;
-
-        // Proceed.
-        test_scenario::next_tx(scenario, creator);
-
-        // Set up Wormhole contract.
-        {
-            wormhole::state::test_init(test_scenario::ctx(scenario));
-
-            // Proceed.
-            test_scenario::next_tx(scenario, creator);
-
-            let deployer =
-                test_scenario::take_from_sender<WormholeDeployerCap>(
-                    scenario
-                );
-
-            // Share Wormhole state.
-            wormhole::state::init_and_share_state(
-                deployer,
-                21,
-                1, // governance chain
-                x"0000000000000000000000000000000000000000000000000000000000000004", // governance_contract
-                vector[x"beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe"], // initial_guardians
-                test_scenario::ctx(scenario)
-            );
-
-            // Proceed.
-            test_scenario::next_tx(scenario, creator);
-        };
-
-        {
-            // We need the Wormhole state to create a new emitter.
-            let wormhole_state =
-                test_scenario::take_shared<WormholeState>(scenario);
-            wormhole::wormhole::get_new_emitter(
-                &mut wormhole_state,
-                test_scenario::ctx(scenario)
-            );
-
-            // Bye bye.
-            test_scenario::return_shared<WormholeState>(wormhole_state);
-
-            // Proceed.
-            test_scenario::next_tx(scenario, creator);
-        };
-
-        // Set up Token Bridge contract.
-        {
-            bridge_state::test_init(test_scenario::ctx(scenario));
-
-            // Proceed.
-            test_scenario::next_tx(scenario, creator);
-            assert!(
-                test_scenario::has_most_recent_for_sender<BridgeDeployerCap>(scenario),
-                0
-            );
-
-            let deployer_cap =
-                test_scenario::take_from_sender<BridgeDeployerCap>(
-                    scenario
-                );
-            let emitter_cap =
-                test_scenario::take_from_sender<EmitterCap>(scenario);
-
-            // Init the bridge state
-            bridge_state::init_and_share_state(
-                deployer_cap,
-                emitter_cap,
-                test_scenario::ctx(scenario)
-            );
-
-            // Proceed.
-            test_scenario::next_tx(scenario, creator);
-        };
-
-        {
-            // Create another emitter for the HelloToken module
-            let wormhole_state =
-                test_scenario::take_shared<WormholeState>(scenario);
-            wormhole::wormhole::get_new_emitter(
-                &mut wormhole_state,
-                test_scenario::ctx(scenario)
-            );
-
-            // Bye bye.
-            test_scenario::return_shared<WormholeState>(wormhole_state);
-
-            // Proceed.
-            test_scenario::next_tx(scenario, creator);
-        };
-
-        {
-            // We call `init_test_only` to simulate `init`
-            owner::init_test_only(test_scenario::ctx(scenario));
-
-            // Proceed.
-            test_scenario::next_tx(scenario, creator);
-        };
-
-        {
-            let owner_cap =
-                test_scenario::take_from_sender<OwnerCap>(scenario);
-            let emitter_cap =
-                test_scenario::take_from_sender<EmitterCap>(scenario);
-
-            hello_token::owner::create_state(
-                &mut owner_cap,
-                emitter_cap,
-                TEST_RELAYER_FEE,
-                TEST_RELAYER_FEE_PRECISION,
-                test_scenario::ctx(scenario)
-            );
-
-            // Bye bye.
-            test_scenario::return_to_sender<OwnerCap>(
-                scenario,
-                owner_cap
-            );
-        };
-
-        let effects = test_scenario::next_tx(scenario, creator);
-        (my_scenario, effects)
     }
 
     public fun mint_coin_8(
