@@ -24,10 +24,7 @@ module hello_token::foreign_contracts {
         table::contains<u16, Bytes32>(borrow_table(parent_uid), chain)
     }
 
-    public fun contract_address(
-        parent_uid: &UID,
-        chain: u16
-    ): &Bytes32 {
+    public fun contract_address(parent_uid: &UID, chain: u16): &Bytes32 {
         table::borrow(borrow_table(parent_uid), chain)
     }
 
@@ -65,9 +62,7 @@ module hello_token::foreign_contracts {
         dynamic_object_field::borrow(parent_uid, KEY)
     }
 
-    fun borrow_table_mut(
-        parent_uid: &mut UID
-    ): &mut Table<u16, Bytes32> {
+    fun borrow_table_mut(parent_uid: &mut UID): &mut Table<u16, Bytes32> {
         dynamic_object_field::borrow_mut(parent_uid, KEY)
     }
 }
