@@ -48,12 +48,12 @@ module hello_token::transfer {
 
         // Cache token transfer info.
         let decimals = coin::get_decimals(metadata);
-        let amount_recieved = coin::value(&coins);
+        let amount_received = coin::value(&coins);
 
         // Compute the truncated token amount.
         let transformed_amount = normalized_amount::denormalize(
             normalized_amount::normalize(
-                amount_recieved,
+                amount_received,
                 decimals
             ),
             decimals
@@ -64,14 +64,14 @@ module hello_token::transfer {
 
         // Split the coins object and send dust back to the user if
         // the transformedAmount is less the original amount.
-        let transfer_coins;
-        if (transformed_amount < amount_recieved){
-            transfer_coins = coin::split(&mut coins, transformed_amount, ctx);
+        let coins_to_transfer;
+        if (transformed_amount < amount_received){
+            coins_to_transfer = coin::split(&mut coins, transformed_amount, ctx);
 
             // Return the original object with the dust.
             transfer::transfer(coins, tx_context::sender(ctx))
         } else {
-            transfer_coins = coins;
+            coins_to_transfer = coins;
         };
 
         // Finally transfer tokens via Token Bridge.
@@ -79,7 +79,7 @@ module hello_token::transfer {
             state::emitter_cap(t_state),
             wormhole_state,
             token_bridge_state,
-            transfer_coins,
+            coins_to_transfer,
             metadata,
             wormhole_fee,
             wormhole_u16::from_u64((target_chain as u64)),
@@ -102,6 +102,7 @@ module hello_token::transfer_tests {
     use sui::sui::SUI;
     use sui::test_scenario::{Self, Scenario, TransactionEffects};
     use sui::coin::{Self, Coin, CoinMetadata};
+    use sui::object::{Self};
     use sui::transfer::{Self as native_transfer};
     use sui::tx_context::{TxContext};
 
@@ -131,6 +132,13 @@ module hello_token::transfer_tests {
     const TEST_SUI_SUPPLY: u64 = 69420;
     const TEST_RELAYER_FEE: u64 = 42069; // 4.2069%
     const TEST_RELAYER_FEE_PRECISION: u64 = 1000000;
+
+    // These values are used to test that HelloToken correctly
+    // returns token dust. If the TEST_TOKEN_9_SUPPLY value is
+    // changed, the TEST_TOKEN_9_EXPECTED_DUST value must be
+    // updated accordingly.
+    const TEST_TOKEN_9_SUPPLY: u64 = 12345678910111;
+    const TEST_TOKEN_9_EXPECTED_DUST: u64 = 1;
 
     #[test]
     public fun send_tokens_with_payload_coin_8() {
@@ -213,6 +221,119 @@ module hello_token::transfer_tests {
             x"000000000000000000000000beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe",
             test_scenario::ctx(scenario)
         );
+
+        // Return the goods.
+        test_scenario::return_shared<State>(hello_token_state);
+        test_scenario::return_shared<BridgeState>(bridge_state);
+        test_scenario::return_shared<WormholeState>(wormhole_state);
+        native_transfer::transfer(test_metadata, @0x0);
+
+        // Done.
+        test_scenario::end(my_scenario);
+    }
+
+    #[test]
+    public fun send_tokens_with_payload_coin_9() {
+        let (creator, _) = people();
+        let (my_scenario, _) = set_up(creator);
+        let scenario = &mut my_scenario;
+
+        // Create target contract variables.
+        let target_chain: u16 = 69;
+        let target_contract =
+            x"0000000000000000000000000000000000000000000000000000000000000069";
+
+        // Fetch state objects.
+        let hello_token_state =
+            test_scenario::take_shared<State>(scenario);
+        let bridge_state =
+            test_scenario::take_shared<BridgeState>(scenario);
+        let wormhole_state =
+            test_scenario::take_shared<WormholeState>(scenario);
+
+        // Mint token 9, fetch the metadata and store the object ID for later.
+        let (test_coin, test_metadata) = mint_coin_9(
+            TEST_TOKEN_9_SUPPLY,
+            test_scenario::ctx(scenario)
+        );
+        test_scenario::next_tx(scenario, creator);
+
+        // Store test coin ID for later use.
+        let test_coin_id = object::id(&test_coin);
+
+        // Mint SUI token amount based on the wormhole fee.
+        let sui_coin = mint_sui(
+            wormhole_state_module::get_message_fee(&wormhole_state),
+            test_scenario::ctx(scenario)
+        );
+        test_scenario::next_tx(scenario, creator);
+
+        // Register the target contract.
+        {
+            let owner_cap =
+                test_scenario::take_from_sender<OwnerCap>(scenario);
+
+            owner::register_foreign_contract(
+                &owner_cap,
+                &mut hello_token_state,
+                target_chain,
+                target_contract
+            );
+
+            // Proceed.
+            test_scenario::next_tx(scenario, creator);
+
+            // Bye bye.
+            test_scenario::return_to_sender<OwnerCap>(scenario, owner_cap);
+        };
+
+        // Attest the token.
+        {
+            let fee_coin = mint_sui(TEST_SUI_SUPPLY, test_scenario::ctx(scenario));
+
+            attest_token::attest_token(
+                &mut wormhole_state,
+                &mut bridge_state,
+                &test_metadata,
+                fee_coin,
+                test_scenario::ctx(scenario)
+            );
+
+            // Proceed.
+            test_scenario::next_tx(scenario, creator);
+        };
+
+        // Send a test transfer.
+        {
+            transfer::send_tokens_with_payload(
+                &hello_token_state,
+                &mut wormhole_state,
+                &mut bridge_state,
+                test_coin,
+                &test_metadata,
+                sui_coin,
+                69,
+                0,
+                x"000000000000000000000000beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe",
+                test_scenario::ctx(scenario)
+            );
+
+            // Proceed.
+            test_scenario::next_tx(scenario, creator);
+
+            // Fetch the dust coin object.
+            let dust_object =
+                test_scenario::take_from_sender_by_id<Coin<coin_9::COIN_9>>(
+                    scenario,
+                    test_coin_id
+                );
+
+            // Confirm that the value of the token is non-zero.
+            assert!(coin::value(&dust_object) == TEST_TOKEN_9_EXPECTED_DUST, 0);
+
+            // Bye bye.
+            test_scenario::return_to_sender(scenario, dust_object);
+        };
 
         // Return the goods.
         test_scenario::return_shared<State>(hello_token_state);
