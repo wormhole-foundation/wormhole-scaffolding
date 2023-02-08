@@ -1,6 +1,6 @@
-import { expect } from "chai";
+import {expect} from "chai";
 import * as path from "path";
-import { ethers } from "ethers";
+import {ethers} from "ethers";
 import {
   CHAIN_ID_SUI,
   tryNativeToHexString,
@@ -86,8 +86,6 @@ describe(" 0: Wormhole", () => {
       expect(process.env.TESTING_COIN_9_TREASURY_ID).is.not.undefined;
       expect(process.env.TESTING_WRAPPED_WETH_COIN_TYPE).is.not.undefined;
       expect(process.env.TESTING_WRAPPED_WETH_ID).is.not.undefined;
-      // expect(process.env.TESTING_HELLO_WORLD_ID).is.not.undefined;
-      // expect(process.env.TESTING_HELLO_TOKEN_ID).is.not.undefined;
     });
   });
 
@@ -759,8 +757,11 @@ describe(" 0: Wormhole", () => {
       const coins = await provider
         .getCoins(feeRecipient, WRAPPED_WETH_COIN_TYPE)
         .then((result) => result.data);
+      const nonzeroCoin = coins.find((coin) => coin.balance > 0);
+      expect(nonzeroCoin).is.not.undefined;
+
       expect(
-        ethers.BigNumber.from(coins[0].balance)
+        ethers.BigNumber.from(nonzeroCoin!.balance)
           .mul(unitDifference)
           .eq(rawAmount)
       ).is.true;

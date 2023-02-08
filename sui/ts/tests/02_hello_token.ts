@@ -1,6 +1,6 @@
-import { expect } from "chai";
+import {expect} from "chai";
 import * as path from "path";
-import { ethers } from "ethers";
+import {ethers} from "ethers";
 import {
   CHAIN_ID_SUI,
   tryNativeToHexString,
@@ -44,8 +44,8 @@ import {
   getObjectFields,
 } from "../src";
 
-const HELLO_TOKEN_ID = "0x39d67de4e26c7d66feceab6b143d81507278c1bf";
-const HELLO_TOKEN_OWNER_CAP_ID = "0x68843a6116289396258d1183e4a4f4d71aa1b9fd";
+const HELLO_TOKEN_ID = "0x00987c9daab9e24fd95d40fd9397c5786d164ff4";
+const HELLO_TOKEN_OWNER_CAP_ID = "0x6aedd9e1ff1b005481940b88dd6f8b8b4dfae2b8";
 
 describe(" 2: Hello Token", () => {
   const provider = new JsonRpcProvider("http://localhost:9000", {
