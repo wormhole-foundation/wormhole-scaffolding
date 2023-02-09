@@ -5,6 +5,7 @@ import {
   CHAIN_ID_SUI,
   tryNativeToHexString,
   tryNativeToUint8Array,
+  parseTransferPayload,
 } from "@certusone/wormhole-sdk";
 import * as mock from "@certusone/wormhole-sdk/lib/cjs/mock";
 import {
@@ -269,46 +270,130 @@ describe(" 2: Hello Token", () => {
             return null;
           });
         expect(registerTx).is.not.null;
-
-        // TODO: check state
       });
     });
   });
 
   describe("Send Tokens With Payload", () => {
-    const targetChain = 2;
+    const targetChain = "2";
     const targetRecipient = Buffer.alloc(32, "deadbeef");
 
     describe("Finally Send Tokens With Payload", () => {
-      it("transfer::send_tokens_with_payload", async () => {
+      it("transfer::send_tokens_with_payload with coin 8", async () => {
         expect(localVariables.stateId).is.not.undefined;
         const stateId: string = localVariables.stateId;
 
-        // TODO
+        // Create wallet.
+        const walletAddress = await wallet.getAddress();
 
-        // // Call `owner::create_state` on HelloToken
-        // const registerTx = await creator
-        //   .executeMoveCall({
-        //     packageObjectId: HELLO_TOKEN_ID,
-        //     module: "owner",
-        //     function: "register_foreign_contract",
-        //     typeArguments: [],
-        //     arguments: [
-        //       HELLO_TOKEN_OWNER_CAP_ID,
-        //       stateId,
-        //       foreignChain,
-        //       Array.from(foreignContractAddress),
-        //     ],
-        //     gasBudget: 20000,
-        //   })
-        //   .catch((reason) => {
-        //     // should not happen
-        //     console.log(reason);
-        //     return null;
-        //   });
-        // expect(registerTx).is.not.null;
+        // `splitCoin` requires a number even though amounts can be u64, so it
+        // seems that the max amount we can split by is u32. FYI
+        const amount = "10";
 
-        // TODO: check state
+        // SUI needed to pay wormhole fee if any.
+        const [sui] = await provider
+          .getCoins(walletAddress, "0x2::sui::SUI")
+          .then((result) => result.data);
+
+        // Finally here to check the state.
+        const fields = await getObjectFields(provider, WORMHOLE_STATE_ID);
+
+        // Split the Sui object based on the wormhole fee.
+        const splitSuiCoin = await wallet
+          .splitCoin({
+            coinObjectId: sui.coinObjectId,
+            splitAmounts: [Number(fields.message_fee)],
+            gasBudget: 1000,
+          })
+          .then(async (tx) => {
+            const created = await getCreatedFromTransaction(tx).then(
+              (objects) => objects[0]
+            );
+            return "reference" in created ? created.reference.objectId : null;
+          });
+        expect(splitSuiCoin).is.not.null;
+
+        // Grab balance.
+        const [transferCoin] = await provider
+          .getCoins(walletAddress, COIN_8_TYPE)
+          .then((result) => result.data);
+
+        // Fetch the coin metadata.
+        const metadata = await provider.getCoinMetadata(COIN_8_TYPE);
+
+        // Split coin into another object.
+        const splitCoin = await wallet
+          .splitCoin({
+            coinObjectId: transferCoin.coinObjectId,
+            splitAmounts: [Number(amount)],
+            gasBudget: 1000,
+          })
+          .then(async (tx) => {
+            const created = await getCreatedFromTransaction(tx).then(
+              (objects) => objects[0]
+            );
+            return "reference" in created ? created.reference.objectId : null;
+          });
+        expect(splitCoin).is.not.null;
+
+        // Send a transfer.
+        const sendWithPayloadTx = await wallet
+          .executeMoveCall({
+            packageObjectId: HELLO_TOKEN_ID,
+            module: "transfer",
+            function: "send_tokens_with_payload",
+            typeArguments: [COIN_8_TYPE],
+            arguments: [
+              stateId,
+              WORMHOLE_STATE_ID,
+              TOKEN_BRIDGE_STATE_ID,
+              splitCoin!,
+              metadata.id!,
+              splitSuiCoin!,
+              targetChain,
+              "0", // batchId
+              Array.from(targetRecipient),
+            ],
+            gasBudget: 20000,
+          })
+          .catch((reason) => {
+            // should not happen
+            console.log(reason);
+            return null;
+          });
+        expect(sendWithPayloadTx).is.not.null;
+
+        // Fetch the Wormhole messsage
+        const wormholeMessages = await getWormholeMessagesFromTransaction(
+          provider,
+          WORMHOLE_ID,
+          sendWithPayloadTx!
+        );
+
+        // Verify message contents.
+        const message = wormholeMessages[0];
+        expect(message.emitter).equals(HELLO_TOKEN_ID);
+        expect(message.finality).equal(0);
+        expect(message.sequence).equals("3");
+        expect(message.batchId).equals("0");
+
+        // Check state.
+        const helloTokenState = await getObjectFields(provider, stateId);
+        expect(helloTokenState.emitter_cap.fields.sequence).equals("0");
+
+        // Verify transfer payload.
+        const transferPayload = await parseTransferPayload(message.payload);
+        expect(transferPayload.amount.toString()).to.equal(amount);
+        expect(
+          transferPayload.originAddress.endsWith(
+            helloTokenState.emitter_cap.fields.emitter
+          )
+        ).is.true;
+        expect(transferPayload.originChain).to.equal(CHAIN_ID_SUI);
+        expect(transferPayload.targetAddress).to.equal(
+          Buffer.alloc(32, "deadbeef").toString("hex")
+        );
+        expect(transferPayload.targetChain).to.equal(Number(targetChain));
       });
     });
   });

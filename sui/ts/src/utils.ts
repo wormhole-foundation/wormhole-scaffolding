@@ -1,5 +1,5 @@
-import { JsonRpcProvider, SuiExecuteTransactionResponse } from "@mysten/sui.js";
-import { execSync } from "child_process";
+import {JsonRpcProvider, SuiExecuteTransactionResponse} from "@mysten/sui.js";
+import {execSync} from "child_process";
 import * as fs from "fs";
 
 export async function getObjectFields(
@@ -59,6 +59,7 @@ export async function getMoveEventsFromTransaction(
   const events = await getEventsFromTransaction(provider, txResponse).then(
     (events) => events.map((evt) => evt.event)
   );
+
   const moveEvents = [];
   for (const event of events) {
     if ("moveEvent" in event) {
@@ -124,7 +125,7 @@ rev = "2d709054a08d904b9229a2472af679f210af3827"
 
 [dependencies.TokenBridge]
 local = "${fullPathToTokenBridgeDependency}"
-  
+
 [addresses]
 wormhole = "${wormholeId}"
 token_bridge = "${tokenBridgeId}"
@@ -135,7 +136,7 @@ template = "0x0"`;
   const homeDir = require("os").homedir();
   const tmpDir = `${homeDir}/.tmp_wrapped_coin.${now}`;
   const tmpSources = `${tmpDir}/sources`;
-  fs.mkdirSync(tmpSources, { recursive: true });
+  fs.mkdirSync(tmpSources, {recursive: true});
 
   // Write `coinMoveSource` to this sources directory
   fs.writeFileSync(`${tmpSources}/create.move`, coinMoveSource, "utf-8");
@@ -158,7 +159,7 @@ template = "0x0"`;
   const jsonOutput = JSON.parse(output.split("\n")[2])[0];
 
   // Finally purge the tmp directory
-  fs.rmSync(tmpDir, { recursive: true, force: true });
+  fs.rmSync(tmpDir, {recursive: true, force: true});
 
   return {
     id: jsonOutput.id,

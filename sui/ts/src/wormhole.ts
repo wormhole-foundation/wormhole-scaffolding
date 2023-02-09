@@ -1,5 +1,5 @@
-import { JsonRpcProvider, SuiExecuteTransactionResponse } from "@mysten/sui.js";
-import { getMoveEventsFromTransaction } from "./utils";
+import {JsonRpcProvider, SuiExecuteTransactionResponse} from "@mysten/sui.js";
+import {getMoveEventsFromTransaction} from "./utils";
 
 export interface WormholeMessage {
   emitter: string;
