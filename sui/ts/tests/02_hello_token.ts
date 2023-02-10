@@ -70,9 +70,6 @@ describe(" 2: Hello Token", () => {
   // Mock guardians for signing wormhole messages.
   const guardians = new mock.MockGuardians(0, [GUARDIAN_PRIVATE_KEY]);
 
-  // for governance actions to modify programs
-  const governance = new mock.GovernanceEmitter(GOVERNANCE_EMITTER_ID, 20);
-
   const localVariables: any = {};
 
   before("Airdrop", async () => {
@@ -291,6 +288,45 @@ describe(" 2: Hello Token", () => {
           Buffer.from(registeredContracts![0][1]).toString("hex")
         ).to.equal(foreignContractAddress.toString("hex"));
       });
+    });
+  });
+
+  describe("Update Relayer Fee", () => {
+    const relayerFee = "6942000"; // 6.942%
+    const relayerFeePrecision = "100000000";
+
+    it("owner::update_relayer_fee", async () => {
+      expect(localVariables.stateId).is.not.undefined;
+      const stateId: string = localVariables.stateId;
+
+      // Call `owner::update_relayer_fee` on HelloToken
+      const registerTx = await creator
+        .executeMoveCall({
+          packageObjectId: HELLO_TOKEN_ID,
+          module: "owner",
+          function: "update_relayer_fee",
+          typeArguments: [],
+          arguments: [
+            HELLO_TOKEN_OWNER_CAP_ID,
+            stateId,
+            relayerFee,
+            relayerFeePrecision,
+          ],
+          gasBudget: 20000,
+        })
+        .catch((reason) => {
+          // should not happen
+          console.log(reason);
+          return null;
+        });
+      expect(registerTx).is.not.null;
+
+      // Fetch state info
+      const helloTokenState = await getObjectFields(provider, stateId);
+      expect(helloTokenState.relayer_fee.fields.precision).to.equal(
+        relayerFeePrecision
+      );
+      expect(helloTokenState.relayer_fee.fields.value).to.equal(relayerFee);
     });
   });
 
