@@ -731,7 +731,7 @@ describe(" 0: Wormhole", () => {
         .getAddress()
         .then((address) => ethers.utils.hexlify(Buffer.from(address, "hex")));
 
-      // Execute `wrapped::register_wrapped_coin` on Token Bridge.
+      // Execute `complete_transfer::submit_vaa` on Token Bridge.
       const completeTransferTx = await wallet
         .executeMoveCall({
           packageObjectId: TOKEN_BRIDGE_ID,
@@ -767,10 +767,4 @@ describe(" 0: Wormhole", () => {
       ).is.true;
     });
   });
-
-  // describe("Check wormhole-sdk", () => {
-  //   it("tryNativeToHexString", async () => {
-  //     // TODO
-  //   });
-  // });
 });

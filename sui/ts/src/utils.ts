@@ -1,5 +1,6 @@
 import {JsonRpcProvider, SuiExecuteTransactionResponse} from "@mysten/sui.js";
 import {execSync} from "child_process";
+import {ethers} from "ethers";
 import * as fs from "fs";
 
 export async function getObjectFields(
@@ -224,4 +225,34 @@ template = "0x0"`;
     owner: jsonOutput.owner,
     type: jsonOutput.type,
   };
+}
+
+export function tokenBridgeNormalizeAmount(
+  amount: ethers.BigNumber,
+  decimals: number
+): ethers.BigNumber {
+  if (decimals > 8) {
+    amount = amount.div(10 ** (decimals - 8));
+  }
+  return amount;
+}
+
+export function tokenBridgeDenormalizeAmount(
+  amount: ethers.BigNumber,
+  decimals: number
+): ethers.BigNumber {
+  if (decimals > 8) {
+    amount = amount.mul(10 ** (decimals - 8));
+  }
+  return amount;
+}
+
+export function tokenBridgeTransform(
+  amount: ethers.BigNumber,
+  decimals: number
+): ethers.BigNumber {
+  return tokenBridgeDenormalizeAmount(
+    tokenBridgeNormalizeAmount(amount, decimals),
+    decimals
+  );
 }

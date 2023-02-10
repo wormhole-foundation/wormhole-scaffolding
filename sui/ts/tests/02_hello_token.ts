@@ -6,44 +6,29 @@ import {
   tryNativeToHexString,
   tryNativeToUint8Array,
   parseTransferPayload,
+  CHAIN_ID_ETH,
 } from "@certusone/wormhole-sdk";
 import * as mock from "@certusone/wormhole-sdk/lib/cjs/mock";
 import {
-  ETHEREUM_TOKEN_BRIDGE_ADDRESS,
-  GOVERNANCE_EMITTER_ID,
   GUARDIAN_PRIVATE_KEY,
   WALLET_PRIVATE_KEY,
-  TOKEN_BRIDGE_ID,
   WORMHOLE_ID,
   RELAYER_PRIVATE_KEY,
-  WETH_ID,
   CREATOR_PRIVATE_KEY,
-  WORMHOLE_CREATOR_CAPABILITY_ID,
-  GOVERNANCE_CHAIN,
   WORMHOLE_STATE_ID,
-  TOKEN_BRIDGE_EMITTER_ID,
-  TOKEN_BRIDGE_CREATOR_CAPABILITY_ID,
   TOKEN_BRIDGE_STATE_ID,
-  COIN_9_TREASURY_ID,
-  COIN_8_TREASURY_ID,
   COIN_8_TYPE,
   COIN_9_TYPE,
-  WRAPPED_WETH_ID,
   WRAPPED_WETH_COIN_TYPE,
-  unexpected,
 } from "./helpers";
+import {Ed25519Keypair, JsonRpcProvider, RawSigner} from "@mysten/sui.js";
 import {
-  Ed25519Keypair,
-  JsonRpcProvider,
-  Network,
-  RawSigner,
-} from "@mysten/sui.js";
-import {
-  buildAndDeployWrappedCoin,
   getCreatedFromTransaction,
   getWormholeMessagesFromTransaction,
   getObjectFields,
   getTableFromDynamicObjectField,
+  tokenBridgeNormalizeAmount,
+  tokenBridgeTransform,
 } from "../src";
 
 const HELLO_TOKEN_ID = "0x00987c9daab9e24fd95d40fd9397c5786d164ff4";
@@ -335,7 +320,7 @@ describe(" 2: Hello Token", () => {
     const targetRecipient = Buffer.alloc(32, "deadbeef");
 
     describe("Finally Send Tokens With Payload", () => {
-      it("transfer::send_tokens_with_payload with coin 8", async () => {
+      it("transfer::send_tokens_with_payload With Coin 8", async () => {
         expect(localVariables.stateId).is.not.undefined;
         const stateId: string = localVariables.stateId;
 
@@ -392,6 +377,12 @@ describe(" 2: Hello Token", () => {
           });
         expect(splitCoin).is.not.null;
 
+        // Fetch the coin balance before transferring.
+        const coinBalanceBefore = await provider.getBalance(
+          walletAddress!,
+          COIN_8_TYPE
+        );
+
         // Send a transfer.
         const sendWithPayloadTx = await wallet
           .executeMoveCall({
@@ -440,8 +431,9 @@ describe(" 2: Hello Token", () => {
         // Verify transfer payload.
         const transferPayload = await parseTransferPayload(message.payload);
         expect(transferPayload.amount.toString()).to.equal(amount);
+
         expect(
-          transferPayload.originAddress.endsWith(
+          transferPayload.fromAddress!.endsWith(
             helloTokenState.emitter_cap.fields.emitter
           )
         ).is.true;
@@ -450,6 +442,297 @@ describe(" 2: Hello Token", () => {
           Buffer.alloc(32, "deadbeef").toString("hex")
         );
         expect(transferPayload.targetChain).to.equal(Number(targetChain));
+
+        // Fetch the coin balance after doing the transfer.
+        const coinBalanceAfter = await provider.getBalance(
+          walletAddress,
+          COIN_8_TYPE
+        );
+        expect(
+          coinBalanceBefore.totalBalance - coinBalanceAfter.totalBalance
+        ).eq(parseInt(amount));
+      });
+
+      it("transfer::send_tokens_with_payload With Coin 9", async () => {
+        expect(localVariables.stateId).is.not.undefined;
+        const stateId: string = localVariables.stateId;
+
+        // Create wallet.
+        const walletAddress = await wallet.getAddress();
+
+        // `splitCoin` requires a number even though amounts can be u64, so it
+        // seems that the max amount we can split by is u32. FYI
+        const amount = "101";
+
+        // SUI needed to pay wormhole fee if any.
+        const [sui] = await provider
+          .getCoins(walletAddress, "0x2::sui::SUI")
+          .then((result) => result.data);
+
+        // Finally here to check the state.
+        const fields = await getObjectFields(provider, WORMHOLE_STATE_ID);
+
+        // Split the Sui object based on the wormhole fee.
+        const splitSuiCoin = await wallet
+          .splitCoin({
+            coinObjectId: sui.coinObjectId,
+            splitAmounts: [Number(fields.message_fee)],
+            gasBudget: 1000,
+          })
+          .then(async (tx) => {
+            const created = await getCreatedFromTransaction(tx).then(
+              (objects) => objects[0]
+            );
+            return "reference" in created ? created.reference.objectId : null;
+          });
+        expect(splitSuiCoin).is.not.null;
+
+        // Grab balance.
+        const [transferCoin] = await provider
+          .getCoins(walletAddress, COIN_9_TYPE)
+          .then((result) => result.data);
+
+        // Fetch the coin metadata.
+        const metadata = await provider.getCoinMetadata(COIN_9_TYPE);
+
+        // Compute the normalized amount for data validation.
+        const normalizedAmount = tokenBridgeNormalizeAmount(
+          ethers.BigNumber.from(amount),
+          metadata.decimals
+        );
+
+        // Split coin into another object.
+        const splitCoin = await wallet
+          .splitCoin({
+            coinObjectId: transferCoin.coinObjectId,
+            splitAmounts: [Number(amount)],
+            gasBudget: 1000,
+          })
+          .then(async (tx) => {
+            const created = await getCreatedFromTransaction(tx).then(
+              (objects) => objects[0]
+            );
+            return "reference" in created ? created.reference.objectId : null;
+          });
+        expect(splitCoin).is.not.null;
+
+        // Fetch the coin balance before transferring.
+        const coinBalanceBefore = await provider.getBalance(
+          walletAddress!,
+          COIN_9_TYPE
+        );
+
+        // Send a transfer.
+        const sendWithPayloadTx = await wallet
+          .executeMoveCall({
+            packageObjectId: HELLO_TOKEN_ID,
+            module: "transfer",
+            function: "send_tokens_with_payload",
+            typeArguments: [COIN_9_TYPE],
+            arguments: [
+              stateId,
+              WORMHOLE_STATE_ID,
+              TOKEN_BRIDGE_STATE_ID,
+              splitCoin!,
+              metadata.id!,
+              splitSuiCoin!,
+              targetChain,
+              "0", // batchId
+              Array.from(targetRecipient),
+            ],
+            gasBudget: 20000,
+          })
+          .catch((reason) => {
+            // should not happen
+            console.log(reason);
+            return null;
+          });
+        expect(sendWithPayloadTx).is.not.null;
+
+        // Fetch the Wormhole messsage
+        const wormholeMessages = await getWormholeMessagesFromTransaction(
+          provider,
+          WORMHOLE_ID,
+          sendWithPayloadTx!
+        );
+
+        // Verify message contents.
+        const message = wormholeMessages[0];
+        expect(message.emitter).equals(HELLO_TOKEN_ID);
+        expect(message.finality).equal(0);
+        expect(message.sequence).equals("4");
+        expect(message.batchId).equals("0");
+
+        // Check state.
+        const helloTokenState = await getObjectFields(provider, stateId);
+        expect(helloTokenState.emitter_cap.fields.sequence).equals("0");
+
+        // Verify transfer payload.
+        const transferPayload = await parseTransferPayload(message.payload);
+        expect(transferPayload.amount.toString()).to.equal(
+          normalizedAmount.toString()
+        );
+        expect(
+          transferPayload.fromAddress!.endsWith(
+            helloTokenState.emitter_cap.fields.emitter
+          )
+        ).is.true;
+        expect(transferPayload.originChain).to.equal(CHAIN_ID_SUI);
+        expect(transferPayload.targetAddress).to.equal(
+          Buffer.alloc(32, "deadbeef").toString("hex")
+        );
+        expect(transferPayload.targetChain).to.equal(Number(targetChain));
+
+        // Fetch the coin balance after transferring. The difference
+        // in balance should reflect the transformed amount, since the
+        // token being transferred has 9 decimals, and the token bridge
+        // truncates the transfer amount.
+        const coinBalanceAfter = await provider.getBalance(
+          walletAddress,
+          COIN_9_TYPE
+        );
+
+        // Compute the normalized amount for data validation.
+        const transformedAmount = tokenBridgeTransform(
+          ethers.BigNumber.from(amount),
+          metadata.decimals
+        );
+        expect(
+          coinBalanceBefore.totalBalance - coinBalanceAfter.totalBalance
+        ).eq(transformedAmount.toNumber());
+      });
+
+      it("transfer::send_tokens_with_payload With Wrapped Eth", async () => {
+        expect(localVariables.stateId).is.not.undefined;
+        const stateId: string = localVariables.stateId;
+
+        // Create wallet.
+        const walletAddress = await wallet.getAddress();
+
+        // `splitCoin` requires a number even though amounts can be u64, so it
+        // seems that the max amount we can split by is u32. FYI
+        const amount = "69";
+
+        // SUI needed to pay wormhole fee if any.
+        const [sui] = await provider
+          .getCoins(walletAddress, "0x2::sui::SUI")
+          .then((result) => result.data);
+
+        // Finally here to check the state.
+        const fields = await getObjectFields(provider, WORMHOLE_STATE_ID);
+
+        // Split the Sui object based on the wormhole fee.
+        const splitSuiCoin = await wallet
+          .splitCoin({
+            coinObjectId: sui.coinObjectId,
+            splitAmounts: [Number(fields.message_fee)],
+            gasBudget: 1000,
+          })
+          .then(async (tx) => {
+            const created = await getCreatedFromTransaction(tx).then(
+              (objects) => objects[0]
+            );
+            return "reference" in created ? created.reference.objectId : null;
+          });
+        expect(splitSuiCoin).is.not.null;
+
+        // Grab balance.
+        const coins = await provider
+          .getCoins(walletAddress, WRAPPED_WETH_COIN_TYPE)
+          .then((result) => result.data);
+        const nonzeroCoin = coins.find((coin) => coin.balance > 0);
+        expect(nonzeroCoin!.balance > parseInt(amount)).is.true;
+
+        // Fetch the coin metadata.
+        const metadata = await provider.getCoinMetadata(WRAPPED_WETH_COIN_TYPE);
+
+        // Split coin into another object.
+        const splitCoin = await wallet
+          .splitCoin({
+            coinObjectId: nonzeroCoin!.coinObjectId,
+            splitAmounts: [Number(amount)],
+            gasBudget: 2000,
+          })
+          .then(async (tx) => {
+            const created = await getCreatedFromTransaction(tx).then(
+              (objects) => objects[0]
+            );
+            return "reference" in created ? created.reference.objectId : null;
+          });
+        expect(splitCoin).is.not.null;
+
+        // Fetch the coin balance before transferring.
+        const coinBalanceBefore = await provider.getBalance(
+          walletAddress!,
+          WRAPPED_WETH_COIN_TYPE
+        );
+
+        // Send a transfer.
+        const sendWithPayloadTx = await wallet
+          .executeMoveCall({
+            packageObjectId: HELLO_TOKEN_ID,
+            module: "transfer",
+            function: "send_tokens_with_payload",
+            typeArguments: [WRAPPED_WETH_COIN_TYPE],
+            arguments: [
+              stateId,
+              WORMHOLE_STATE_ID,
+              TOKEN_BRIDGE_STATE_ID,
+              splitCoin!,
+              metadata.id!,
+              splitSuiCoin!,
+              targetChain,
+              "0", // batchId
+              Array.from(targetRecipient),
+            ],
+            gasBudget: 20000,
+          })
+          .catch((reason) => {
+            // should not happen
+            console.log(reason);
+            return null;
+          });
+        expect(sendWithPayloadTx).is.not.null;
+
+        // Fetch the Wormhole messsage
+        const wormholeMessages = await getWormholeMessagesFromTransaction(
+          provider,
+          WORMHOLE_ID,
+          sendWithPayloadTx!
+        );
+
+        // Verify message contents.
+        const message = wormholeMessages[0];
+        expect(message.emitter).equals(HELLO_TOKEN_ID);
+        expect(message.finality).equal(0);
+        expect(message.sequence).equals("5");
+        expect(message.batchId).equals("0");
+
+        // Check state.
+        const helloTokenState = await getObjectFields(provider, stateId);
+        expect(helloTokenState.emitter_cap.fields.sequence).equals("0");
+
+        // Verify transfer payload.
+        const transferPayload = await parseTransferPayload(message.payload);
+        expect(
+          transferPayload.fromAddress!.endsWith(
+            helloTokenState.emitter_cap.fields.emitter
+          )
+        ).is.true;
+        expect(transferPayload.originChain).to.equal(CHAIN_ID_ETH);
+        expect(transferPayload.targetAddress).to.equal(
+          Buffer.alloc(32, "deadbeef").toString("hex")
+        );
+        expect(transferPayload.targetChain).to.equal(Number(targetChain));
+
+        // Fetch the coin balance after doing the transfer.
+        const coinBalanceAfter = await provider.getBalance(
+          walletAddress,
+          WRAPPED_WETH_COIN_TYPE
+        );
+        expect(
+          coinBalanceBefore.totalBalance - coinBalanceAfter.totalBalance
+        ).eq(parseInt(amount));
       });
     });
   });
