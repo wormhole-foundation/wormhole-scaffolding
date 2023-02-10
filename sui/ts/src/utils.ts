@@ -20,6 +20,64 @@ export async function getObjectFields(
   return Promise.reject("not shared object");
 }
 
+export async function getDynamicObjectFields(
+  provider: JsonRpcProvider,
+  parentId: string,
+  childName: string
+) {
+  const dynamicObjectFieldInfo = await provider
+    .getDynamicFieldObject(parentId, childName)
+    .then((result) => {
+      if (
+        typeof result.details !== "string" &&
+        "data" in result.details &&
+        "fields" in result.details.data
+      ) {
+        return result.details.data;
+      } else {
+        return null;
+      }
+    });
+
+  if (dynamicObjectFieldInfo === null) {
+    return Promise.reject("invalid dynamic object field");
+  }
+
+  return dynamicObjectFieldInfo;
+}
+
+export async function getTableFromDynamicObjectField(
+  provider: JsonRpcProvider,
+  parentId: string,
+  childName: string
+) {
+  const dynamicObjectInfo = await getDynamicObjectFields(
+    provider,
+    parentId,
+    childName
+  );
+
+  // Fetch the table's keys
+  const keys = await provider
+    .getDynamicFields(dynamicObjectInfo!.fields.id.id)
+    .then((result) => result.data);
+
+  if (keys.length == 0) {
+    return Promise.reject("dynamic field not found");
+  }
+
+  // Create array of key value pairs
+  const tableTuples = await Promise.all(
+    keys.map(async (key) => {
+      // Fetch the value
+      const valueObject = await getObjectFields(provider, key.objectId);
+      return [key.name, valueObject.value.fields.data];
+    })
+  );
+
+  return tableTuples;
+}
+
 export async function getCreatedFromTransaction(
   txResponse: SuiExecuteTransactionResponse
 ) {

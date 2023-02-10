@@ -43,6 +43,7 @@ import {
   getCreatedFromTransaction,
   getWormholeMessagesFromTransaction,
   getObjectFields,
+  getTableFromDynamicObjectField,
 } from "../src";
 
 const HELLO_TOKEN_ID = "0x00987c9daab9e24fd95d40fd9397c5786d164ff4";
@@ -270,6 +271,25 @@ describe(" 2: Hello Token", () => {
             return null;
           });
         expect(registerTx).is.not.null;
+
+        // Fetch state info
+        const helloTokenDynamicObjectField = await provider
+          .getDynamicFields(stateId)
+          .then((result) => result.data);
+        expect(helloTokenDynamicObjectField).has.length(1);
+
+        const registeredContracts = await getTableFromDynamicObjectField(
+          provider,
+          stateId,
+          helloTokenDynamicObjectField[0].name!
+        );
+        expect(registeredContracts).has.length(1);
+
+        // Verify state changes
+        expect(parseInt(registeredContracts![0][0])).to.equal(foreignChain);
+        expect(
+          Buffer.from(registeredContracts![0][1]).toString("hex")
+        ).to.equal(foreignContractAddress.toString("hex"));
       });
     });
   });
