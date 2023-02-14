@@ -20,7 +20,7 @@ fi
 echo "fetching Sui programs from wormhole repo"
 git clone \
     --depth 1 \
-    --branch main \
+    --branch sui/token-bridge-transfer \
     --filter=blob:none \
     --sparse \
     https://github.com/wormhole-foundation/wormhole \

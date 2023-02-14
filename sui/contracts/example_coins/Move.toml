@@ -5,7 +5,7 @@ version = "0.1.0"
 [dependencies.Sui]
 git = "https://github.com/MystenLabs/sui.git"
 subdir = "crates/sui-framework"
-rev = "2d709054a08d904b9229a2472af679f210af3827"
+rev = "0fe3e5c237f2f6410c66617cede5733015a17a36"
 
 [addresses]
 example_coins = "_"

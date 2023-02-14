@@ -4,7 +4,7 @@ module hello_token::bytes32 {
 
     // Errors.
     const E_INVALID_BYTES32: u64 = 0;
-    
+
     // Of course LEN == 32.
     const LEN: u64 = 32;
 
@@ -139,7 +139,7 @@ module hello_token::bytes32_tests {
     #[test]
     public fun update() {
         let actual = bytes32::default();
-        
+
         let data =
             x"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
         assert!(vector::length(&data) == 32, 0);

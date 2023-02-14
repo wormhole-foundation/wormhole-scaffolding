@@ -52,7 +52,7 @@ module example_coins::coin_8_tests {
     use example_coins::coin_8::{Self};
 
     #[test]
-    public fun init() {
+    public fun init_test() {
         let my_scenario = test_scenario::begin(@0x0);
         let scenario = &mut my_scenario;
         let creator = @0xDEADBEEF;

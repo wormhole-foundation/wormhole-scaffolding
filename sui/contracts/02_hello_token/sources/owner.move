@@ -97,15 +97,18 @@ module hello_token::init_tests {
     use sui::test_scenario::{Self, Scenario, TransactionEffects};
 
     use hello_token::bytes32::{Self};
-    use hello_token::state::{State};
+    use hello_token::state::{State as HelloTokenState};
     use hello_token::owner::{Self, OwnerCap};
+
     use wormhole::emitter::{EmitterCapability as EmitterCap};
     use wormhole::state::{
         DeployerCapability as WormholeDeployerCap,
         State as WormholeState
     };
-    use token_bridge::bridge_state::{
-        Self,
+    use wormhole::external_address::{Self};
+    use token_bridge::state::{
+        Self as bridge_state,
+        State as BridgeState,
         DeployerCapability as BridgeDeployerCap
     };
 
@@ -113,7 +116,7 @@ module hello_token::init_tests {
     const TEST_RELAYER_FEE_PRECISION: u64 = 1000000;
 
     #[test]
-    public fun init() {
+    public fun init_test() {
         let my_scenario = test_scenario::begin(@0x0);
         let scenario = &mut my_scenario;
         let (creator, _) = people();
@@ -156,9 +159,9 @@ module hello_token::init_tests {
 
         // Verify that the created ID matches the State's ID.
         let state_id = vector::borrow(&created_ids, 0);
-        let state = test_scenario::take_shared<State>(scenario);
+        let state = test_scenario::take_shared<HelloTokenState>(scenario);
         assert!(*state_id == object::id(&state), 0);
-        test_scenario::return_shared<State>(state);
+        test_scenario::return_shared<HelloTokenState>(state);
 
         // We expect two objects to be deleted:
         // 1. state_cap
@@ -182,7 +185,7 @@ module hello_token::init_tests {
             x"000000000000000000000000beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe";
 
         // Fetch the HelloToken state object and owner capability
-        let state = test_scenario::take_shared<State>(scenario);
+        let state = test_scenario::take_shared<HelloTokenState>(scenario);
         let owner_cap =
                 test_scenario::take_from_sender<OwnerCap>(scenario);
 
@@ -219,7 +222,7 @@ module hello_token::init_tests {
         };
 
         // Bye bye.
-        test_scenario::return_shared<State>(state);
+        test_scenario::return_shared<HelloTokenState>(state);
         test_scenario::return_to_sender<OwnerCap>(scenario, owner_cap);
 
         // Done.
@@ -240,7 +243,7 @@ module hello_token::init_tests {
             x"0000000000000000000000000000000000000000000000000000000000000069";
 
         // Fetch the HelloToken state object and owner capability
-        let state = test_scenario::take_shared<State>(scenario);
+        let state = test_scenario::take_shared<HelloTokenState>(scenario);
         let owner_cap =
                 test_scenario::take_from_sender<OwnerCap>(scenario);
 
@@ -288,7 +291,7 @@ module hello_token::init_tests {
         };
 
         // Bye bye.
-        test_scenario::return_shared<State>(state);
+        test_scenario::return_shared<HelloTokenState>(state);
         test_scenario::return_to_sender<OwnerCap>(scenario, owner_cap);
 
         // Done.
@@ -308,7 +311,7 @@ module hello_token::init_tests {
             x"000000000000000000000000beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe";
 
         // Fetch the HelloToken state object and owner capability
-        let state = test_scenario::take_shared<State>(scenario);
+        let state = test_scenario::take_shared<HelloTokenState>(scenario);
         let owner_cap =
                 test_scenario::take_from_sender<OwnerCap>(scenario);
 
@@ -321,7 +324,7 @@ module hello_token::init_tests {
         );
 
         // Bye bye.
-        test_scenario::return_shared<State>(state);
+        test_scenario::return_shared<HelloTokenState>(state);
         test_scenario::return_to_sender<OwnerCap>(scenario, owner_cap);
 
         // Done.
@@ -341,7 +344,7 @@ module hello_token::init_tests {
             x"0000000000000000000000000000000000000000000000000000000000000000";
 
         // Fetch the HelloToken state object and owner capability
-        let state = test_scenario::take_shared<State>(scenario);
+        let state = test_scenario::take_shared<HelloTokenState>(scenario);
         let owner_cap =
                 test_scenario::take_from_sender<OwnerCap>(scenario);
 
@@ -354,7 +357,7 @@ module hello_token::init_tests {
         );
 
         // Bye bye.
-        test_scenario::return_shared<State>(state);
+        test_scenario::return_shared<HelloTokenState>(state);
         test_scenario::return_to_sender<OwnerCap>(scenario, owner_cap);
 
         // Done.
@@ -377,7 +380,7 @@ module hello_token::init_tests {
         );
 
         // Fetch the HelloToken state object and owner capability
-        let state = test_scenario::take_shared<State>(scenario);
+        let state = test_scenario::take_shared<HelloTokenState>(scenario);
         let owner_cap =
                 test_scenario::take_from_sender<OwnerCap>(scenario);
 
@@ -412,7 +415,7 @@ module hello_token::init_tests {
         };
 
         // Bye bye.
-        test_scenario::return_shared<State>(state);
+        test_scenario::return_shared<HelloTokenState>(state);
         test_scenario::return_to_sender<OwnerCap>(scenario, owner_cap);
 
         // Done.
@@ -448,6 +451,7 @@ module hello_token::init_tests {
                 1, // governance chain
                 x"0000000000000000000000000000000000000000000000000000000000000004", // governance_contract
                 vector[x"beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe"], // initial_guardians
+                100,
                 test_scenario::ctx(scenario)
             );
 
@@ -486,15 +490,18 @@ module hello_token::init_tests {
                 test_scenario::take_from_sender<BridgeDeployerCap>(
                     scenario
                 );
-            let emitter_cap =
-                test_scenario::take_from_sender<EmitterCap>(scenario);
+            let wormhole_state =
+                test_scenario::take_shared<WormholeState>(scenario);
 
             // Init the bridge state
             bridge_state::init_and_share_state(
                 deployer_cap,
-                emitter_cap,
+                &mut wormhole_state,
                 test_scenario::ctx(scenario)
             );
+
+            // Bye bye.
+            test_scenario::return_shared<WormholeState>(wormhole_state);
 
             // Proceed.
             test_scenario::next_tx(scenario, creator);
@@ -519,6 +526,20 @@ module hello_token::init_tests {
         {
             // We call `init_test_only` to simulate `init`
             owner::init_test_only(test_scenario::ctx(scenario));
+
+            // Proceed.
+            test_scenario::next_tx(scenario, creator);
+        };
+
+        // Register a test emitter on the token bridge.
+        {
+            let state = test_scenario::take_shared<BridgeState>(scenario);
+            bridge_state::test_set_registered_emitter(
+                &mut state,
+                2, // Ethereum chain ID
+                external_address::from_bytes(x"45"),
+            );
+            test_scenario::return_shared<BridgeState>(state);
 
             // Proceed.
             test_scenario::next_tx(scenario, creator);

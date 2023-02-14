@@ -1,26 +1,27 @@
 ---
 protocol-key-pair:
-  value: BKIqeisaVCaFZGQihO3C3kkXA2Q/dEtt/VnYvBws8tM=
+  value: G+dYUZq8UuRpNG8XadZHgwBTM/ui8jdb50QAMQUZl9Y=
 worker-key-pair:
-  value: ABMthUYILEULee3yxUqHweoYBvx13PY+rHJ3x0WgjFKi
+  value: AOO3dcPUQzZXKuprQxCKFQtc2owlz5QVaVvEWj5MgO+m
 account-key-pair:
-  value: APWgsr5JcHXspp2dfBzArkXQ41YtD4oHuNQQZpVOgHK7
+  value: ALU2xcUugzJgaOC108vqYt8AXLaXRl9qugaE50F7tC2p
 network-key-pair:
-  value: AF3tdwNBb+xlLIEva88FClqZ+kUkbsWW3ENmK4TOu3OH
-db-path: ts/tests/sui_config/authorities_db/940ed7c1575b6f6180b05f44c2d026fe6666aa4706053d309519a16638e0b0b1e58d4fd2b2f4de5b90c12ea199086f66104e204337543adbe8aa6a24d3590d27ad98266edcac37287b50eb814e9efc4bb4af1266feb55ab807994c16db9d13ca
-network-address: /ip4/127.0.0.1/tcp/44781/http
-json-rpc-address: "127.0.0.1:39073"
-metrics-address: "127.0.0.1:43915"
-admin-interface-port: 44857
+  value: AHOWO57bg+Bfm7vU8nflXGvprQwPoTAhLbH5AFbmwqix
+db-path: ts/tests/sui_config/authorities_db/9989428e8eb8d900d9652c52835bf1546d24abc9ed70b1bb79ff827efcee37bb6a9438df64f6e82f7e89a4323fb19c8f04950879148f526ea5dae18ccaf9a432cdad094f276a8386e65607dd465fa45ecf49bdc51ac895562a20cfbd77217133
+network-address: /ip4/127.0.0.1/tcp/45575/http
+json-rpc-address: "127.0.0.1:42927"
+metrics-address: "127.0.0.1:34903"
+admin-interface-port: 41125
 consensus-config:
-  address: /ip4/127.0.0.1/tcp/45029/http
-  db-path: ts/tests/sui_config/consensus_db/940ed7c1575b6f6180b05f44c2d026fe6666aa4706053d309519a16638e0b0b1e58d4fd2b2f4de5b90c12ea199086f66104e204337543adbe8aa6a24d3590d27ad98266edcac37287b50eb814e9efc4bb4af1266feb55ab807994c16db9d13ca
+  address: /ip4/127.0.0.1/tcp/46303/http
+  db-path: ts/tests/sui_config/consensus_db/9989428e8eb8d900d9652c52835bf1546d24abc9ed70b1bb79ff827efcee37bb6a9438df64f6e82f7e89a4323fb19c8f04950879148f526ea5dae18ccaf9a432cdad094f276a8386e65607dd465fa45ecf49bdc51ac895562a20cfbd77217133
   internal-worker-address: ~
   timeout-secs: 60
   narwhal-config:
     header_num_of_batches_threshold: 32
     max_header_num_of_batches: 1000
     max_header_delay: 100ms
+    min_header_delay: 100ms
     gc_depth: 50
     sync_retry_delay: 5000ms
     sync_retry_nodes: 3
@@ -33,15 +34,15 @@ consensus-config:
       payload_availability_timeout: 30000ms
       handler_certificate_deliver_timeout: 30000ms
     consensus_api_grpc:
-      socket_addr: /ip4/127.0.0.1/tcp/40815/http
+      socket_addr: /ip4/127.0.0.1/tcp/46351/http
       get_collections_timeout: 5000ms
       remove_collections_timeout: 5000ms
     max_concurrent_requests: 500000
     prometheus_metrics:
-      socket_addr: /ip4/127.0.0.1/tcp/39309/http
+      socket_addr: /ip4/127.0.0.1/tcp/33881/http
     network_admin_server:
-      primary_network_admin_server_port: 37547
-      worker_network_admin_server_base_port: 36665
+      primary_network_admin_server_port: 37229
+      worker_network_admin_server_base_port: 35403
     anemo:
       send_message_rate_limit: ~
       get_payload_availability_rate_limit: ~
@@ -49,12 +50,12 @@ consensus-config:
       report_batch_rate_limit: ~
       request_batch_rate_limit: ~
 enable-event-processing: false
-checkpoints-per-epoch: 3000
+epoch-duration-ms: 86400000
 grpc-load-shed: ~
 grpc-concurrency-limit: 20000000000
 p2p-config:
-  listen-address: "127.0.0.1:45551"
-  external-address: /ip4/127.0.0.1/udp/45551
+  listen-address: "127.0.0.1:46327"
+  external-address: /ip4/127.0.0.1/udp/46327
 genesis:
   genesis-file-location: ts/tests/sui_config/genesis.blob
 authority-store-pruning-config:

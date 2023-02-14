@@ -8,7 +8,7 @@ module hello_token::message {
     const E_INVALID_MESSAGE: u64 = 1;
 
     // Payload IDs.
-    const MESSAGE_HELLO: u8 = 1;
+    const MESSAGE_HELLO_TOKEN: u8 = 1;
 
     struct Message has drop {
         recipient: Bytes32,
@@ -31,7 +31,7 @@ module hello_token::message {
 
     public fun encode(self: &Message): vector<u8> {
         let serialized = vector::empty<u8>();
-        vector::push_back(&mut serialized, MESSAGE_HELLO);
+        vector::push_back(&mut serialized, MESSAGE_HELLO_TOKEN);
         vector::append(&mut serialized, bytes32::data(&self.recipient));
 
         serialized
@@ -39,7 +39,7 @@ module hello_token::message {
 
     public fun decode(buf: vector<u8>): Message {
         assert!(
-            vector::remove(&mut buf, 0) == MESSAGE_HELLO,
+            vector::remove(&mut buf, 0) == MESSAGE_HELLO_TOKEN,
             E_INVALID_MESSAGE
         );
         new(&bytes32::new(buf))
@@ -89,7 +89,7 @@ module hello_token::message_tests {
             );
 
         let serialized = message::encode(&message::new(&recipient));
-        let expected = 
+        let expected =
             x"01deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
         assert!(serialized == expected, 0);
     }

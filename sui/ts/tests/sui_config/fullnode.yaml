@@ -1,33 +1,33 @@
 ---
 protocol-key-pair:
-  value: M9GocNw3byduaj6KTdpzmsz81WxJpqQW2q0vvSSMTac=
+  value: U5LPOI96qYaZUWP8PXfemCz0p6odYo9PyCOOKWE1qZk=
 worker-key-pair:
-  value: APzEuAV+ExoBofL+PuzW6ez6CfJgZSuwc22WOdst5bAU
+  value: AIFL65mhAjAQA7u0M7paZKpNXsq2xeiUrdtpVarDwIgk
 account-key-pair:
-  value: AJvKf2j6vQtaRGZ0Z2CE5YDW1fWkjEVpp3wAEmWIcrg2
+  value: AOzXHBA0ZgdDLgC80d/DWHRY+0VHl1Zk9PpPalRbRAjx
 network-key-pair:
-  value: AHKltHNEinfe2BT6yL/y8J0cp9ExL3dlrZ4t9zjnk7aN
+  value: AIYLpXyUOdITwMFqOZmCS+ghXxxp1iM99fjVlJep4d8z
 db-path: ts/tests/sui_config/authorities_db/full_node_db
-network-address: /ip4/127.0.0.1/tcp/35885/http
+network-address: /ip4/127.0.0.1/tcp/46691/http
 json-rpc-address: "0.0.0.0:9000"
-metrics-address: "127.0.0.1:35379"
-admin-interface-port: 42511
+metrics-address: "127.0.0.1:37559"
+admin-interface-port: 43885
 enable-event-processing: true
-checkpoints-per-epoch: 3000
+epoch-duration-ms: 86400000
 grpc-load-shed: ~
 grpc-concurrency-limit: ~
 p2p-config:
-  listen-address: "127.0.0.1:33951"
-  external-address: /ip4/127.0.0.1/udp/33951
+  listen-address: "127.0.0.1:40891"
+  external-address: /ip4/127.0.0.1/udp/40891
   seed-peers:
-    - peer-id: 6576c6fff66e53851a8cb48816622230d33e1db7eb807283b4a8d45f764b95ab
-      address: /ip4/127.0.0.1/udp/37325
-    - peer-id: 877f610933fddd5b11811df7250295f8462412acb5182605b715c50a98a37cdf
-      address: /ip4/127.0.0.1/udp/41271
-    - peer-id: 5e02aaec7924dd8db6f580cf658d2ec982312baf080db70072b83eb0c545a994
-      address: /ip4/127.0.0.1/udp/45551
-    - peer-id: 12eb290ebb8563ff8e86947f3a2063ad887a63dcfaefeb531e18792ca31f0862
-      address: /ip4/127.0.0.1/udp/41239
+    - peer-id: b214808e7ef75decb0cc063e4438e1186bc3a058ab76688ca44f5bbd81dbdd7a
+      address: /ip4/127.0.0.1/udp/33801
+    - peer-id: 8397ea0ca3f3d06ba9c589bc74ae71b8b9cf39bd0059db0f6a73ac4e8995882c
+      address: /ip4/127.0.0.1/udp/35847
+    - peer-id: 07b7ebb3123379874a8036065b56e24afbdd38961a0e88a871dde13ed413192f
+      address: /ip4/127.0.0.1/udp/46327
+    - peer-id: df1777b4db0a0531f7beaed9da448a9ceb2eebdc1bd2d4a5fa6665dd7eba3d53
+      address: /ip4/127.0.0.1/udp/43217
 genesis:
   genesis-file-location: ts/tests/sui_config/genesis.blob
 authority-store-pruning-config:
