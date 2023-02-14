@@ -7,10 +7,15 @@ module hello_token::transfer {
     use token_bridge::normalized_amount::{from_raw, to_raw};
     use token_bridge::state::{State as TokenBridgeState};
     use token_bridge::transfer_tokens_with_payload::{transfer_tokens_with_payload};
-    use token_bridge::complete_transfer_with_payload::{complete_transfer_with_payload};
-    use token_bridge::transfer_with_payload::{payload};
+    use token_bridge::complete_transfer_with_payload::{
+        complete_transfer_with_payload
+    };
+    use token_bridge::transfer_with_payload::{payload, sender};
 
-    use wormhole::external_address::{left_pad as make_external, to_address};
+    use wormhole::external_address::{
+        left_pad as make_external,
+        to_address
+    };
     use wormhole::state::{State as WormholeState};
 
     use hello_token::bytes32::{Self};
@@ -95,12 +100,24 @@ module hello_token::transfer {
         ctx: &mut TxContext
      ) {
         // Complete the transfer on the token bridge.
-        let (coins, transfer_payload) = complete_transfer_with_payload<C>(
-            state::emitter_cap(t_state),
-            wormhole_state,
-            token_bridge_state,
-            vaa,
-            ctx
+        let (coins, transfer_payload, emitter_chain_id) =
+            complete_transfer_with_payload<C>(
+                state::emitter_cap(t_state),
+                wormhole_state,
+                token_bridge_state,
+                vaa,
+                ctx
+            );
+
+        // Confirm that the emitter is a registered contract.
+        assert!(
+            *state::foreign_contract_address(
+                t_state,
+                emitter_chain_id
+            ) == bytes32::from_external_address(
+                &sender(&transfer_payload)
+            ),
+            E_UNREGISTERED_FOREIGN_CONTRACT
         );
 
         // Parse the additional payload.
@@ -127,7 +144,7 @@ module hello_token::transfer {
 
         // Send the coins to the target recipient.
         transfer::transfer(coins, recipient);
-     }
+    }
 }
 
 #[test_only]
@@ -168,7 +185,7 @@ module hello_token::transfer_tests {
     const TEST_TOKEN_9_EXPECTED_DUST: u64 = 1;
 
     // Coin 8 redemption test constants.
-    const COIN_8_TRANSFER_VAA: vector<u8> = x"010000000001001ce269e0f7c7503e4fa8b0b4f365ec7bcad589851a1fdd463c3c99f129a01b2c6631a6e1b7a6916c471fb7bbd7e2069df3e41afef6da1907c777fd2dae1e4fd40163ebabda000000000002000000000000000000000000000000000000000000000000000000000000004500000000000000000103000000000000000000000000000000000000000000000000000000000000004500000000000000000000000000000000000000000000000000000000000000010015000000000000000000000000000000000000000000000000000000000000000300150000000000000000000000007fa9385be102ac3eac297483dd6233d62b3e149601000000000000000000000000000000000000000000000000000000000000beef";
+    const COIN_8_TRANSFER_VAA: vector<u8> = x"010000000001004a74c709640a12a959f848feece876c91a145ba2cec17ee742d7abc7de10b10b1ceba838814ebd431a73a07cabe788d78b9dcf9d25a553d64fe8b324db60bf9e0063ec0bd800000000000200000000000000000000000000000000000000000000000000000000000000450000000000000000010300000000000000000000000000000000000000000000000000000000000000450000000000000000000000000000000000000000000000000000000000000001001500000000000000000000000000000000000000000000000000000000000000030015000000000000000000000000000000000000000000000000000000000000005901000000000000000000000000000000000000000000000000000000000000beef";
     const COIN_8_TRANSFER_AMOUNT: u64 = 69;
     const COIN_8_RELAYER_FEE: u64 = 2;
 
@@ -530,7 +547,7 @@ module hello_token::transfer_tests {
     }
 
     #[test]
-    public fun redeem_transfer_with_payload_coin_8_self_redemption() {
+    public fun redeem_transfer_with_payload_self_redemption() {
         let (creator, _) = people();
         let (my_scenario, _) = set_up(creator);
         let scenario = &mut my_scenario;
@@ -577,6 +594,25 @@ module hello_token::transfer_tests {
             test_scenario::next_tx(scenario, creator);
         };
 
+        // Register the target contract.
+        {
+            let owner_cap =
+                test_scenario::take_from_sender<OwnerCap>(scenario);
+
+            owner::register_foreign_contract(
+                &owner_cap,
+                &mut hello_token_state,
+                2,
+                x"0000000000000000000000000000000000000000000000000000000000000059"
+            );
+
+            // Bye bye.
+            test_scenario::return_to_sender<OwnerCap>(scenario, owner_cap);
+
+            // Proceed.
+            test_scenario::next_tx(scenario, creator);
+        };
+
         // Complete the transfer.
         transfer::redeem_transfer_with_payload<coin_8::COIN_8>(
             &hello_token_state,
@@ -615,7 +651,7 @@ module hello_token::transfer_tests {
     }
 
     #[test]
-    public fun redeem_transfer_with_payload_coin_8_with_relayer() {
+    public fun redeem_transfer_with_payload_with_relayer() {
         let (creator, relayer) = people();
         let (my_scenario, _) = set_up(creator);
         let scenario = &mut my_scenario;
@@ -657,6 +693,25 @@ module hello_token::transfer_tests {
 
             // Transfer coin_8 metadata to zero address.
             native_transfer::transfer(test_metadata, @0x0);
+        };
+
+        // Register the target contract.
+        {
+            let owner_cap =
+                test_scenario::take_from_sender<OwnerCap>(scenario);
+
+            owner::register_foreign_contract(
+                &owner_cap,
+                &mut hello_token_state,
+                2,
+                x"0000000000000000000000000000000000000000000000000000000000000059"
+            );
+
+            // Bye bye.
+            test_scenario::return_to_sender<OwnerCap>(scenario, owner_cap);
+
+            // Proceed.
+            test_scenario::next_tx(scenario, creator);
         };
 
         // Proceed, and change sender to the relayer.

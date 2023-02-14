@@ -2,6 +2,8 @@ module hello_token::bytes32 {
     use std::bcs::{Self};
     use std::vector::{Self};
 
+    use wormhole::external_address::{Self, ExternalAddress};
+
     // Errors.
     const E_INVALID_BYTES32: u64 = 0;
 
@@ -51,6 +53,10 @@ module hello_token::bytes32 {
 
     public fun from_bytes(buf: &vector<u8>): Bytes32 {
         new(pad_left(buf, false))
+    }
+
+    public fun from_external_address(e: &ExternalAddress): Bytes32 {
+        from_bytes(&external_address::get_bytes(e))
     }
 
     public fun update(
