@@ -158,107 +158,19 @@ module hello_token::transfer_tests {
     use example_coins::coin_8::{Self};
     use example_coins::coin_9::{Self};
 
+    // Updating these constants will alter the results of the tests.
     const TEST_TOKEN_8_SUPPLY: u64 = 42069;
     const TEST_INSUFFICIENT_TOKEN_9_SUPPLY: u64 = 1;
     const TEST_SUI_SUPPLY: u64 = 69420;
     const TEST_RELAYER_FEE: u64 = 42069; // 4.2069%
     const TEST_RELAYER_FEE_PRECISION: u64 = 1000000;
-
-    // These values are used to test that HelloToken correctly
-    // returns token dust. If the TEST_TOKEN_9_SUPPLY value is
-    // changed, the TEST_TOKEN_9_EXPECTED_DUST value must be
-    // updated accordingly.
     const TEST_TOKEN_9_SUPPLY: u64 = 12345678910111;
     const TEST_TOKEN_9_EXPECTED_DUST: u64 = 1;
 
-    // coin_8 signed transfer VAA.
+    // Coin 8 redemption test constants.
     const COIN_8_TRANSFER_VAA: vector<u8> = x"010000000001001ce269e0f7c7503e4fa8b0b4f365ec7bcad589851a1fdd463c3c99f129a01b2c6631a6e1b7a6916c471fb7bbd7e2069df3e41afef6da1907c777fd2dae1e4fd40163ebabda000000000002000000000000000000000000000000000000000000000000000000000000004500000000000000000103000000000000000000000000000000000000000000000000000000000000004500000000000000000000000000000000000000000000000000000000000000010015000000000000000000000000000000000000000000000000000000000000000300150000000000000000000000007fa9385be102ac3eac297483dd6233d62b3e149601000000000000000000000000000000000000000000000000000000000000beef";
     const COIN_8_TRANSFER_AMOUNT: u64 = 69;
-
-    #[test]
-    public fun redeem_transfer_with_payload_coin_8_self_redemption() {
-        let (creator, _) = people();
-        let (my_scenario, _) = set_up(creator);
-        let scenario = &mut my_scenario;
-
-        // Fetch state objects.
-        let hello_token_state =
-            test_scenario::take_shared<State>(scenario);
-        let bridge_state =
-            test_scenario::take_shared<BridgeState>(scenario);
-        let wormhole_state =
-            test_scenario::take_shared<WormholeState>(scenario);
-
-        // Attest the token.
-        {
-            // Mint coin 8, fetch the metadata and store the object ID for later.
-            let (test_coin, test_metadata) = mint_coin_8(
-                TEST_TOKEN_8_SUPPLY,
-                test_scenario::ctx(scenario)
-            );
-            test_scenario::next_tx(scenario, creator);
-
-            // Mint sui to pay the wormhole fee for attesting the token.
-            let fee_coin = mint_sui(
-                wormhole_state_module::get_message_fee(&wormhole_state),
-                test_scenario::ctx(scenario)
-            );
-
-            // Attest!
-            attest_token::attest_token(
-                &mut wormhole_state,
-                &mut bridge_state,
-                &test_metadata,
-                fee_coin,
-                test_scenario::ctx(scenario)
-            );
-
-            // Deposit tokens into the bridge.
-            test_deposit(&mut bridge_state, test_coin);
-
-            // Transfer coin_8 metadata to zero address.
-            native_transfer::transfer(test_metadata, @0x0);
-
-            // Proceed.
-            test_scenario::next_tx(scenario, creator);
-        };
-
-        // Complete the transfer.
-        transfer::redeem_transfer_with_payload<coin_8::COIN_8>(
-            &hello_token_state,
-            &mut wormhole_state,
-            &mut bridge_state,
-            COIN_8_TRANSFER_VAA,
-            test_scenario::ctx(scenario)
-        );
-
-        // Proceed.
-        let effects = test_scenario::next_tx(scenario, creator);
-
-        // Store created object IDs.
-        let created_ids = test_scenario::created(&effects);
-            assert!(vector::length(&created_ids) == 1, 0);
-
-        // Balance check the recipient.
-        {
-            let token_object =
-                test_scenario::take_from_sender<Coin<coin_8::COIN_8>>(scenario);
-
-            // Confirm that the value of the token is non-zero.
-            assert!(coin::value(&token_object) == COIN_8_TRANSFER_AMOUNT, 0);
-
-            // Bye bye.
-            test_scenario::return_to_sender(scenario, token_object);
-        };
-
-        // Return the goods.
-        test_scenario::return_shared<State>(hello_token_state);
-        test_scenario::return_shared<BridgeState>(bridge_state);
-        test_scenario::return_shared<WormholeState>(wormhole_state);
-
-        // Done.
-        test_scenario::end(my_scenario);
-    }
+    const COIN_8_RELAYER_FEE: u64 = 2;
 
     #[test]
     public fun send_tokens_with_payload_coin_8() {
@@ -612,6 +524,201 @@ module hello_token::transfer_tests {
         test_scenario::return_shared<BridgeState>(bridge_state);
         test_scenario::return_shared<WormholeState>(wormhole_state);
         native_transfer::transfer(test_metadata, @0x0);
+
+        // Done.
+        test_scenario::end(my_scenario);
+    }
+
+    #[test]
+    public fun redeem_transfer_with_payload_coin_8_self_redemption() {
+        let (creator, _) = people();
+        let (my_scenario, _) = set_up(creator);
+        let scenario = &mut my_scenario;
+
+        // Fetch state objects.
+        let hello_token_state =
+            test_scenario::take_shared<State>(scenario);
+        let bridge_state =
+            test_scenario::take_shared<BridgeState>(scenario);
+        let wormhole_state =
+            test_scenario::take_shared<WormholeState>(scenario);
+
+        // Attest the token.
+        {
+            // Mint coin 8, fetch the metadata and store the object ID for later.
+            let (test_coin, test_metadata) = mint_coin_8(
+                TEST_TOKEN_8_SUPPLY,
+                test_scenario::ctx(scenario)
+            );
+            test_scenario::next_tx(scenario, creator);
+
+            // Mint sui to pay the wormhole fee for attesting the token.
+            let fee_coin = mint_sui(
+                wormhole_state_module::get_message_fee(&wormhole_state),
+                test_scenario::ctx(scenario)
+            );
+
+            // Attest!
+            attest_token::attest_token(
+                &mut wormhole_state,
+                &mut bridge_state,
+                &test_metadata,
+                fee_coin,
+                test_scenario::ctx(scenario)
+            );
+
+            // Deposit tokens into the bridge.
+            test_deposit(&mut bridge_state, test_coin);
+
+            // Transfer coin_8 metadata to zero address.
+            native_transfer::transfer(test_metadata, @0x0);
+
+            // Proceed.
+            test_scenario::next_tx(scenario, creator);
+        };
+
+        // Complete the transfer.
+        transfer::redeem_transfer_with_payload<coin_8::COIN_8>(
+            &hello_token_state,
+            &mut wormhole_state,
+            &mut bridge_state,
+            COIN_8_TRANSFER_VAA,
+            test_scenario::ctx(scenario)
+        );
+
+        // Proceed.
+        let effects = test_scenario::next_tx(scenario, creator);
+
+        // Store created object IDs.
+        let created_ids = test_scenario::created(&effects);
+        assert!(vector::length(&created_ids) == 1, 0);
+
+        // Balance check the recipient.
+        {
+            let token_object =
+                test_scenario::take_from_sender<Coin<coin_8::COIN_8>>(scenario);
+
+            // Validate the object's value.
+            assert!(coin::value(&token_object) == COIN_8_TRANSFER_AMOUNT, 0);
+
+            // Bye bye.
+            test_scenario::return_to_sender(scenario, token_object);
+        };
+
+        // Return the goods.
+        test_scenario::return_shared<State>(hello_token_state);
+        test_scenario::return_shared<BridgeState>(bridge_state);
+        test_scenario::return_shared<WormholeState>(wormhole_state);
+
+        // Done.
+        test_scenario::end(my_scenario);
+    }
+
+    #[test]
+    public fun redeem_transfer_with_payload_coin_8_with_relayer() {
+        let (creator, relayer) = people();
+        let (my_scenario, _) = set_up(creator);
+        let scenario = &mut my_scenario;
+
+        // Fetch state objects.
+        let hello_token_state =
+            test_scenario::take_shared<State>(scenario);
+        let bridge_state =
+            test_scenario::take_shared<BridgeState>(scenario);
+        let wormhole_state =
+            test_scenario::take_shared<WormholeState>(scenario);
+
+        // Attest the token.
+        {
+            // Mint coin 8, fetch the metadata and store the object ID for later.
+            let (test_coin, test_metadata) = mint_coin_8(
+                TEST_TOKEN_8_SUPPLY,
+                test_scenario::ctx(scenario)
+            );
+            test_scenario::next_tx(scenario, creator);
+
+            // Mint sui to pay the wormhole fee for attesting the token.
+            let fee_coin = mint_sui(
+                wormhole_state_module::get_message_fee(&wormhole_state),
+                test_scenario::ctx(scenario)
+            );
+
+            // Attest!
+            attest_token::attest_token(
+                &mut wormhole_state,
+                &mut bridge_state,
+                &test_metadata,
+                fee_coin,
+                test_scenario::ctx(scenario)
+            );
+
+            // Deposit tokens into the bridge.
+            test_deposit(&mut bridge_state, test_coin);
+
+            // Transfer coin_8 metadata to zero address.
+            native_transfer::transfer(test_metadata, @0x0);
+        };
+
+        // Proceed, and change sender to the relayer.
+        test_scenario::next_tx(scenario, relayer);
+
+        // Complete the transfer.
+        transfer::redeem_transfer_with_payload<coin_8::COIN_8>(
+            &hello_token_state,
+            &mut wormhole_state,
+            &mut bridge_state,
+            COIN_8_TRANSFER_VAA,
+            test_scenario::ctx(scenario)
+        );
+
+        // Proceed.
+        let effects = test_scenario::next_tx(scenario, relayer);
+
+        // Store created object IDs.
+        let created_ids = test_scenario::created(&effects);
+        assert!(vector::length(&created_ids) == 2, 0);
+
+        // Balance check the relayer.
+        {
+            // Fetch the relayer fee object by id.
+            let relayer_fee_obj =
+                test_scenario::take_from_sender_by_id<Coin<coin_8::COIN_8>>(
+                    scenario,
+                    *vector::borrow(&created_ids, 0)
+                );
+
+            // Validate the relayer fee object's value.
+            assert!(coin::value(&relayer_fee_obj) == COIN_8_RELAYER_FEE, 0);
+
+            // Bye bye.
+            test_scenario::return_to_sender(scenario, relayer_fee_obj);
+        };
+
+        // Balance check the recipient.
+        {
+            // Proceed with the test and change context back to creator,
+            // who is also the recipient in this test.
+            test_scenario::next_tx(scenario, creator);
+
+            // Fetch the transferred object by id.
+            let transferred_coin_obj =
+                test_scenario::take_from_sender_by_id<Coin<coin_8::COIN_8>>(
+                    scenario,
+                    *vector::borrow(&created_ids, 1)
+                );
+
+            // Validate the relayer fee object's value.
+            let expected_amount = COIN_8_TRANSFER_AMOUNT - COIN_8_RELAYER_FEE;
+            assert!(coin::value(&transferred_coin_obj) == expected_amount, 0);
+
+            // Bye bye.
+            test_scenario::return_to_sender(scenario, transferred_coin_obj);
+        };
+
+        // Return the goods.
+        test_scenario::return_shared<State>(hello_token_state);
+        test_scenario::return_shared<BridgeState>(bridge_state);
+        test_scenario::return_shared<WormholeState>(wormhole_state);
 
         // Done.
         test_scenario::end(my_scenario);
