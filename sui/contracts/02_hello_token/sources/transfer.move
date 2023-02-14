@@ -8,9 +8,9 @@ module hello_token::transfer {
     use token_bridge::state::{State as TokenBridgeState};
     use token_bridge::transfer_tokens_with_payload::{transfer_tokens_with_payload};
     use token_bridge::complete_transfer_with_payload::{complete_transfer_with_payload};
-    //use token_bridge::transfer_with_payload::{payload};
+    use token_bridge::transfer_with_payload::{payload};
 
-    use wormhole::external_address::{left_pad as make_external};
+    use wormhole::external_address::{left_pad as make_external, to_address};
     use wormhole::state::{State as WormholeState};
 
     use hello_token::bytes32::{Self};
@@ -95,7 +95,7 @@ module hello_token::transfer {
         ctx: &mut TxContext
      ) {
         // Complete the transfer on the token bridge.
-        let (coins, _) = complete_transfer_with_payload<C>(
+        let (coins, transfer_payload) = complete_transfer_with_payload<C>(
             state::emitter_cap(t_state),
             wormhole_state,
             token_bridge_state,
@@ -104,34 +104,36 @@ module hello_token::transfer {
         );
 
         // Parse the additional payload.
-        // let msg = message::decode(payload(&transfer_payload));
-        // let recipient = to_address(
-        //     &make_external(&bytes32::data(message::recipient(&msg)))
-        // );
+        let msg = message::decode(payload(&transfer_payload));
+        let recipient = to_address(
+            &make_external(&bytes32::data(message::recipient(&msg)))
+        );
 
-        // // Calculate the relayer fee.
-        // let relayer_fee = state::compute_relayer_fee(
-        //     t_state,
-        //     coin::value(&coins)
-        // );
+        // Calculate the relayer fee.
+        let relayer_fee = state::compute_relayer_fee(
+            t_state,
+            coin::value(&coins)
+        );
 
-        // // If the relayer fee is nonzero and the user is not
-        // // self redeeming, split the coins object and transfer
-        // // the relayer fee to the signer.
-        // if (relayer_fee > 0 && recipient != tx_context::sender(ctx)) {
-        //     let coins_for_relayer = coin::split(&mut coins, relayer_fee, ctx);
+        // If the relayer fee is nonzero and the user is not
+        // self redeeming, split the coins object and transfer
+        // the relayer fee to the signer.
+        if (relayer_fee > 0 && recipient != tx_context::sender(ctx)) {
+            let coins_for_relayer = coin::split(&mut coins, relayer_fee, ctx);
 
-        //     // Send the relayer the fee it collected.
-        //     transfer::transfer(coins_for_relayer, tx_context::sender(ctx));
-        // };
+            // Send the relayer the fee it collected.
+            transfer::transfer(coins_for_relayer, tx_context::sender(ctx));
+        };
 
         // Send the coins to the target recipient.
-        transfer::transfer(coins, @0x0);
+        transfer::transfer(coins, recipient);
      }
 }
 
 #[test_only]
 module hello_token::transfer_tests {
+    use std::vector::{Self};
+
     use sui::sui::SUI;
     use sui::test_scenario::{Self};
     use sui::coin::{Self, Coin, CoinMetadata};
@@ -169,11 +171,12 @@ module hello_token::transfer_tests {
     const TEST_TOKEN_9_SUPPLY: u64 = 12345678910111;
     const TEST_TOKEN_9_EXPECTED_DUST: u64 = 1;
 
-    // coin_8 signed transfer VAA._
-    const COIN_8_TRANSFER_VAA: vector<u8> = x"01000000000100a6fd25b0f63f85023e2ddf1a503f653aef9168465427dfc3632058993d86ea7f71c923a2e465581095fa53bbc68750f86674518c6ff25e178211666499e0e8fe0163eaa352000000000002000000000000000000000000000000000000000000000000000000000000004500000000000000000103000000000000000000000000000000000000000000000000000000000000004500000000000000000000000000000000000000000000000000000000000000010015000000000000000000000000000000000000000000000000000000000000000300150000000000000000000000007fa9385be102ac3eac297483dd6233d62b3e1496010000000000000000000000000000000000000000000000000000000000000002";
+    // coin_8 signed transfer VAA.
+    const COIN_8_TRANSFER_VAA: vector<u8> = x"010000000001001ce269e0f7c7503e4fa8b0b4f365ec7bcad589851a1fdd463c3c99f129a01b2c6631a6e1b7a6916c471fb7bbd7e2069df3e41afef6da1907c777fd2dae1e4fd40163ebabda000000000002000000000000000000000000000000000000000000000000000000000000004500000000000000000103000000000000000000000000000000000000000000000000000000000000004500000000000000000000000000000000000000000000000000000000000000010015000000000000000000000000000000000000000000000000000000000000000300150000000000000000000000007fa9385be102ac3eac297483dd6233d62b3e149601000000000000000000000000000000000000000000000000000000000000beef";
+    const COIN_8_TRANSFER_AMOUNT: u64 = 69;
 
     #[test]
-    public fun redeem_transfer_with_payload_coin_8() {
+    public fun redeem_transfer_with_payload_coin_8_self_redemption() {
         let (creator, _) = people();
         let (my_scenario, _) = set_up(creator);
         let scenario = &mut my_scenario;
@@ -186,20 +189,22 @@ module hello_token::transfer_tests {
         let wormhole_state =
             test_scenario::take_shared<WormholeState>(scenario);
 
-        // Mint coin 8, fetch the metadata and store the object ID for later.
-        let (test_coin, test_metadata) = mint_coin_8(
-            TEST_TOKEN_8_SUPPLY,
-            test_scenario::ctx(scenario)
-        );
-        test_scenario::next_tx(scenario, creator);
-
         // Attest the token.
         {
+            // Mint coin 8, fetch the metadata and store the object ID for later.
+            let (test_coin, test_metadata) = mint_coin_8(
+                TEST_TOKEN_8_SUPPLY,
+                test_scenario::ctx(scenario)
+            );
+            test_scenario::next_tx(scenario, creator);
+
+            // Mint sui to pay the wormhole fee for attesting the token.
             let fee_coin = mint_sui(
                 wormhole_state_module::get_message_fee(&wormhole_state),
                 test_scenario::ctx(scenario)
             );
 
+            // Attest!
             attest_token::attest_token(
                 &mut wormhole_state,
                 &mut bridge_state,
@@ -218,14 +223,33 @@ module hello_token::transfer_tests {
             test_scenario::next_tx(scenario, creator);
         };
 
-        // // Complete the transfer.
-        // transfer::redeem_transfer_with_payload<Coin<coin_8::COIN_8>>(
-        //     &hello_token_state,
-        //     &mut wormhole_state,
-        //     &mut bridge_state,
-        //     COIN_8_TRANSFER_VAA,
-        //     test_scenario::ctx(scenario)
-        // );
+        // Complete the transfer.
+        transfer::redeem_transfer_with_payload<coin_8::COIN_8>(
+            &hello_token_state,
+            &mut wormhole_state,
+            &mut bridge_state,
+            COIN_8_TRANSFER_VAA,
+            test_scenario::ctx(scenario)
+        );
+
+        // Proceed.
+        let effects = test_scenario::next_tx(scenario, creator);
+
+        // Store created object IDs.
+        let created_ids = test_scenario::created(&effects);
+            assert!(vector::length(&created_ids) == 1, 0);
+
+        // Balance check the recipient.
+        {
+            let token_object =
+                test_scenario::take_from_sender<Coin<coin_8::COIN_8>>(scenario);
+
+            // Confirm that the value of the token is non-zero.
+            assert!(coin::value(&token_object) == COIN_8_TRANSFER_AMOUNT, 0);
+
+            // Bye bye.
+            test_scenario::return_to_sender(scenario, token_object);
+        };
 
         // Return the goods.
         test_scenario::return_shared<State>(hello_token_state);
