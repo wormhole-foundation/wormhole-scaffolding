@@ -21,7 +21,7 @@ module hello_token::owner {
     /// here - only module author will own a version of a
     /// `OwnerCap` struct.
     fun init(ctx: &mut TxContext) {
-        // Transfer owner capability to caller.
+        // Create `OwnerCap` to the contract publisher.
         let owner_cap = OwnerCap {
             id: object::new(ctx),
         };
@@ -174,22 +174,54 @@ module hello_token::init_tests {
     }
 
     #[test]
+    #[expected_failure(abort_code = hello_token::owner::E_STATE_ALREADY_CREATED)]
+    public fun cannot_create_state_again() {
+        let (creator, _) = people();
+        let (my_scenario, _) = set_up(creator);
+        let scenario = &mut my_scenario;
+
+        // Fetch the owner and emitter caps.
+        let owner_cap =
+                test_scenario::take_from_sender<OwnerCap>(scenario);
+        let emitter_cap =
+            test_scenario::take_from_sender<EmitterCap>(scenario);
+
+        // The call to create the state should fail.
+        hello_token::owner::create_state(
+            &mut owner_cap,
+            emitter_cap,
+            TEST_RELAYER_FEE,
+            TEST_RELAYER_FEE_PRECISION,
+            test_scenario::ctx(scenario)
+        );
+
+        // Bye bye.
+        test_scenario::return_to_sender<OwnerCap>(
+            scenario,
+            owner_cap
+        );
+
+        // Done.
+        test_scenario::end(my_scenario);
+    }
+
+    #[test]
     public fun register_foreign_contract() {
         let (creator, _) = people();
         let (my_scenario, _) = set_up(creator);
         let scenario = &mut my_scenario;
 
-        // Create mock chain ID and address pair
+        // Create mock chain ID and address pair.
         let target_chain: u16 = 69;
         let target_contract =
             x"000000000000000000000000beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe";
 
-        // Fetch the HelloToken state object and owner capability
+        // Fetch the HelloToken state object and owner capability.
         let state = test_scenario::take_shared<HelloTokenState>(scenario);
         let owner_cap =
                 test_scenario::take_from_sender<OwnerCap>(scenario);
 
-        // Verify that the contract isn't already registered
+        // Verify that the contract isn't already registered.
         {
             let is_registered =
                 hello_token::state::contract_registered(
@@ -199,7 +231,7 @@ module hello_token::init_tests {
             assert!(!is_registered, 0);
         };
 
-        // Register the emitter
+        // Register the emitter.
         hello_token::owner::register_foreign_contract(
             &owner_cap,
             &mut state,
@@ -207,7 +239,7 @@ module hello_token::init_tests {
             target_contract,
         );
 
-        // Verify that the contract was registered correctly
+        // Verify that the contract was registered correctly.
         {
             let is_registered =
                 hello_token::state::contract_registered(&state, target_chain);
@@ -235,19 +267,19 @@ module hello_token::init_tests {
         let (my_scenario, _) = set_up(creator);
         let scenario = &mut my_scenario;
 
-        // Create mock chain ID and address pair
+        // Create mock chain ID and address pair.
         let target_chain: u16 = 69;
         let target_contract =
             x"000000000000000000000000beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe";
         let target_contract2 =
             x"0000000000000000000000000000000000000000000000000000000000000069";
 
-        // Fetch the HelloToken state object and owner capability
+        // Fetch the HelloToken state object and owner capability.
         let state = test_scenario::take_shared<HelloTokenState>(scenario);
         let owner_cap =
                 test_scenario::take_from_sender<OwnerCap>(scenario);
 
-        // Register the emitter
+        // Register the emitter.
         hello_token::owner::register_foreign_contract(
             &owner_cap,
             &mut state,
@@ -255,7 +287,7 @@ module hello_token::init_tests {
             target_contract,
         );
 
-        // Verify that the contract was registered correctly
+        // Verify that the contract was registered correctly.
         {
             let is_registered =
                 hello_token::state::contract_registered(&state, target_chain);
@@ -272,7 +304,7 @@ module hello_token::init_tests {
         // Proceed.
         test_scenario::next_tx(scenario, creator);
 
-        // Register an emitter with the same chain ID
+        // Register an emitter with the same chain ID.
         hello_token::owner::register_foreign_contract(
             &owner_cap,
             &mut state,
@@ -280,7 +312,7 @@ module hello_token::init_tests {
             target_contract2,
         );
 
-        // Verify that the contract was registered correctly
+        // Verify that the contract was registered correctly.
         {
             let registered_contract =
                 hello_token::state::foreign_contract_address(
@@ -305,17 +337,17 @@ module hello_token::init_tests {
         let (my_scenario, _) = set_up(creator);
         let scenario = &mut my_scenario;
 
-        // Create mock chain ID and address pair
+        // Create mock chain ID and address pair.
         let target_chain: u16 = 0;
         let target_contract =
             x"000000000000000000000000beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe";
 
-        // Fetch the HelloToken state object and owner capability
+        // Fetch the HelloToken state object and owner capability.
         let state = test_scenario::take_shared<HelloTokenState>(scenario);
         let owner_cap =
                 test_scenario::take_from_sender<OwnerCap>(scenario);
 
-        // Register the emitter
+        // Register the emitter.
         hello_token::owner::register_foreign_contract(
             &owner_cap,
             &mut state,
@@ -338,17 +370,17 @@ module hello_token::init_tests {
         let (my_scenario, _) = set_up(creator);
         let scenario = &mut my_scenario;
 
-        // Create mock chain ID and address pair
+        // Create mock chain ID and address pair.
         let target_chain: u16 = 21;
         let target_contract =
             x"000000000000000000000000beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe";
 
-        // Fetch the HelloToken state object and owner capability
+        // Fetch the HelloToken state object and owner capability.
         let state = test_scenario::take_shared<HelloTokenState>(scenario);
         let owner_cap =
                 test_scenario::take_from_sender<OwnerCap>(scenario);
 
-        // Register the emitter
+        // Register the emitter.
         hello_token::owner::register_foreign_contract(
             &owner_cap,
             &mut state,
@@ -371,17 +403,17 @@ module hello_token::init_tests {
         let (my_scenario, _) = set_up(creator);
         let scenario = &mut my_scenario;
 
-        // Create mock chain ID and address pair
+        // Create mock chain ID and address pair.
         let target_chain: u16 = 69;
         let target_contract =
             x"0000000000000000000000000000000000000000000000000000000000000000";
 
-        // Fetch the HelloToken state object and owner capability
+        // Fetch the HelloToken state object and owner capability.
         let state = test_scenario::take_shared<HelloTokenState>(scenario);
         let owner_cap =
                 test_scenario::take_from_sender<OwnerCap>(scenario);
 
-        // Register the emitter
+        // Register the emitter.
         hello_token::owner::register_foreign_contract(
             &owner_cap,
             &mut state,
@@ -398,12 +430,72 @@ module hello_token::init_tests {
     }
 
     #[test]
+    #[expected_failure(abort_code = hello_token::foreign_contracts::E_INVALID_CONTRACT_ADDRESS)]
+    public fun cannot_replace_foreign_contract_zero_address() {
+        let (creator, _) = people();
+        let (my_scenario, _) = set_up(creator);
+        let scenario = &mut my_scenario;
+
+        // Create mock chain ID and address pair.
+        let target_chain: u16 = 69;
+        let target_contract =
+            x"000000000000000000000000beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe";
+        let target_contract_zero_address =
+            x"0000000000000000000000000000000000000000000000000000000000000000";
+
+        // Fetch the HelloToken state object and owner capability.
+        let state = test_scenario::take_shared<HelloTokenState>(scenario);
+        let owner_cap =
+                test_scenario::take_from_sender<OwnerCap>(scenario);
+
+        // Register the emitter.
+        hello_token::owner::register_foreign_contract(
+            &owner_cap,
+            &mut state,
+            target_chain,
+            target_contract,
+        );
+
+        // Verify that the contract was registered correctly.
+        {
+            let is_registered =
+                hello_token::state::contract_registered(&state, target_chain);
+            assert!(is_registered, 0);
+
+            let registered_contract =
+                hello_token::state::foreign_contract_address(
+                    &state,
+                    target_chain
+                );
+            assert!(bytes32::data(registered_contract) == target_contract, 0);
+        };
+
+        // Proceed.
+        test_scenario::next_tx(scenario, creator);
+
+        // Attempt to replace the registered emitter with the zero address.
+        hello_token::owner::register_foreign_contract(
+            &owner_cap,
+            &mut state,
+            target_chain,
+            target_contract_zero_address
+        );
+
+        // Bye bye.
+        test_scenario::return_shared<HelloTokenState>(state);
+        test_scenario::return_to_sender<OwnerCap>(scenario, owner_cap);
+
+        // Done.
+        test_scenario::end(my_scenario);
+    }
+
+    #[test]
     public fun update_relayer_fee() {
         let (creator, _) = people();
         let (my_scenario, _) = set_up(creator);
         let scenario = &mut my_scenario;
 
-        // Set the test fee and fee precision variables
+        // Set the test fee and fee precision variables.
         let test_fee: u64 = 500000; // 5%
         let test_precision: u64 = 10000000;
         assert!(
@@ -412,12 +504,12 @@ module hello_token::init_tests {
             0
         );
 
-        // Fetch the HelloToken state object and owner capability
+        // Fetch the HelloToken state object and owner capability.
         let state = test_scenario::take_shared<HelloTokenState>(scenario);
         let owner_cap =
                 test_scenario::take_from_sender<OwnerCap>(scenario);
 
-        // Verify the initial state
+        // Verify the initial state.
         {
             let fee_value = hello_token::state::fee_value(&state);
             let fee_precision = hello_token::state::fee_precision(&state);
@@ -428,7 +520,7 @@ module hello_token::init_tests {
             );
         };
 
-        // Update the relayer fee
+        // Update the relayer fee.
         hello_token::owner::update_relayer_fee(
             &owner_cap,
             &mut state,
@@ -436,7 +528,7 @@ module hello_token::init_tests {
             test_precision
         );
 
-        // Verify that the state was updated correctly
+        // Verify that the state was updated correctly.
         {
             let fee_value = hello_token::state::fee_value(&state);
             let fee_precision = hello_token::state::fee_precision(&state);
@@ -455,7 +547,7 @@ module hello_token::init_tests {
         test_scenario::end(my_scenario);
     }
 
-    // utilities
+    // Utilities
     public fun people(): (address, address) { (@0xBEEF, @0x1337) }
 
     public fun set_up(creator: address): (Scenario, TransactionEffects) {
@@ -525,7 +617,7 @@ module hello_token::init_tests {
             let wormhole_state =
                 test_scenario::take_shared<WormholeState>(scenario);
 
-            // Init the bridge state
+            // Init the bridge state.
             bridge_state::init_and_share_state(
                 deployer_cap,
                 &mut wormhole_state,
@@ -540,7 +632,7 @@ module hello_token::init_tests {
         };
 
         {
-            // Create another emitter for the HelloToken module
+            // Create another emitter for the HelloToken module.
             let wormhole_state =
                 test_scenario::take_shared<WormholeState>(scenario);
             wormhole::wormhole::get_new_emitter(

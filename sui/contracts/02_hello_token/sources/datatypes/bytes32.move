@@ -124,6 +124,8 @@ module hello_token::bytes32_tests {
 
     use hello_token::bytes32::{Self};
 
+    use wormhole::external_address::{Self};
+
     #[test]
     public fun new() {
         let data =
@@ -188,6 +190,18 @@ module hello_token::bytes32_tests {
     #[test]
     public fun from_bytes() {
         let actual = bytes32::from_bytes(&x"deadbeef");
+        let expected =
+            x"00000000000000000000000000000000000000000000000000000000deadbeef";
+        assert!(bytes32::data(&actual) == expected, 0);
+    }
+
+    #[test]
+    public fun from_external_address() {
+        // Create an external address.
+        let external_addr = external_address::from_bytes(x"deadbeef");
+
+        // Convert the external address to Bytes32.
+        let actual = bytes32::from_external_address(&external_addr);
         let expected =
             x"00000000000000000000000000000000000000000000000000000000deadbeef";
         assert!(bytes32::data(&actual) == expected, 0);

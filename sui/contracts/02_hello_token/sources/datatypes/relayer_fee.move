@@ -76,6 +76,20 @@ module hello_token::relayer_fee_tests {
     }
 
     #[test]
+    #[expected_failure(abort_code = 0, location=relayer_fee)]
+    public fun cannot_update_precision_zero() {
+        let params = relayer_fee::new(42069, 100000);
+        relayer_fee::update(&mut params, 0, 0);
+    }
+
+    #[test]
+    #[expected_failure(abort_code = 0, location=relayer_fee)]
+    public fun cannot_update_precision_gte_fee() {
+        let params = relayer_fee::new(42069, 100000);
+        relayer_fee::update(&mut params, 1, 1);
+    }
+
+    #[test]
     public fun compute() {
         let params = relayer_fee::new(42069, 100000);
         assert!(relayer_fee::compute(&params, 0) == 0, 0);
