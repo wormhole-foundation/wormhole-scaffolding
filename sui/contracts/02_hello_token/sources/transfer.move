@@ -1,11 +1,11 @@
 module hello_token::transfer {
     use sui::sui::SUI;
-    use sui::coin::{Self, Coin, CoinMetadata};
+    use sui::coin::{Self, Coin};
     use sui::transfer::{Self};
     use sui::tx_context::{Self, TxContext};
 
     use token_bridge::normalized_amount::{from_raw, to_raw};
-    use token_bridge::state::{State as TokenBridgeState};
+    use token_bridge::state::{State as TokenBridgeState, coin_decimals};
     use token_bridge::transfer_tokens_with_payload::{transfer_tokens_with_payload};
     use token_bridge::complete_transfer_with_payload::{
         complete_transfer_with_payload
@@ -32,7 +32,6 @@ module hello_token::transfer {
         wormhole_state: &mut WormholeState,
         token_bridge_state: &mut TokenBridgeState,
         coins: Coin<C>,
-        metadata: &CoinMetadata<C>,
         wormhole_fee: Coin<SUI>,
         target_chain: u16,
         batch_id: u32,
@@ -53,7 +52,7 @@ module hello_token::transfer {
         let msg = message::from_bytes(target_recipient);
 
         // Cache token transfer info.
-        let decimals = coin::get_decimals(metadata);
+        let decimals = coin_decimals<C>(token_bridge_state);
         let amount_received = coin::value(&coins);
 
         // Compute the truncated token amount.
@@ -87,7 +86,7 @@ module hello_token::transfer {
             wormhole_fee,
             target_chain,
             make_external(&bytes32::data(foreign_contract)),
-            (batch_id as u64),
+            batch_id,
             message::encode(&msg)
         );
     }
@@ -102,9 +101,9 @@ module hello_token::transfer {
         // Complete the transfer on the token bridge.
         let (coins, transfer_payload, emitter_chain_id) =
             complete_transfer_with_payload<C>(
+                token_bridge_state,
                 state::emitter_cap(t_state),
                 wormhole_state,
-                token_bridge_state,
                 vaa,
                 ctx
             );
@@ -249,10 +248,11 @@ module hello_token::transfer_tests {
             );
 
             attest_token::attest_token(
-                &mut wormhole_state,
                 &mut bridge_state,
+                &mut wormhole_state,
                 &test_metadata,
                 fee_coin,
+                0, // batch ID
                 test_scenario::ctx(scenario)
             );
 
@@ -266,7 +266,6 @@ module hello_token::transfer_tests {
             &mut wormhole_state,
             &mut bridge_state,
             test_coin,
-            &test_metadata,
             sui_coin,
             69,
             0,
@@ -347,10 +346,11 @@ module hello_token::transfer_tests {
             );
 
             attest_token::attest_token(
-                &mut wormhole_state,
                 &mut bridge_state,
+                &mut wormhole_state,
                 &test_metadata,
                 fee_coin,
+                0, // batch ID
                 test_scenario::ctx(scenario)
             );
 
@@ -365,7 +365,6 @@ module hello_token::transfer_tests {
                 &mut wormhole_state,
                 &mut bridge_state,
                 test_coin,
-                &test_metadata,
                 sui_coin,
                 69,
                 0,
@@ -461,10 +460,11 @@ module hello_token::transfer_tests {
             );
 
             attest_token::attest_token(
-                &mut wormhole_state,
                 &mut bridge_state,
+                &mut wormhole_state,
                 &test_metadata,
                 fee_coin,
+                0, // batch ID
                 test_scenario::ctx(scenario)
             );
 
@@ -478,7 +478,6 @@ module hello_token::transfer_tests {
             &mut wormhole_state,
             &mut bridge_state,
             test_coin,
-            &test_metadata,
             sui_coin,
             69,
             0,
@@ -528,7 +527,6 @@ module hello_token::transfer_tests {
             &mut wormhole_state,
             &mut bridge_state,
             test_coin,
-            &test_metadata,
             sui_coin,
             69, // Unregistered chain ID.
             0,
@@ -577,10 +575,11 @@ module hello_token::transfer_tests {
 
             // Attest!
             attest_token::attest_token(
-                &mut wormhole_state,
                 &mut bridge_state,
+                &mut wormhole_state,
                 &test_metadata,
                 fee_coin,
+                0, // batch ID
                 test_scenario::ctx(scenario)
             );
 
@@ -681,10 +680,11 @@ module hello_token::transfer_tests {
 
             // Attest!
             attest_token::attest_token(
-                &mut wormhole_state,
                 &mut bridge_state,
+                &mut wormhole_state,
                 &test_metadata,
                 fee_coin,
+                0, // batch ID
                 test_scenario::ctx(scenario)
             );
 
@@ -779,6 +779,7 @@ module hello_token::transfer_tests {
         test_scenario::end(my_scenario);
     }
 
+    // utilities
     public fun mint_coin_8(
         amount: u64,
         ctx: &mut TxContext
