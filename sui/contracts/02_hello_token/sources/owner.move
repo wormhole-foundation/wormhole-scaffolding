@@ -447,7 +447,6 @@ module hello_token::init_tests {
             // Share Wormhole state.
             wormhole::state::init_and_share_state(
                 deployer,
-                21,
                 1, // governance chain
                 x"0000000000000000000000000000000000000000000000000000000000000004", // governance_contract
                 vector[x"beFA429d57cD18b7F8A4d91A2da9AB4AF05d0FBe"], // initial_guardians
@@ -477,7 +476,7 @@ module hello_token::init_tests {
 
         // Set up Token Bridge contract.
         {
-            bridge_state::test_init(test_scenario::ctx(scenario));
+            bridge_state::init_test_only(test_scenario::ctx(scenario));
 
             // Proceed.
             test_scenario::next_tx(scenario, creator);
@@ -534,7 +533,7 @@ module hello_token::init_tests {
         // Register a test emitter on the token bridge.
         {
             let state = test_scenario::take_shared<BridgeState>(scenario);
-            bridge_state::test_set_registered_emitter(
+            bridge_state::register_emitter_test_only(
                 &mut state,
                 2, // Ethereum chain ID
                 external_address::from_bytes(x"45"),

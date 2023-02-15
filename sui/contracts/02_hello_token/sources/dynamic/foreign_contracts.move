@@ -9,6 +9,7 @@ module hello_token::foreign_contracts {
     // Errors.
     const E_INVALID_CHAIN: u64 = 0;
     const E_INVALID_CONTRACT_ADDRESS: u64 = 1;
+    const E_CONTRACT_DOES_NOT_EXIST: u64 = 2;
 
     const KEY: vector<u8> = b"foreign_contracts";
 
@@ -25,6 +26,7 @@ module hello_token::foreign_contracts {
     }
 
     public fun contract_address(parent_uid: &UID, chain: u16): &Bytes32 {
+        assert!(has(parent_uid, chain), E_CONTRACT_DOES_NOT_EXIST);
         table::borrow(borrow_table(parent_uid), chain)
     }
 
@@ -57,7 +59,7 @@ module hello_token::foreign_contracts {
             chain
         ) = contract_address;
     }
-    
+
     fun borrow_table(parent_uid: &UID): &Table<u16, Bytes32> {
         dynamic_object_field::borrow(parent_uid, KEY)
     }
