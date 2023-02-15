@@ -189,7 +189,9 @@ module hello_token::transfer_tests {
     const REDEEM_ONE_RELAYER_FEE: u64 = 2;
     const REDEEM_TWO_TRANSFER_VAA: vector<u8> = x"010000000001002e6c00b81c59b5c5d0760ed95092cf681a2f10ee0c6e285ef4af5cbc835c3716560231184fefb535e0c6dd2f37542ede6f84d727cc70e580cb4fe515e50198700163ecf6db00000000000200000000000000000000000000000000000000000000000000000000000000450000000000000000010300000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000001001500000000000000000000000000000000000000000000000000000000000000030015000000000000000000000000000000000000000000000000000000000000005901000000000000000000000000000000000000000000000000000000000000beef";
     const REDEEM_TWO_AMOUNT: u64 = 1;
-    const REDEEM_THREE_TRANSFER_VAA: vector<u8> = x"010000000001006ccdc10b5f8fa70243ab4cfc4456153a6a423a85bf3f14a559c3701fded8c6555f41fa81e069c9ee6d1e85587e75424db6436c7b61dc65b8264fadc28f29d1ee0063ed0459000000000002000000000000000000000000000000000000000000000000000000000000004500000000000000000103000000000000000000000000000000000000000000000000ffffffffffffffff0000000000000000000000000000000000000000000000000000000000000001001500000000000000000000000000000000000000000000000000000000000000030015000000000000000000000000000000000000000000000000000000000000005901000000000000000000000000000000000000000000000000000000000000beef";
+    const REDEEM_THREE_TRANSFER_VAA: vector<u8> = x"010000000001006122c3abc84325a7f8454e168bee3e56a2926d1f61e5d45a8dc732b9f56fbd061722b7f14a90b91001960d987344b763906b19cc7be56a1ece1637e8ff1d68c00163ed0b1f000000000002000000000000000000000000000000000000000000000000000000000000004500000000000000000103000000000000000000000000000000000000000000000000fffffffffffffffe0000000000000000000000000000000000000000000000000000000000000001001500000000000000000000000000000000000000000000000000000000000000030015000000000000000000000000000000000000000000000000000000000000005901000000000000000000000000000000000000000000000000000000000000beef";
+    const REDEEM_THREE_AMOUNT: u64 = 18446744073709551614;
+    const REDEEM_THREE_RELAYER_FEE: u64 = 776036076436887126;
 
     #[test]
     public fun send_tokens_with_payload_coin_8() {
@@ -897,6 +899,241 @@ module hello_token::transfer_tests {
     }
 
     #[test]
+    public fun redeem_transfer_with_payload_self_redemption_maximum_amount() {
+        let (creator, _) = people();
+        let (my_scenario, _) = set_up(creator);
+        let scenario = &mut my_scenario;
+
+        // Fetch state objects.
+        let hello_token_state =
+            test_scenario::take_shared<State>(scenario);
+        let bridge_state =
+            test_scenario::take_shared<BridgeState>(scenario);
+        let wormhole_state =
+            test_scenario::take_shared<WormholeState>(scenario);
+
+        // Attest the token.
+        {
+            // Mint coin 8, fetch the metadata and store the object ID for later.
+            let (test_coin, test_metadata) = mint_coin_8(
+                REDEEM_THREE_AMOUNT,
+                test_scenario::ctx(scenario)
+            );
+            test_scenario::next_tx(scenario, creator);
+
+            // Mint sui to pay the wormhole fee for attesting the token.
+            let fee_coin = mint_sui(
+                wormhole_state_module::get_message_fee(&wormhole_state),
+                test_scenario::ctx(scenario)
+            );
+
+            // Attest!
+            attest_token::attest_token(
+                &mut bridge_state,
+                &mut wormhole_state,
+                &test_metadata,
+                fee_coin,
+                0, // batch ID
+                test_scenario::ctx(scenario)
+            );
+
+            // Deposit tokens into the bridge.
+            deposit_test_only(&mut bridge_state, test_coin);
+
+            // Transfer coin_8 metadata to zero address.
+            native_transfer::transfer(test_metadata, @0x0);
+
+            // Proceed.
+            test_scenario::next_tx(scenario, creator);
+        };
+
+        // Register the target contract.
+        {
+            let owner_cap =
+                test_scenario::take_from_sender<OwnerCap>(scenario);
+
+            owner::register_foreign_contract(
+                &owner_cap,
+                &mut hello_token_state,
+                2,
+                x"0000000000000000000000000000000000000000000000000000000000000059"
+            );
+
+            // Bye bye.
+            test_scenario::return_to_sender<OwnerCap>(scenario, owner_cap);
+
+            // Proceed.
+            test_scenario::next_tx(scenario, creator);
+        };
+
+        // Complete the transfer.
+        transfer::redeem_transfer_with_payload<coin_8::COIN_8>(
+            &hello_token_state,
+            &mut wormhole_state,
+            &mut bridge_state,
+            REDEEM_THREE_TRANSFER_VAA,
+            test_scenario::ctx(scenario)
+        );
+
+        // Proceed.
+        let effects = test_scenario::next_tx(scenario, creator);
+
+        // Store created object IDs.
+        let created_ids = test_scenario::created(&effects);
+        assert!(vector::length(&created_ids) == 1, 0);
+
+        // Balance check the recipient.
+        {
+            let token_object =
+                test_scenario::take_from_sender<Coin<coin_8::COIN_8>>(scenario);
+
+            // Validate the object's value.
+            assert!(coin::value(&token_object) == REDEEM_THREE_AMOUNT, 0);
+
+            // Bye bye.
+            test_scenario::return_to_sender(scenario, token_object);
+        };
+
+        // Return the goods.
+        test_scenario::return_shared<State>(hello_token_state);
+        test_scenario::return_shared<BridgeState>(bridge_state);
+        test_scenario::return_shared<WormholeState>(wormhole_state);
+
+        // Done.
+        test_scenario::end(my_scenario);
+    }
+
+    #[test]
+    public fun redeem_transfer_with_payload_with_relayer_maximum_amount() {
+        let (creator, relayer) = people();
+        let (my_scenario, _) = set_up(creator);
+        let scenario = &mut my_scenario;
+
+        // Fetch state objects.
+        let hello_token_state =
+            test_scenario::take_shared<State>(scenario);
+        let bridge_state =
+            test_scenario::take_shared<BridgeState>(scenario);
+        let wormhole_state =
+            test_scenario::take_shared<WormholeState>(scenario);
+
+        // Attest the token.
+        {
+            // Mint coin 8, fetch the metadata and store the object ID for later.
+            let (test_coin, test_metadata) = mint_coin_8(
+                REDEEM_THREE_AMOUNT,
+                test_scenario::ctx(scenario)
+            );
+            test_scenario::next_tx(scenario, creator);
+
+            // Mint sui to pay the wormhole fee for attesting the token.
+            let fee_coin = mint_sui(
+                wormhole_state_module::get_message_fee(&wormhole_state),
+                test_scenario::ctx(scenario)
+            );
+
+            // Attest!
+            attest_token::attest_token(
+                &mut bridge_state,
+                &mut wormhole_state,
+                &test_metadata,
+                fee_coin,
+                0, // batch ID
+                test_scenario::ctx(scenario)
+            );
+
+            // Deposit tokens into the bridge.
+            deposit_test_only(&mut bridge_state, test_coin);
+
+            // Transfer coin_8 metadata to zero address.
+            native_transfer::transfer(test_metadata, @0x0);
+        };
+
+        // Register the target contract.
+        {
+            let owner_cap =
+                test_scenario::take_from_sender<OwnerCap>(scenario);
+
+            owner::register_foreign_contract(
+                &owner_cap,
+                &mut hello_token_state,
+                2,
+                x"0000000000000000000000000000000000000000000000000000000000000059"
+            );
+
+            // Bye bye.
+            test_scenario::return_to_sender<OwnerCap>(scenario, owner_cap);
+
+            // Proceed.
+            test_scenario::next_tx(scenario, creator);
+        };
+
+        // Proceed, and change sender to the relayer.
+        test_scenario::next_tx(scenario, relayer);
+
+        // Complete the transfer.
+        transfer::redeem_transfer_with_payload<coin_8::COIN_8>(
+            &hello_token_state,
+            &mut wormhole_state,
+            &mut bridge_state,
+            REDEEM_THREE_TRANSFER_VAA,
+            test_scenario::ctx(scenario)
+        );
+
+        // Proceed.
+        let effects = test_scenario::next_tx(scenario, relayer);
+
+        // Store created object IDs.
+        let created_ids = test_scenario::created(&effects);
+        assert!(vector::length(&created_ids) == 2, 0);
+
+        // Balance check the relayer.
+        {
+            // Fetch the relayer fee object by id.
+            let relayer_fee_obj =
+                test_scenario::take_from_sender_by_id<Coin<coin_8::COIN_8>>(
+                    scenario,
+                    *vector::borrow(&created_ids, 0)
+                );
+
+            // Validate the relayer fee object's value.
+            assert!(coin::value(&relayer_fee_obj) == REDEEM_THREE_RELAYER_FEE, 0);
+
+            // Bye bye.
+            test_scenario::return_to_sender(scenario, relayer_fee_obj);
+        };
+
+        // Balance check the recipient.
+        {
+            // Proceed with the test and change context back to creator,
+            // who is also the recipient in this test.
+            test_scenario::next_tx(scenario, creator);
+
+            // Fetch the transferred object by id.
+            let transferred_coin_obj =
+                test_scenario::take_from_sender_by_id<Coin<coin_8::COIN_8>>(
+                    scenario,
+                    *vector::borrow(&created_ids, 1)
+                );
+
+            // Validate the relayer fee object's value.
+            let expected_amount = REDEEM_THREE_AMOUNT - REDEEM_THREE_RELAYER_FEE;
+            assert!(coin::value(&transferred_coin_obj) == expected_amount, 0);
+
+            // Bye bye.
+            test_scenario::return_to_sender(scenario, transferred_coin_obj);
+        };
+
+        // Return the goods.
+        test_scenario::return_shared<State>(hello_token_state);
+        test_scenario::return_shared<BridgeState>(bridge_state);
+        test_scenario::return_shared<WormholeState>(wormhole_state);
+
+        // Done.
+        test_scenario::end(my_scenario);
+    }
+
+    #[test]
     #[expected_failure(abort_code = 1, location=transfer)]
     public fun cannot_redeem_transfer_with_payload_unknown_sender() {
         let (creator, _) = people();
@@ -915,7 +1152,7 @@ module hello_token::transfer_tests {
         {
             // Mint coin 8, fetch the metadata and store the object ID for later.
             let (test_coin, test_metadata) = mint_coin_8(
-                TEST_TOKEN_8_SUPPLY,
+                REDEEM_THREE_AMOUNT,
                 test_scenario::ctx(scenario)
             );
             test_scenario::next_tx(scenario, creator);

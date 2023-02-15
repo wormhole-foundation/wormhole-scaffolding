@@ -40,7 +40,8 @@ module hello_token::relayer_fee {
         self: &RelayerFee,
         amount: u64
     ): u64 {
-        (amount * self.value) / self.precision
+        let numerator = ((amount as u128) * (self.value as u128));
+        ((numerator / (self.precision as u128)) as u64)
     }
 
     fun is_valid(fee: u64, precision: u64): bool {
