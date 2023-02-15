@@ -4,6 +4,8 @@ module hello_token::foreign_contracts {
     use sui::table::{Self, Table};
     use sui::tx_context::{TxContext};
 
+    use wormhole::state::{chain_id};
+
     use hello_token::bytes32::{Self, Bytes32};
 
     // Errors.
@@ -35,7 +37,7 @@ module hello_token::foreign_contracts {
         chain: u16,
         contract_address: Bytes32,
     ) {
-        assert!(chain != 0, E_INVALID_CHAIN);
+        assert!(chain != 0 && chain != chain_id(), E_INVALID_CHAIN);
         assert!(
             bytes32::is_nonzero(&contract_address),
             E_INVALID_CONTRACT_ADDRESS
