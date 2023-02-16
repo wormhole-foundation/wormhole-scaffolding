@@ -29,10 +29,11 @@ import {
   getTableFromDynamicObjectField,
   tokenBridgeNormalizeAmount,
   tokenBridgeTransform,
+  getWormholeFeeCoins,
 } from "../src";
 
-const HELLO_TOKEN_ID = "0x00987c9daab9e24fd95d40fd9397c5786d164ff4";
-const HELLO_TOKEN_OWNER_CAP_ID = "0x6aedd9e1ff1b005481940b88dd6f8b8b4dfae2b8";
+const HELLO_TOKEN_ID = "0x57bdf56537175f8f71eedd3c4b0392b994106343";
+const HELLO_TOKEN_OWNER_CAP_ID = "0x234c95f8cd5bcab63e6c1bbd403363f0e155647b";
 
 describe(" 2: Hello Token", () => {
   const provider = new JsonRpcProvider("http://localhost:9000", {
@@ -270,7 +271,7 @@ describe(" 2: Hello Token", () => {
         // Verify state changes
         expect(parseInt(registeredContracts![0][0])).to.equal(foreignChain);
         expect(
-          Buffer.from(registeredContracts![0][1]).toString("hex")
+          Buffer.from(registeredContracts![0][1].data).toString("hex")
         ).to.equal(foreignContractAddress.toString("hex"));
       });
     });
@@ -331,36 +332,13 @@ describe(" 2: Hello Token", () => {
         // seems that the max amount we can split by is u32. FYI
         const amount = "10";
 
-        // SUI needed to pay wormhole fee if any.
-        const [sui] = await provider
-          .getCoins(walletAddress, "0x2::sui::SUI")
-          .then((result) => result.data);
-
-        // Finally here to check the state.
-        const fields = await getObjectFields(provider, WORMHOLE_STATE_ID);
-
-        // Split the Sui object based on the wormhole fee.
-        const splitSuiCoin = await wallet
-          .splitCoin({
-            coinObjectId: sui.coinObjectId,
-            splitAmounts: [Number(fields.message_fee)],
-            gasBudget: 1000,
-          })
-          .then(async (tx) => {
-            const created = await getCreatedFromTransaction(tx).then(
-              (objects) => objects[0]
-            );
-            return "reference" in created ? created.reference.objectId : null;
-          });
-        expect(splitSuiCoin).is.not.null;
+        // Fetch sui coins to pay the wormhole fee.
+        const wormholeFeeCoin = await getWormholeFeeCoins(provider, wallet);
 
         // Grab balance.
         const [transferCoin] = await provider
           .getCoins(walletAddress, COIN_8_TYPE)
           .then((result) => result.data);
-
-        // Fetch the coin metadata.
-        const metadata = await provider.getCoinMetadata(COIN_8_TYPE);
 
         // Split coin into another object.
         const splitCoin = await wallet
@@ -395,8 +373,7 @@ describe(" 2: Hello Token", () => {
               WORMHOLE_STATE_ID,
               TOKEN_BRIDGE_STATE_ID,
               splitCoin!,
-              metadata.id!,
-              splitSuiCoin!,
+              wormholeFeeCoin!,
               targetChain,
               "0", // batchId
               Array.from(targetRecipient),
@@ -422,7 +399,7 @@ describe(" 2: Hello Token", () => {
         expect(message.emitter).equals(HELLO_TOKEN_ID);
         expect(message.finality).equal(0);
         expect(message.sequence).equals("3");
-        expect(message.batchId).equals("0");
+        expect(message.batchId).equals(0);
 
         // Check state.
         const helloTokenState = await getObjectFields(provider, stateId);
@@ -464,28 +441,8 @@ describe(" 2: Hello Token", () => {
         // seems that the max amount we can split by is u32. FYI
         const amount = "101";
 
-        // SUI needed to pay wormhole fee if any.
-        const [sui] = await provider
-          .getCoins(walletAddress, "0x2::sui::SUI")
-          .then((result) => result.data);
-
-        // Finally here to check the state.
-        const fields = await getObjectFields(provider, WORMHOLE_STATE_ID);
-
-        // Split the Sui object based on the wormhole fee.
-        const splitSuiCoin = await wallet
-          .splitCoin({
-            coinObjectId: sui.coinObjectId,
-            splitAmounts: [Number(fields.message_fee)],
-            gasBudget: 1000,
-          })
-          .then(async (tx) => {
-            const created = await getCreatedFromTransaction(tx).then(
-              (objects) => objects[0]
-            );
-            return "reference" in created ? created.reference.objectId : null;
-          });
-        expect(splitSuiCoin).is.not.null;
+        // Fetch sui coins to pay the wormhole fee.
+        const wormholeFeeCoin = await getWormholeFeeCoins(provider, wallet);
 
         // Grab balance.
         const [transferCoin] = await provider
@@ -534,8 +491,7 @@ describe(" 2: Hello Token", () => {
               WORMHOLE_STATE_ID,
               TOKEN_BRIDGE_STATE_ID,
               splitCoin!,
-              metadata.id!,
-              splitSuiCoin!,
+              wormholeFeeCoin!,
               targetChain,
               "0", // batchId
               Array.from(targetRecipient),
@@ -561,7 +517,7 @@ describe(" 2: Hello Token", () => {
         expect(message.emitter).equals(HELLO_TOKEN_ID);
         expect(message.finality).equal(0);
         expect(message.sequence).equals("4");
-        expect(message.batchId).equals("0");
+        expect(message.batchId).equals(0);
 
         // Check state.
         const helloTokenState = await getObjectFields(provider, stateId);
@@ -613,28 +569,8 @@ describe(" 2: Hello Token", () => {
         // seems that the max amount we can split by is u32. FYI
         const amount = "69";
 
-        // SUI needed to pay wormhole fee if any.
-        const [sui] = await provider
-          .getCoins(walletAddress, "0x2::sui::SUI")
-          .then((result) => result.data);
-
-        // Finally here to check the state.
-        const fields = await getObjectFields(provider, WORMHOLE_STATE_ID);
-
-        // Split the Sui object based on the wormhole fee.
-        const splitSuiCoin = await wallet
-          .splitCoin({
-            coinObjectId: sui.coinObjectId,
-            splitAmounts: [Number(fields.message_fee)],
-            gasBudget: 1000,
-          })
-          .then(async (tx) => {
-            const created = await getCreatedFromTransaction(tx).then(
-              (objects) => objects[0]
-            );
-            return "reference" in created ? created.reference.objectId : null;
-          });
-        expect(splitSuiCoin).is.not.null;
+        // Fetch sui coins to pay the wormhole fee.
+        const wormholeFeeCoin = await getWormholeFeeCoins(provider, wallet);
 
         // Grab balance.
         const coins = await provider
@@ -642,9 +578,6 @@ describe(" 2: Hello Token", () => {
           .then((result) => result.data);
         const nonzeroCoin = coins.find((coin) => coin.balance > 0);
         expect(nonzeroCoin!.balance > parseInt(amount)).is.true;
-
-        // Fetch the coin metadata.
-        const metadata = await provider.getCoinMetadata(WRAPPED_WETH_COIN_TYPE);
 
         // Split coin into another object.
         const splitCoin = await wallet
@@ -679,8 +612,7 @@ describe(" 2: Hello Token", () => {
               WORMHOLE_STATE_ID,
               TOKEN_BRIDGE_STATE_ID,
               splitCoin!,
-              metadata.id!,
-              splitSuiCoin!,
+              wormholeFeeCoin!,
               targetChain,
               "0", // batchId
               Array.from(targetRecipient),
@@ -706,7 +638,7 @@ describe(" 2: Hello Token", () => {
         expect(message.emitter).equals(HELLO_TOKEN_ID);
         expect(message.finality).equal(0);
         expect(message.sequence).equals("5");
-        expect(message.batchId).equals("0");
+        expect(message.batchId).equals(0);
 
         // Check state.
         const helloTokenState = await getObjectFields(provider, stateId);
