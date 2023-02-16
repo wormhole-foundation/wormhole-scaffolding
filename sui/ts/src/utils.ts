@@ -1,7 +1,76 @@
-import {JsonRpcProvider, SuiExecuteTransactionResponse} from "@mysten/sui.js";
+import {
+  JsonRpcProvider,
+  RawSigner,
+  SuiExecuteTransactionResponse,
+} from "@mysten/sui.js";
 import {execSync} from "child_process";
 import {ethers} from "ethers";
+import {WORMHOLE_STATE_ID} from "../tests/helpers";
 import * as fs from "fs";
+
+export async function getWormholeFeeCoins(
+  provider: JsonRpcProvider,
+  signer: RawSigner
+) {
+  // Fetch Sui coin object.
+  const [sui] = await provider
+    .getCoins(await signer.getAddress(), "0x2::sui::SUI")
+    .then((result) => result.data);
+
+  // Fetch the wormhole sate.
+  const fields = await getObjectFields(provider, WORMHOLE_STATE_ID);
+
+  // Split the Sui object based on the wormhole fee.
+  const splitSuiCoin = await signer
+    .splitCoin({
+      coinObjectId: sui.coinObjectId,
+      splitAmounts: [Number(fields.message_fee)],
+      gasBudget: 1000,
+    })
+    .then(async (tx) => {
+      const created = await getCreatedFromTransaction(tx).then(
+        (objects) => objects[0]
+      );
+      return "reference" in created ? created.reference.objectId : null;
+    });
+
+  return splitSuiCoin;
+}
+
+export async function getRegisteredAssetInfo(
+  provider: JsonRpcProvider,
+  ownerId: string,
+  assetType: string
+) {
+  // Check registered asset.
+  const dynamicTokensData = await provider
+    .getDynamicFields(ownerId)
+    .then((result) => result.data);
+
+  const dynamicItem = dynamicTokensData.find((item) =>
+    item.name.includes(assetType)
+  );
+
+  if (dynamicItem == undefined) {
+    Promise.reject("Asset info not found.");
+  }
+
+  const assetInfo = await provider
+    .getDynamicFieldObject(ownerId, dynamicItem!.name)
+    .then((result) => {
+      if (
+        typeof result.details !== "string" &&
+        "data" in result.details &&
+        "fields" in result.details.data
+      ) {
+        return result.details.data.fields;
+      } else {
+        return null;
+      }
+    });
+
+  return assetInfo;
+}
 
 export async function getObjectFields(
   provider: JsonRpcProvider,
@@ -72,7 +141,7 @@ export async function getTableFromDynamicObjectField(
     keys.map(async (key) => {
       // Fetch the value
       const valueObject = await getObjectFields(provider, key.objectId);
-      return [key.name, valueObject.value.fields.data];
+      return [key.name, valueObject.value.fields];
     })
   );
 
@@ -82,8 +151,8 @@ export async function getTableFromDynamicObjectField(
 export async function getCreatedFromTransaction(
   txResponse: SuiExecuteTransactionResponse
 ) {
-  if ("EffectsCert" in txResponse) {
-    const created = txResponse.EffectsCert.effects.effects.created;
+  if ("effects" in txResponse) {
+    const created = txResponse.effects.effects.created;
     if (created !== undefined) {
       return created;
     }
@@ -96,11 +165,11 @@ export async function getEventsFromTransaction(
   provider: JsonRpcProvider,
   txResponse: SuiExecuteTransactionResponse
 ) {
-  if ("EffectsCert" in txResponse && "certificate" in txResponse.EffectsCert) {
+  if ("certificate" in txResponse) {
     return provider
       .getEvents(
         {
-          Transaction: txResponse.EffectsCert.certificate.transactionDigest,
+          Transaction: txResponse.certificate!.transactionDigest,
         },
         null,
         null
@@ -148,7 +217,7 @@ export function buildAndDeployWrappedCoin(
     use sui::transfer;
     use sui::tx_context::{Self, TxContext};
 
-    use token_bridge::wrapped::create_wrapped_coin;
+    use token_bridge::create_wrapped::create_wrapped_coin;
 
     struct WRAPPED_COIN has drop {}
 
@@ -180,7 +249,7 @@ version = "0.69.420"
 [dependencies.Sui]
 git = "https://github.com/MystenLabs/sui.git"
 subdir = "crates/sui-framework"
-rev = "2d709054a08d904b9229a2472af679f210af3827"
+rev = "0fe3e5c237f2f6410c66617cede5733015a17a36"
 
 [dependencies.TokenBridge]
 local = "${fullPathToTokenBridgeDependency}"
@@ -215,7 +284,8 @@ template = "0x0"`;
   const output = execSync(fullDeployCommand, {
     encoding: "utf8",
   });
-  const jsonOutput = JSON.parse(output.split("\n")[2])[0];
+
+  const jsonOutput = JSON.parse(output.split("\n")[3])[0];
 
   // Finally purge the tmp directory
   fs.rmSync(tmpDir, {recursive: true, force: true});

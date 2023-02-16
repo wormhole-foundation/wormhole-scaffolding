@@ -14,6 +14,6 @@ local = "../../dependencies/wormhole"
 local = "../../dependencies/token_bridge"
 
 [addresses]
-wormhole = "0x08b2feda11e87a94ba96ae86b910828eeeedae04"
-token_bridge = "0x7603d64ea2f804a93eb787bb16b8ca3bbcb2f80c"
+wormhole = "0xf9f8fc8afd2a9d2aa95aa1a6bebef4495d918305"
+token_bridge = "0x713b27973eac6da7824c76ea1ee1da95335cded2"
 hello_token = "0x0"

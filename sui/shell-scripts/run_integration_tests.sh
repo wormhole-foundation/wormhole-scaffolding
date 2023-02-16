@@ -22,6 +22,7 @@ echo "deploying wormhole contracts to localnet"
 yarn deploy dependencies/wormhole \
     -c ts/tests/sui_config/client.yaml \
     -m dependencies/wormhole.Move.localnet.toml
+
 yarn deploy dependencies/token_bridge \
     -c ts/tests/sui_config/client.yaml \
     -m dependencies/token_bridge.Move.localnet.toml

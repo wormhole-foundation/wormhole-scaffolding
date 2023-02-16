@@ -42,6 +42,9 @@ import {
   getCreatedFromTransaction,
   getWormholeMessagesFromTransaction,
   getObjectFields,
+  getTableFromDynamicObjectField,
+  getWormholeFeeCoins,
+  getRegisteredAssetInfo,
 } from "../src";
 
 describe(" 0: Wormhole", () => {
@@ -207,10 +210,10 @@ describe(" 0: Wormhole", () => {
           typeArguments: [],
           arguments: [
             WORMHOLE_CREATOR_CAPABILITY_ID,
-            CHAIN_ID_SUI.toString(),
             GOVERNANCE_CHAIN,
             Array.from(Buffer.from(GOVERNANCE_EMITTER_ID, "hex")),
             [Array.from(devnetGuardian)],
+            "0", // message fee
           ],
           gasBudget: 20000,
         })
@@ -231,7 +234,7 @@ describe(" 0: Wormhole", () => {
 
       // Transaction is successful, so check Wormhole state.
       const createdObjects = await getCreatedFromTransaction(tx!);
-      expect(createdObjects).has.length(1);
+      expect(createdObjects).has.length(3);
 
       const created = createdObjects[0];
       if (created.owner != "Immutable" && "Shared" in created.owner) {
@@ -244,23 +247,20 @@ describe(" 0: Wormhole", () => {
       // Finally here to check the state.
       const fields = await getObjectFields(provider, WORMHOLE_STATE_ID);
 
-      expect(fields).has.property("chain_id");
-      expect(fields.chain_id.fields.number).equals(CHAIN_ID_SUI.toString());
-
       expect(fields).has.property("guardian_set_index");
-      expect(fields.guardian_set_index.fields.number).equals("0");
+      expect(fields.guardian_set_index).equals(0);
 
       expect(fields).has.property("guardian_sets");
       const guardianSets = fields.guardian_sets.fields.contents;
       expect(guardianSets).has.length(1);
 
       const guardianSet = guardianSets[0].fields.value.fields;
-      expect(guardianSet.index.fields.number).equals("0");
+      expect(guardianSet.index).equals(0);
 
       const guardianKeys = guardianSet.guardians;
       expect(guardianKeys).has.length(1);
 
-      const guardianKey = guardianKeys[0].fields.address.fields.bytes;
+      const guardianKey = guardianKeys[0].fields.addr.fields.data;
       expect(guardianKey).deep.equals(Array.from(devnetGuardian));
 
       expect(fields).has.property("emitter_registry");
@@ -305,13 +305,10 @@ describe(" 0: Wormhole", () => {
       const initTx = await creator
         .executeMoveCall({
           packageObjectId: TOKEN_BRIDGE_ID,
-          module: "bridge_state",
+          module: "state",
           function: "init_and_share_state",
           typeArguments: [],
-          arguments: [
-            TOKEN_BRIDGE_CREATOR_CAPABILITY_ID,
-            TOKEN_BRIDGE_EMITTER_ID,
-          ],
+          arguments: [TOKEN_BRIDGE_CREATOR_CAPABILITY_ID, WORMHOLE_STATE_ID],
           gasBudget: 20000,
         })
         .catch((reason) => {
@@ -331,9 +328,9 @@ describe(" 0: Wormhole", () => {
 
       // Transaction is successful, so check Token Bridge state.
       const createdObjects = await getCreatedFromTransaction(initTx!);
-      expect(createdObjects).has.length(1);
+      expect(createdObjects).has.length(3);
 
-      const created = createdObjects[0];
+      const created = createdObjects[1];
       if (created.owner != "Immutable" && "Shared" in created.owner) {
         const stateId = created.reference.objectId;
         expect(stateId).equals(TOKEN_BRIDGE_STATE_ID);
@@ -343,9 +340,8 @@ describe(" 0: Wormhole", () => {
 
         expect(fields).has.property("emitter_cap");
         expect(fields.emitter_cap.fields.sequence).equals("0");
-
-        expect(fields).has.property("registered_emitters");
-        expect(fields.registered_emitters.fields.contents).has.length(0);
+      } else {
+        unexpected();
       }
     });
 
@@ -378,20 +374,24 @@ describe(" 0: Wormhole", () => {
         });
       expect(registerChainTx).is.not.null;
 
-      // Check state.
-      const tokenBridgeState = await getObjectFields(
-        provider,
-        TOKEN_BRIDGE_STATE_ID
-      );
+      // Fetch the registerred emitters table.
+      const tokenBridgeDynamicData = await provider
+        .getDynamicFields(TOKEN_BRIDGE_STATE_ID)
+        .then((result) => result.data);
 
-      // Finally here to check the state to find new emitter.
-      const registeredEmitters =
-        tokenBridgeState.registered_emitters.fields.contents;
+      expect(tokenBridgeDynamicData).has.length(1);
+
+      const registeredEmitters = await getTableFromDynamicObjectField(
+        provider,
+        TOKEN_BRIDGE_STATE_ID,
+        tokenBridgeDynamicData[0].name!
+      );
       expect(registeredEmitters).has.length(1);
 
-      const registeredEmitter = registeredEmitters[0].fields;
-      expect(registeredEmitter.key.fields.number).equals("2");
-      expect(registeredEmitter.value.fields.external_address).deep.equals(
+      // Finally here to check the state to find new emitter.
+      const registeredEmitter = registeredEmitters[0];
+      expect(parseInt(registeredEmitter[0])).equals(2);
+      expect(registeredEmitter[1].external_address).deep.equals(
         Array.from(
           tryNativeToUint8Array(ETHEREUM_TOKEN_BRIDGE_ADDRESS, "ethereum")
         )
@@ -415,14 +415,13 @@ describe(" 0: Wormhole", () => {
       const walletAddress = await wallet.getAddress();
       // COIN_9
       {
-        // SUI needed to pay wormhole fee if any.
-        const [sui] = await provider
-          .getCoins(walletAddress, "0x2::sui::SUI")
-          .then((result) => result.data);
+        // Fetch Sui object to pay wormhole fees with.
+        const wormholeFeeCoins = await getWormholeFeeCoins(provider, wallet);
 
+        // Coin 9 metadata.
         const metadata = await provider.getCoinMetadata(COIN_9_TYPE);
 
-        // Call `attest_token::attest_token` on Token Bridge
+        // Call `attest_token::attest_token` on Token Bridge.
         const attestTokensTx = await wallet
           .executeMoveCall({
             packageObjectId: TOKEN_BRIDGE_ID,
@@ -430,10 +429,11 @@ describe(" 0: Wormhole", () => {
             function: "attest_token",
             typeArguments: [COIN_9_TYPE],
             arguments: [
-              WORMHOLE_STATE_ID,
               TOKEN_BRIDGE_STATE_ID,
+              WORMHOLE_STATE_ID,
               metadata.id!,
-              sui.coinObjectId,
+              wormholeFeeCoins!,
+              0, // batch ID
             ],
             gasBudget: 20000,
           })
@@ -465,19 +465,17 @@ describe(" 0: Wormhole", () => {
         const emitter = tokenBridgeState.emitter_cap.fields;
         expect(emitter.sequence).equals("1");
 
-        const tokenBridgeDynamicData = await provider
-          .getDynamicFields(TOKEN_BRIDGE_STATE_ID)
-          .then((result) => result.data);
-        expect(tokenBridgeDynamicData).has.length(1);
+        const registeredTokens = tokenBridgeState.registered_tokens.fields;
+        expect(registeredTokens.num_native).to.equal("1");
+        expect(registeredTokens.num_wrapped).to.equal("0");
       }
 
       // COIN_8
       {
-        // SUI needed to pay wormhole fee if any.
-        const [sui] = await provider
-          .getCoins(walletAddress, "0x2::sui::SUI")
-          .then((result) => result.data);
+        // Fetch Sui object to pay wormhole fees with.
+        const wormholeFeeCoins = await getWormholeFeeCoins(provider, wallet);
 
+        // Coin 8 metadata.
         const metadata = await provider.getCoinMetadata(COIN_8_TYPE);
 
         // Call `attest_token::attest_token` on Token Bridge
@@ -488,10 +486,11 @@ describe(" 0: Wormhole", () => {
             function: "attest_token",
             typeArguments: [COIN_8_TYPE],
             arguments: [
-              WORMHOLE_STATE_ID,
               TOKEN_BRIDGE_STATE_ID,
+              WORMHOLE_STATE_ID,
               metadata.id!,
-              sui.coinObjectId,
+              wormholeFeeCoins!,
+              0, // batch ID
             ],
             gasBudget: 20000,
           })
@@ -523,10 +522,9 @@ describe(" 0: Wormhole", () => {
         const emitter = tokenBridgeState.emitter_cap.fields;
         expect(emitter.sequence).equals("2");
 
-        const tokenBridgeDynamicData = await provider
-          .getDynamicFields(TOKEN_BRIDGE_STATE_ID)
-          .then((result) => result.data);
-        expect(tokenBridgeDynamicData).has.length(2);
+        const registeredTokens = tokenBridgeState.registered_tokens.fields;
+        expect(registeredTokens.num_native).to.equal("2");
+        expect(registeredTokens.num_wrapped).to.equal("0");
       }
     });
 
@@ -541,10 +539,8 @@ describe(" 0: Wormhole", () => {
       const relayerFee = "0";
       const batchId = "69";
 
-      // SUI needed to pay wormhole fee if any.
-      const [sui] = await provider
-        .getCoins(walletAddress, "0x2::sui::SUI")
-        .then((result) => result.data);
+      // Fetch Sui object to pay wormhole fees with.
+      const wormholeFeeCoins = await getWormholeFeeCoins(provider, wallet);
 
       // Grab balance.
       const [transferCoin] = await provider
@@ -576,11 +572,10 @@ describe(" 0: Wormhole", () => {
           function: "transfer_tokens",
           typeArguments: [COIN_9_TYPE],
           arguments: [
-            WORMHOLE_STATE_ID,
             TOKEN_BRIDGE_STATE_ID,
+            WORMHOLE_STATE_ID,
             splitCoin!,
-            metadata.id!,
-            sui.coinObjectId,
+            wormholeFeeCoins!,
             recipientChain,
             Array.from(recipient),
             relayerFee,
@@ -648,7 +643,7 @@ describe(" 0: Wormhole", () => {
       );
       expect(deployedCoinInfo.id).equals(WRAPPED_WETH_ID);
 
-      const newWrappedCoinType = `${TOKEN_BRIDGE_ID}::wrapped::NewWrappedCoin<${WRAPPED_WETH_COIN_TYPE}>`;
+      const newWrappedCoinType = `${TOKEN_BRIDGE_ID}::wrapped_coin::WrappedCoin<${WRAPPED_WETH_COIN_TYPE}>`;
       expect(deployedCoinInfo.type).equals(newWrappedCoinType);
 
       // Execute `wrapped::register_wrapped_coin` on Token Bridge.
@@ -657,12 +652,12 @@ describe(" 0: Wormhole", () => {
       const registerWrappedCoinTx = await creator
         .executeMoveCall({
           packageObjectId: TOKEN_BRIDGE_ID,
-          module: "wrapped",
+          module: "create_wrapped",
           function: "register_wrapped_coin",
           typeArguments: [WRAPPED_WETH_COIN_TYPE],
           arguments: [
-            WORMHOLE_STATE_ID,
             TOKEN_BRIDGE_STATE_ID,
+            WORMHOLE_STATE_ID,
             WRAPPED_WETH_ID,
           ],
           gasBudget: 20000,
@@ -674,33 +669,24 @@ describe(" 0: Wormhole", () => {
         });
       expect(registerWrappedCoinTx).is.not.null;
 
-      // Check registered asset.
-      const tokenBridgeDynamicData = await provider
-        .getDynamicFields(TOKEN_BRIDGE_STATE_ID)
-        .then((result) => result.data);
-      expect(tokenBridgeDynamicData).has.length(3);
-
-      const dynamicItem = tokenBridgeDynamicData.find((item) =>
-        item.name.includes(WRAPPED_WETH_COIN_TYPE)
+      // Check state.
+      const tokenBridgeState = await getObjectFields(
+        provider,
+        TOKEN_BRIDGE_STATE_ID
       );
-      expect(dynamicItem).is.not.undefined;
 
-      const wrappedAssetInfo = await provider
-        .getDynamicFieldObject(TOKEN_BRIDGE_STATE_ID, dynamicItem!.name)
-        .then((result) => {
-          if (
-            typeof result.details !== "string" &&
-            "data" in result.details &&
-            "fields" in result.details.data
-          ) {
-            return result.details.data.fields;
-          } else {
-            return null;
-          }
-        });
-      expect(wrappedAssetInfo).is.not.null;
+      // Fetch the wrapped asset info
+      const registeredTokens = tokenBridgeState.registered_tokens.fields;
+      expect(registeredTokens.num_native).to.equal("2");
+      expect(registeredTokens.num_wrapped).to.equal("1");
 
-      const treasuryCap = wrappedAssetInfo!.treasury_cap.fields;
+      const wrappedAssetInfo = await getRegisteredAssetInfo(
+        provider,
+        registeredTokens.id.id,
+        WRAPPED_WETH_COIN_TYPE
+      );
+
+      const treasuryCap = wrappedAssetInfo!.value.fields.treasury_cap.fields;
       expect(treasuryCap.total_supply.fields.value).equals("0");
     });
 
@@ -736,12 +722,11 @@ describe(" 0: Wormhole", () => {
         .executeMoveCall({
           packageObjectId: TOKEN_BRIDGE_ID,
           module: "complete_transfer",
-          function: "submit_vaa",
+          function: "complete_transfer",
           typeArguments: [WRAPPED_WETH_COIN_TYPE],
           arguments: [
-            WORMHOLE_STATE_ID,
             TOKEN_BRIDGE_STATE_ID,
-            metadata.id!,
+            WORMHOLE_STATE_ID,
             Array.from(signedWormholeMessage),
             feeRecipient,
           ],

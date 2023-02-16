@@ -1,20 +1,19 @@
 import {
   Ed25519Keypair,
-  getObjectFields,
   JsonRpcProvider,
   Network,
   RawSigner,
 } from "@mysten/sui.js";
-import { execSync } from "child_process";
+import {execSync} from "child_process";
 import yargs from "yargs";
 import YAML from "yaml";
 import * as fs from "fs";
-import { getCreatedFromTransaction } from "../src";
+import {getCreatedFromTransaction} from "../src";
 
 const VERSION = "0.1.0";
 
 async function main() {
-  const { provider, signer, packagePath, buildMoveToml, jsonOutput } =
+  const {provider, signer, packagePath, buildMoveToml, jsonOutput} =
     await setUp();
 
   const existingMoveToml = `${packagePath}/Move.toml`;
@@ -63,14 +62,16 @@ async function main() {
     fs.renameSync(tmpMoveToml, existingMoveToml);
   }
 
+  console.log(buildError);
+
   if (buildError !== null) {
     throw new Error(buildError.stdout);
   }
 
   // Deploy (publish) contract.
   const publishTx = await signer.publish({
-    compiledModules: compiledModules,
-    gasBudget: 10000,
+    compiledModules,
+    gasBudget: 1000000,
   });
 
   const createdObjects = await getCreatedFromTransaction(publishTx);
@@ -118,7 +119,7 @@ async function main() {
       );
       console.log();
       let count = 0;
-      for (const { id, owner, type } of createdInfos) {
+      for (const {id, owner, type} of createdInfos) {
         console.log(`  \x1b[33m\Created\x1b[0m  ${type}`);
         console.log(`    \x1b[33m\Owner\x1b[0m  ${owner}`);
         console.log(`       \x1b[33m\ID\x1b[0m \x1b[36m\ ${id}\x1b[0m`);
@@ -151,7 +152,7 @@ async function setUp(): Promise<DeploySetup> {
     .strict()
     .version(VERSION)
     .help()
-    .option("h", { alias: "help" })
+    .option("h", {alias: "help"})
     .option("c", {
       alias: "client-config",
       describe: "Sui Client Config (YAML)",
@@ -199,7 +200,7 @@ async function setUp(): Promise<DeploySetup> {
 
   // We need this config to determine which seed to use to sign for
   // transactions.
-  const config = YAML.parse(fs.readFileSync(args.c, { encoding: "utf8" }));
+  const config = YAML.parse(fs.readFileSync(args.c, {encoding: "utf8"}));
 
   // Make provider from specified network.
   const provider = (() => {
@@ -217,7 +218,7 @@ async function setUp(): Promise<DeploySetup> {
   const signer = (() => {
     const activeAddress: string = config["active_address"];
     const keypair: Ed25519Keypair = JSON.parse(
-      fs.readFileSync(config["keystore"]["File"], { encoding: "utf8" })
+      fs.readFileSync(config["keystore"]["File"], {encoding: "utf8"})
     )
       .map((seed: string) =>
         Ed25519Keypair.fromSeed(Buffer.from(seed, "base64").subarray(1))
