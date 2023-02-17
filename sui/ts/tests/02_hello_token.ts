@@ -1,15 +1,14 @@
 import {expect} from "chai";
-import * as path from "path";
 import {ethers} from "ethers";
 import {
   CHAIN_ID_SUI,
   tryNativeToHexString,
-  tryNativeToUint8Array,
   parseTransferPayload,
   CHAIN_ID_ETH,
 } from "@certusone/wormhole-sdk";
 import * as mock from "@certusone/wormhole-sdk/lib/cjs/mock";
 import {
+  ETHEREUM_TOKEN_BRIDGE_ADDRESS,
   GUARDIAN_PRIVATE_KEY,
   WALLET_PRIVATE_KEY,
   WORMHOLE_ID,
@@ -20,6 +19,7 @@ import {
   COIN_8_TYPE,
   COIN_9_TYPE,
   WRAPPED_WETH_COIN_TYPE,
+  WETH_ID,
 } from "./helpers";
 import {Ed25519Keypair, JsonRpcProvider, RawSigner} from "@mysten/sui.js";
 import {
@@ -30,6 +30,8 @@ import {
   tokenBridgeNormalizeAmount,
   tokenBridgeTransform,
   getWormholeFeeCoins,
+  computeRelayerFee,
+  tokenBridgeDenormalizeAmount,
 } from "../src";
 
 const HELLO_TOKEN_ID = "0x57bdf56537175f8f71eedd3c4b0392b994106343";
@@ -316,12 +318,24 @@ describe(" 2: Hello Token", () => {
     });
   });
 
-  describe("Send Tokens With Payload", () => {
-    const targetChain = "2";
-    const targetRecipient = Buffer.alloc(32, "deadbeef");
+  describe("Test Business Logic", () => {
+    // Mock foreign token bridge.
+    const ethereumTokenBridge = new mock.MockEthereumTokenBridge(
+      ETHEREUM_TOKEN_BRIDGE_ADDRESS
+    );
 
-    describe("Finally Send Tokens With Payload", () => {
-      it("transfer::send_tokens_with_payload With Coin 8", async () => {
+    // Foreign hello token contract.
+    const foreignChain = "2";
+    const foreignContractAddress = Buffer.alloc(32, "deadbeef");
+
+    // Emitter ID of the Hello Token contract formatted as a 32-byte address.
+    const helloTokenEmitter = tryNativeToHexString(
+      "0x0000000000000000000000000000000000000003",
+      "ethereum"
+    );
+
+    describe("Coin 8", () => {
+      it("transfer::send_tokens_with_payload", async () => {
         expect(localVariables.stateId).is.not.undefined;
         const stateId: string = localVariables.stateId;
 
@@ -330,7 +344,8 @@ describe(" 2: Hello Token", () => {
 
         // `splitCoin` requires a number even though amounts can be u64, so it
         // seems that the max amount we can split by is u32. FYI
-        const amount = "10";
+        localVariables.transferAmountCoin8 = "100000000";
+        const amount = localVariables.transferAmountCoin8;
 
         // Fetch sui coins to pay the wormhole fee.
         const wormholeFeeCoin = await getWormholeFeeCoins(provider, wallet);
@@ -374,9 +389,9 @@ describe(" 2: Hello Token", () => {
               TOKEN_BRIDGE_STATE_ID,
               splitCoin!,
               wormholeFeeCoin!,
-              targetChain,
+              foreignChain,
               "0", // batchId
-              Array.from(targetRecipient),
+              Array.from(foreignContractAddress),
             ],
             gasBudget: 20000,
           })
@@ -418,7 +433,7 @@ describe(" 2: Hello Token", () => {
         expect(transferPayload.targetAddress).to.equal(
           Buffer.alloc(32, "deadbeef").toString("hex")
         );
-        expect(transferPayload.targetChain).to.equal(Number(targetChain));
+        expect(transferPayload.targetChain).to.equal(Number(foreignChain));
 
         // Fetch the coin balance after doing the transfer.
         const coinBalanceAfter = await provider.getBalance(
@@ -430,16 +445,114 @@ describe(" 2: Hello Token", () => {
         ).eq(parseInt(amount));
       });
 
-      it("transfer::send_tokens_with_payload With Coin 9", async () => {
+      it("transfer::redeem_transfer_with_payload With Relayer", async () => {
         expect(localVariables.stateId).is.not.undefined;
         const stateId: string = localVariables.stateId;
 
-        // Create wallet.
-        const walletAddress = await wallet.getAddress();
+        // Define transfer parameters.
+        const tokenAddress = "0x0000000000000000000000000000000000000002";
+        const mintAmount = localVariables.transferAmountCoin8;
+        const destination = await wallet
+          .getAddress()
+          .then((address) =>
+            Buffer.concat([Buffer.alloc(12), Buffer.from(address, "hex")])
+          );
+        const payload = Buffer.concat([Buffer.alloc(1, 1), destination]);
+
+        // Fetch coin balances before completing the transfer.
+        const recipientBalanceBefore = await provider.getBalance(
+          await wallet.getAddress(),
+          COIN_8_TYPE
+        );
+        const relayerBalanceBefore = await provider.getBalance(
+          await relayer.getAddress(),
+          COIN_8_TYPE
+        );
+
+        // Create a transfer tokens with payload message.
+        const published = ethereumTokenBridge.publishTransferTokensWithPayload(
+          tryNativeToHexString(tokenAddress, "ethereum"),
+          CHAIN_ID_SUI, // tokenChain
+          BigInt(mintAmount.toString()),
+          CHAIN_ID_SUI, // recipientChain
+          helloTokenEmitter, // recipient
+          foreignContractAddress, // fromAddress
+          payload,
+          0 // nonce
+        );
+
+        // Sign the transfer message.
+        const signedWormholeMessage = guardians.addSignatures(published, [0]);
+
+        // Execute `transfer::redeem_tokens_with_payload`
+        const completeTransferTx = await relayer
+          .executeMoveCall({
+            packageObjectId: HELLO_TOKEN_ID,
+            module: "transfer",
+            function: "redeem_transfer_with_payload",
+            typeArguments: [COIN_8_TYPE],
+            arguments: [
+              stateId,
+              WORMHOLE_STATE_ID,
+              TOKEN_BRIDGE_STATE_ID,
+              Array.from(signedWormholeMessage),
+            ],
+            gasBudget: 20000,
+          })
+          .catch((reason) => {
+            // should not happen
+            console.log(reason);
+            return null;
+          });
+        expect(completeTransferTx).is.not.null;
+
+        // Fetch coin balances before completing the transfer.
+        const recipientBalanceAfter = await provider.getBalance(
+          await wallet.getAddress(),
+          COIN_8_TYPE
+        );
+        const relayerBalanceAfter = await provider.getBalance(
+          await relayer.getAddress(),
+          COIN_8_TYPE
+        );
+
+        // Fetch the relayer fee from the hello token state.
+        const helloTokenState = await getObjectFields(provider, stateId);
+        const relayerFee = Number(helloTokenState.relayer_fee.fields.value);
+        const relayerFeePrecision = Number(
+          helloTokenState.relayer_fee.fields.precision
+        );
+
+        // Confirm balance changes
+        const expectedRelayerBalanceChange = computeRelayerFee(
+          Number(mintAmount),
+          relayerFee,
+          relayerFeePrecision
+        );
+        expect(expectedRelayerBalanceChange).to.equal(
+          relayerBalanceAfter.totalBalance - relayerBalanceBefore.totalBalance
+        );
+
+        const expectedRecipientBalanceChange =
+          Number(mintAmount) - expectedRelayerBalanceChange;
+        expect(expectedRecipientBalanceChange).to.equal(
+          recipientBalanceAfter.totalBalance -
+            recipientBalanceBefore.totalBalance
+        );
+      });
+    });
+    describe("Coin 9", () => {
+      it("transfer::send_tokens_with_payload", async () => {
+        expect(localVariables.stateId).is.not.undefined;
+        const stateId: string = localVariables.stateId;
 
         // `splitCoin` requires a number even though amounts can be u64, so it
         // seems that the max amount we can split by is u32. FYI
-        const amount = "101";
+        localVariables.transferAmountCoin9 = "455";
+        const amount = localVariables.transferAmountCoin9;
+
+        // Create wallet.
+        const walletAddress = await wallet.getAddress();
 
         // Fetch sui coins to pay the wormhole fee.
         const wormholeFeeCoin = await getWormholeFeeCoins(provider, wallet);
@@ -492,9 +605,9 @@ describe(" 2: Hello Token", () => {
               TOKEN_BRIDGE_STATE_ID,
               splitCoin!,
               wormholeFeeCoin!,
-              targetChain,
+              foreignChain,
               "0", // batchId
-              Array.from(targetRecipient),
+              Array.from(foreignContractAddress),
             ],
             gasBudget: 20000,
           })
@@ -537,7 +650,7 @@ describe(" 2: Hello Token", () => {
         expect(transferPayload.targetAddress).to.equal(
           Buffer.alloc(32, "deadbeef").toString("hex")
         );
-        expect(transferPayload.targetChain).to.equal(Number(targetChain));
+        expect(transferPayload.targetChain).to.equal(Number(foreignChain));
 
         // Fetch the coin balance after transferring. The difference
         // in balance should reflect the transformed amount, since the
@@ -558,7 +671,121 @@ describe(" 2: Hello Token", () => {
         ).eq(transformedAmount.toNumber());
       });
 
-      it("transfer::send_tokens_with_payload With Wrapped Eth", async () => {
+      it("transfer::redeem_transfer_with_payload With Relayer", async () => {
+        expect(localVariables.stateId).is.not.undefined;
+        const stateId: string = localVariables.stateId;
+
+        // Define transfer parameters.
+        const tokenAddress = "0x0000000000000000000000000000000000000001";
+        const tokenDecimals = 9;
+
+        // We need to truncate the amount based on the token decimals
+        // the same way that the token bridge does. This test will
+        // fail if this step is not completed, since the amount
+        // deposited in the bridge in the previous test is the truncated
+        // amount.
+        const mintAmount = tokenBridgeNormalizeAmount(
+          ethers.BigNumber.from(localVariables.transferAmountCoin9),
+          tokenDecimals
+        );
+
+        const destination = await wallet
+          .getAddress()
+          .then((address) =>
+            Buffer.concat([Buffer.alloc(12), Buffer.from(address, "hex")])
+          );
+        const payload = Buffer.concat([Buffer.alloc(1, 1), destination]);
+
+        // Fetch coin balances before completing the transfer.
+        const recipientBalanceBefore = await provider.getBalance(
+          await wallet.getAddress(),
+          COIN_9_TYPE
+        );
+        const relayerBalanceBefore = await provider.getBalance(
+          await relayer.getAddress(),
+          COIN_9_TYPE
+        );
+
+        // Create a transfer tokens with payload message.
+        const published = ethereumTokenBridge.publishTransferTokensWithPayload(
+          tryNativeToHexString(tokenAddress, "ethereum"),
+          CHAIN_ID_SUI, // tokenChain
+          BigInt(mintAmount.toString()),
+          CHAIN_ID_SUI, // recipientChain
+          helloTokenEmitter, // recipient
+          foreignContractAddress, // fromAddress
+          payload,
+          0 // nonce
+        );
+
+        // Sign the transfer message.
+        const signedWormholeMessage = guardians.addSignatures(published, [0]);
+
+        // Execute `transfer::redeem_tokens_with_payload`
+        const completeTransferTx = await relayer
+          .executeMoveCall({
+            packageObjectId: HELLO_TOKEN_ID,
+            module: "transfer",
+            function: "redeem_transfer_with_payload",
+            typeArguments: [COIN_9_TYPE],
+            arguments: [
+              stateId,
+              WORMHOLE_STATE_ID,
+              TOKEN_BRIDGE_STATE_ID,
+              Array.from(signedWormholeMessage),
+            ],
+            gasBudget: 20000,
+          })
+          .catch((reason) => {
+            // should not happen
+            console.log(reason);
+            return null;
+          });
+        expect(completeTransferTx).is.not.null;
+
+        // Fetch coin balances before completing the transfer.
+        const recipientBalanceAfter = await provider.getBalance(
+          await wallet.getAddress(),
+          COIN_9_TYPE
+        );
+        const relayerBalanceAfter = await provider.getBalance(
+          await relayer.getAddress(),
+          COIN_9_TYPE
+        );
+
+        // Fetch the relayer fee from the hello token state.
+        const helloTokenState = await getObjectFields(provider, stateId);
+        const relayerFee = Number(helloTokenState.relayer_fee.fields.value);
+        const relayerFeePrecision = Number(
+          helloTokenState.relayer_fee.fields.precision
+        );
+
+        // Denormalize the mintAmount to compute balance changes.
+        const denormalizedMintAmount = tokenBridgeDenormalizeAmount(
+          mintAmount,
+          tokenDecimals
+        ).toNumber();
+
+        // Confirm balance changes
+        const expectedRelayerBalanceChange = computeRelayerFee(
+          denormalizedMintAmount,
+          relayerFee,
+          relayerFeePrecision
+        );
+        expect(expectedRelayerBalanceChange).to.equal(
+          relayerBalanceAfter.totalBalance - relayerBalanceBefore.totalBalance
+        );
+
+        const expectedRecipientBalanceChange =
+          denormalizedMintAmount - expectedRelayerBalanceChange;
+        expect(expectedRecipientBalanceChange).to.equal(
+          recipientBalanceAfter.totalBalance -
+            recipientBalanceBefore.totalBalance
+        );
+      });
+    });
+    describe("Wrapped Ether", () => {
+      it("transfer::send_tokens_with_payload", async () => {
         expect(localVariables.stateId).is.not.undefined;
         const stateId: string = localVariables.stateId;
 
@@ -613,9 +840,9 @@ describe(" 2: Hello Token", () => {
               TOKEN_BRIDGE_STATE_ID,
               splitCoin!,
               wormholeFeeCoin!,
-              targetChain,
+              foreignChain,
               "0", // batchId
-              Array.from(targetRecipient),
+              Array.from(foreignContractAddress),
             ],
             gasBudget: 20000,
           })
@@ -655,7 +882,7 @@ describe(" 2: Hello Token", () => {
         expect(transferPayload.targetAddress).to.equal(
           Buffer.alloc(32, "deadbeef").toString("hex")
         );
-        expect(transferPayload.targetChain).to.equal(Number(targetChain));
+        expect(transferPayload.targetChain).to.equal(Number(foreignChain));
 
         // Fetch the coin balance after doing the transfer.
         const coinBalanceAfter = await provider.getBalance(
@@ -665,6 +892,110 @@ describe(" 2: Hello Token", () => {
         expect(
           coinBalanceBefore.totalBalance - coinBalanceAfter.totalBalance
         ).eq(parseInt(amount));
+      });
+
+      it("transfer::redeem_transfer_with_payload With Relayer", async () => {
+        expect(localVariables.stateId).is.not.undefined;
+        const stateId: string = localVariables.stateId;
+
+        // Define transfer parameters.
+        const tokenAddress = "0x0000000000000000000000000000000000000003";
+        const tokenDecimals = 8;
+
+        // We need to truncate the amount based on the token decimals
+        // the same way that the token bridge does. This test will
+        // fail if this step is not completed, since the amount
+        // deposited in the bridge in the previous test is the truncated
+        // amount.
+        const mintAmount = "69000000";
+
+        const destination = await wallet
+          .getAddress()
+          .then((address) =>
+            Buffer.concat([Buffer.alloc(12), Buffer.from(address, "hex")])
+          );
+        const payload = Buffer.concat([Buffer.alloc(1, 1), destination]);
+
+        // Fetch coin balances before completing the transfer.
+        const recipientBalanceBefore = await provider.getBalance(
+          await wallet.getAddress(),
+          WRAPPED_WETH_COIN_TYPE
+        );
+        const relayerBalanceBefore = await provider.getBalance(
+          await relayer.getAddress(),
+          WRAPPED_WETH_COIN_TYPE
+        );
+
+        // Create a transfer tokens with payload message.
+        const published = ethereumTokenBridge.publishTransferTokensWithPayload(
+          tryNativeToHexString(WETH_ID, "ethereum"),
+          CHAIN_ID_ETH, // tokenChain
+          BigInt(mintAmount.toString()),
+          CHAIN_ID_SUI, // recipientChain
+          helloTokenEmitter, // recipient
+          foreignContractAddress, // fromAddress
+          payload,
+          0 // nonce
+        );
+
+        // Sign the transfer message.
+        const signedWormholeMessage = guardians.addSignatures(published, [0]);
+
+        // Execute `transfer::redeem_tokens_with_payload`
+        const completeTransferTx = await relayer
+          .executeMoveCall({
+            packageObjectId: HELLO_TOKEN_ID,
+            module: "transfer",
+            function: "redeem_transfer_with_payload",
+            typeArguments: [WRAPPED_WETH_COIN_TYPE],
+            arguments: [
+              stateId,
+              WORMHOLE_STATE_ID,
+              TOKEN_BRIDGE_STATE_ID,
+              Array.from(signedWormholeMessage),
+            ],
+            gasBudget: 20000,
+          })
+          .catch((reason) => {
+            // should not happen
+            console.log(reason);
+            return null;
+          });
+        expect(completeTransferTx).is.not.null;
+
+        // Fetch coin balances before completing the transfer.
+        const recipientBalanceAfter = await provider.getBalance(
+          await wallet.getAddress(),
+          WRAPPED_WETH_COIN_TYPE
+        );
+        const relayerBalanceAfter = await provider.getBalance(
+          await relayer.getAddress(),
+          WRAPPED_WETH_COIN_TYPE
+        );
+
+        // Fetch the relayer fee from the hello token state.
+        const helloTokenState = await getObjectFields(provider, stateId);
+        const relayerFee = Number(helloTokenState.relayer_fee.fields.value);
+        const relayerFeePrecision = Number(
+          helloTokenState.relayer_fee.fields.precision
+        );
+
+        // Confirm balance changes
+        const expectedRelayerBalanceChange = computeRelayerFee(
+          Number(mintAmount),
+          relayerFee,
+          relayerFeePrecision
+        );
+        expect(expectedRelayerBalanceChange).to.equal(
+          relayerBalanceAfter.totalBalance - relayerBalanceBefore.totalBalance
+        );
+
+        const expectedRecipientBalanceChange =
+          Number(mintAmount) - expectedRelayerBalanceChange;
+        expect(expectedRecipientBalanceChange).to.equal(
+          recipientBalanceAfter.totalBalance -
+            recipientBalanceBefore.totalBalance
+        );
       });
     });
   });

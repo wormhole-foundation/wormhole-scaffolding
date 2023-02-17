@@ -710,14 +710,14 @@ describe(" 0: Wormhole", () => {
         0n
       );
 
+      // Sign the transfer message.
       const signedWormholeMessage = guardians.addSignatures(published, [0]);
 
-      const metadata = await provider.getCoinMetadata(WRAPPED_WETH_COIN_TYPE);
       const feeRecipient = await wallet
         .getAddress()
         .then((address) => ethers.utils.hexlify(Buffer.from(address, "hex")));
 
-      // Execute `complete_transfer::submit_vaa` on Token Bridge.
+      // Execute `complete_transfer::complete_transfer` on Token Bridge.
       const completeTransferTx = await wallet
         .executeMoveCall({
           packageObjectId: TOKEN_BRIDGE_ID,

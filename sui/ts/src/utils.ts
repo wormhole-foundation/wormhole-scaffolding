@@ -8,6 +8,14 @@ import {ethers} from "ethers";
 import {WORMHOLE_STATE_ID} from "../tests/helpers";
 import * as fs from "fs";
 
+export function computeRelayerFee(
+  amount: number,
+  relayerFee: number,
+  relayerFeePrecision: number
+) {
+  return Math.floor((amount * relayerFee) / relayerFeePrecision);
+}
+
 export async function getWormholeFeeCoins(
   provider: JsonRpcProvider,
   signer: RawSigner
