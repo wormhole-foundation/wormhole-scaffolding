@@ -47,17 +47,22 @@ import {
   getRegisteredAssetInfo,
 } from "../src";
 
-describe(" 0: Wormhole", () => {
+describe("0: Wormhole", () => {
   const provider = new JsonRpcProvider(Network.LOCAL);
+
+  // User wallet.
   const wallet = new RawSigner(
     Ed25519Keypair.fromSeed(WALLET_PRIVATE_KEY),
     provider
   );
+
+  // Relayer wallet.
   const relayer = new RawSigner(
     Ed25519Keypair.fromSeed(RELAYER_PRIVATE_KEY),
     provider
   );
 
+  // Deployer wallet.
   const creator = new RawSigner(
     Ed25519Keypair.fromSeed(CREATOR_PRIVATE_KEY),
     provider
@@ -68,10 +73,6 @@ describe(" 0: Wormhole", () => {
 
   // for governance actions to modify programs
   const governance = new mock.GovernanceEmitter(GOVERNANCE_EMITTER_ID, 20);
-
-  before("Airdrop", async () => {
-    // Just in case we add more keypairs to the test...
-  });
 
   describe("Environment", () => {
     it("Variables", () => {
@@ -94,7 +95,7 @@ describe(" 0: Wormhole", () => {
 
   describe("Verify Local Validator", () => {
     it("Balance", async () => {
-      // wallet
+      // Balance check wallet.
       {
         const coinData = await wallet
           .getAddress()
@@ -108,7 +109,7 @@ describe(" 0: Wormhole", () => {
         }
       }
 
-      // relayer
+      // Balance check relayer.
       {
         const coinData = await relayer
           .getAddress()
@@ -133,11 +134,13 @@ describe(" 0: Wormhole", () => {
         const metadata = await provider.getCoinMetadata(COIN_9_TYPE);
         expect(metadata.decimals).equals(9);
 
+        // Format the amount based on the coin decimals.
         const amount = ethers.utils
           .parseUnits("69420", metadata.decimals)
           .add(10) // for outbound transfer later
           .toString();
 
+        // Mint and transfer the coins.
         const tx = await creator
           .executeMoveCall({
             packageObjectId: "0x2",
@@ -165,10 +168,12 @@ describe(" 0: Wormhole", () => {
         const metadata = await provider.getCoinMetadata(COIN_8_TYPE);
         expect(metadata.decimals).equals(8);
 
+        // Format the amount based on the coin decimals.
         const amount = ethers.utils
           .parseUnits("69420", metadata.decimals)
           .toString();
 
+        // Mint and transfer the coins.
         const tx = await creator
           .executeMoveCall({
             packageObjectId: "0x2",
@@ -244,12 +249,14 @@ describe(" 0: Wormhole", () => {
         unexpected();
       }
 
-      // Finally here to check the state.
+      // Verify that the Wormhole state was set up correctly.
       const fields = await getObjectFields(provider, WORMHOLE_STATE_ID);
 
+      // Guardian set index.
       expect(fields).has.property("guardian_set_index");
       expect(fields.guardian_set_index).equals(0);
 
+      // Guardian set.
       expect(fields).has.property("guardian_sets");
       const guardianSets = fields.guardian_sets.fields.contents;
       expect(guardianSets).has.length(1);
@@ -263,19 +270,22 @@ describe(" 0: Wormhole", () => {
       const guardianKey = guardianKeys[0].fields.addr.fields.data;
       expect(guardianKey).deep.equals(Array.from(devnetGuardian));
 
+      // Emitter registry.
       expect(fields).has.property("emitter_registry");
       expect(fields.emitter_registry.fields.next_id).equals("1");
     });
   });
 
   describe("Verify Token Bridge Program", () => {
-    // Mock foreign token bridge.
+    // Mock Ethereum Token Bridge.
     const ethereumTokenBridge = new mock.MockEthereumTokenBridge(
       ETHEREUM_TOKEN_BRIDGE_ADDRESS
     );
 
     it("Get New Emitter", async () => {
-      // Call `get_new_emitter` on Wormhole for Token Bridge.
+      // Call `get_new_emitter` on Wormhole for Token Bridge. This registers
+      // the Token Bridge with Wormhole, which will allow the Token Bridge
+      // to publish messages.
       const getNewEmitterTx = await creator
         .executeMoveCall({
           packageObjectId: WORMHOLE_ID,
@@ -292,7 +302,7 @@ describe(" 0: Wormhole", () => {
         });
       expect(getNewEmitterTx).is.not.null;
 
-      // Transaction is successful, so check emitter ID.
+      // Transaction is successful, verify the Token Bridge emitter ID.
       const createdObjects = await getCreatedFromTransaction(getNewEmitterTx!);
       expect(createdObjects).has.length(1);
 
@@ -335,7 +345,7 @@ describe(" 0: Wormhole", () => {
         const stateId = created.reference.objectId;
         expect(stateId).equals(TOKEN_BRIDGE_STATE_ID);
 
-        // Finally here to check the state
+        // Finally verify the Token Bridge state.
         const fields = await getObjectFields(provider, TOKEN_BRIDGE_STATE_ID);
 
         expect(fields).has.property("emitter_cap");
@@ -345,7 +355,8 @@ describe(" 0: Wormhole", () => {
       }
     });
 
-    it("Register Foreign Endpoint (Ethereum)", async () => {
+    it("Register Foreign Emitter (Ethereum)", async () => {
+      // Create an emitter registration VAA.
       const message = governance.publishTokenBridgeRegisterChain(
         0, // timestamp
         2,
@@ -398,21 +409,8 @@ describe(" 0: Wormhole", () => {
       );
     });
 
-    // This shouldn't be allowed, but we're doing it just to prove the safety
-    // of the scaffold programs.
-    // it("Register Bogus Foreign Endpoint (Chain ID == 0)", async () => {
-    //   // Hopefully we won't have to do this
-    // });
-
-    // // This shouldn't be allowed, but we're doing it just to prove the safety
-    // // of the scaffold programs.
-    // it("Register Bogus Foreign Endpoint (Chain ID == 21)", async () => {
-    //   // Hopefully we won't have to do this
-    // });
-
     // Before any coin can be transferred out, it needs to be attested for.
     it("Attest Native Coins", async () => {
-      const walletAddress = await wallet.getAddress();
       // COIN_9
       {
         // Fetch Sui object to pay wormhole fees with.
@@ -444,7 +442,7 @@ describe(" 0: Wormhole", () => {
           });
         expect(attestTokensTx).is.not.null;
 
-        // Check event.
+        // Check the Wormhole message event emitted by the contract.
         const wormholeMessages = await getWormholeMessagesFromTransaction(
           provider,
           WORMHOLE_ID,
@@ -456,15 +454,17 @@ describe(" 0: Wormhole", () => {
         expect(message.emitter).equals(TOKEN_BRIDGE_ID);
         expect(message.sequence).equals("0");
 
-        // Check state.
+        // Verify state changes.
         const tokenBridgeState = await getObjectFields(
           provider,
           TOKEN_BRIDGE_STATE_ID
         );
 
+        // Emitter sequence should've upticked.
         const emitter = tokenBridgeState.emitter_cap.fields;
         expect(emitter.sequence).equals("1");
 
+        // Native coin count should've upticked.
         const registeredTokens = tokenBridgeState.registered_tokens.fields;
         expect(registeredTokens.num_native).to.equal("1");
         expect(registeredTokens.num_wrapped).to.equal("0");
@@ -501,7 +501,7 @@ describe(" 0: Wormhole", () => {
           });
         expect(attestTokensTx).is.not.null;
 
-        // Check event.
+        // Check the Wormhole message event emitted by the contract.
         const wormholeMessages = await getWormholeMessagesFromTransaction(
           provider,
           WORMHOLE_ID,
@@ -519,9 +519,11 @@ describe(" 0: Wormhole", () => {
           TOKEN_BRIDGE_STATE_ID
         );
 
+        // Emitter sequence should've upticked.
         const emitter = tokenBridgeState.emitter_cap.fields;
         expect(emitter.sequence).equals("2");
 
+        // Native coin count should've upticked.
         const registeredTokens = tokenBridgeState.registered_tokens.fields;
         expect(registeredTokens.num_native).to.equal("2");
         expect(registeredTokens.num_wrapped).to.equal("0");
@@ -530,9 +532,6 @@ describe(" 0: Wormhole", () => {
 
     it("Outbound Transfer Native", async () => {
       const walletAddress = await wallet.getAddress();
-
-      // `splitCoin` requires a number even though amounts can be u64, so it
-      // seems that the max amount we can split by is u32. FYI
       const amount = "10";
       const recipientChain = "2";
       const recipient = Buffer.alloc(32, "deadbeef");
@@ -547,9 +546,7 @@ describe(" 0: Wormhole", () => {
         .getCoins(walletAddress, COIN_9_TYPE)
         .then((result) => result.data);
 
-      const metadata = await provider.getCoinMetadata(COIN_9_TYPE);
-
-      // Split coin into another object.
+      // Split coin into another coin object.
       const splitCoin = await wallet
         .splitCoin({
           coinObjectId: transferCoin.coinObjectId,
@@ -564,7 +561,7 @@ describe(" 0: Wormhole", () => {
         });
       expect(splitCoin).is.not.null;
 
-      // Call `transfer_tokens::transfer_tokens` on Token Bridge
+      // Call `transfer_tokens::transfer_tokens` on Token Bridge.
       const transferTokensTx = await wallet
         .executeMoveCall({
           packageObjectId: TOKEN_BRIDGE_ID,
@@ -596,7 +593,7 @@ describe(" 0: Wormhole", () => {
         expect(info.status).equals("Deleted");
       }
 
-      // Check event.
+      // Check the Wormhole message event emitted by the contract.
       const wormholeMessages = await getWormholeMessagesFromTransaction(
         provider,
         WORMHOLE_ID,
@@ -619,6 +616,7 @@ describe(" 0: Wormhole", () => {
     });
 
     it("Attest WETH from Ethereum", async () => {
+      // Create an attestation VAA.
       const published = ethereumTokenBridge.publishAttestMeta(
         WETH_ID,
         18,
@@ -626,6 +624,7 @@ describe(" 0: Wormhole", () => {
         "Wrapped Ether"
       );
 
+      // Sign the VAA.
       const signedWormholeMessage = guardians.addSignatures(published, [0]);
 
       // Deploy wrapped coin using template.
@@ -646,9 +645,9 @@ describe(" 0: Wormhole", () => {
       const newWrappedCoinType = `${TOKEN_BRIDGE_ID}::wrapped_coin::WrappedCoin<${WRAPPED_WETH_COIN_TYPE}>`;
       expect(deployedCoinInfo.type).equals(newWrappedCoinType);
 
-      // Execute `wrapped::register_wrapped_coin` on Token Bridge.
+      // Execute `create_wrapped::register_wrapped_coin` on Token Bridge.
       // The deployer keypair originally created this coin, so we must use
-      // `creator` to execute.
+      // `creator` to execute the call.
       const registerWrappedCoinTx = await creator
         .executeMoveCall({
           packageObjectId: TOKEN_BRIDGE_ID,
@@ -678,8 +677,11 @@ describe(" 0: Wormhole", () => {
       // Fetch the wrapped asset info
       const registeredTokens = tokenBridgeState.registered_tokens.fields;
       expect(registeredTokens.num_native).to.equal("2");
+
+      // Wrapped token count should've upticked.
       expect(registeredTokens.num_wrapped).to.equal("1");
 
+      // Fetch the wrapped asset info.
       const wrappedAssetInfo = await getRegisteredAssetInfo(
         provider,
         registeredTokens.id.id,
@@ -695,25 +697,29 @@ describe(" 0: Wormhole", () => {
       const unitDifference = ethers.BigNumber.from("10").pow(18 - 8);
       const mintAmount = rawAmount.div(unitDifference).toString();
 
-      const destination = await wallet
+      // Recipient's wallet.
+      const destinationBytes = await wallet
         .getAddress()
         .then((address) =>
           Buffer.concat([Buffer.alloc(12), Buffer.from(address, "hex")])
         );
 
+      // Create a token transfer VAA.
       const published = ethereumTokenBridge.publishTransferTokens(
         tryNativeToHexString(WETH_ID, "ethereum"),
         2, // tokenChain
         BigInt(mintAmount),
         CHAIN_ID_SUI, // recipientChain
-        destination.toString("hex"),
+        destinationBytes.toString("hex"),
         0n
       );
 
       // Sign the transfer message.
       const signedWormholeMessage = guardians.addSignatures(published, [0]);
 
-      const feeRecipient = await wallet
+      // Grab the destination wallet's address. This will be used as a place
+      // holder for the fee recipient. No fee will be paid out.
+      const desitnationAddress = await wallet
         .getAddress()
         .then((address) => ethers.utils.hexlify(Buffer.from(address, "hex")));
 
@@ -728,7 +734,7 @@ describe(" 0: Wormhole", () => {
             TOKEN_BRIDGE_STATE_ID,
             WORMHOLE_STATE_ID,
             Array.from(signedWormholeMessage),
-            feeRecipient,
+            desitnationAddress,
           ],
           gasBudget: 20000,
         })
@@ -739,8 +745,10 @@ describe(" 0: Wormhole", () => {
         });
       expect(completeTransferTx).is.not.null;
 
+      // Fetch the wrapped asset's coin object after the transfer to
+      // verify that the tokens were minted to the recipient.
       const coins = await provider
-        .getCoins(feeRecipient, WRAPPED_WETH_COIN_TYPE)
+        .getCoins(desitnationAddress, WRAPPED_WETH_COIN_TYPE)
         .then((result) => result.data);
       const nonzeroCoin = coins.find((coin) => coin.balance > 0);
       expect(nonzeroCoin).is.not.undefined;

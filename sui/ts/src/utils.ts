@@ -59,10 +59,12 @@ export async function getRegisteredAssetInfo(
     item.name.includes(assetType)
   );
 
+  // Throw error if the dynamic object is not found.
   if (dynamicItem == undefined) {
     Promise.reject("Asset info not found.");
   }
 
+  // Fetch the asset info.
   const assetInfo = await provider
     .getDynamicFieldObject(ownerId, dynamicItem!.name)
     .then((result) => {

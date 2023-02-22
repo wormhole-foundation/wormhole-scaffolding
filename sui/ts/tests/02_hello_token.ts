@@ -16,6 +16,8 @@ import {
   CREATOR_PRIVATE_KEY,
   WORMHOLE_STATE_ID,
   TOKEN_BRIDGE_STATE_ID,
+  HELLO_TOKEN_ID,
+  HELLO_TOKEN_OWNER_CAP_ID,
   COIN_8_TYPE,
   COIN_9_TYPE,
   WRAPPED_WETH_COIN_TYPE,
@@ -34,22 +36,24 @@ import {
   tokenBridgeDenormalizeAmount,
 } from "../src";
 
-const HELLO_TOKEN_ID = "0x57bdf56537175f8f71eedd3c4b0392b994106343";
-const HELLO_TOKEN_OWNER_CAP_ID = "0x234c95f8cd5bcab63e6c1bbd403363f0e155647b";
-
-describe(" 2: Hello Token", () => {
+describe("2: Hello Token", () => {
   const provider = new JsonRpcProvider("http://localhost:9000", {
     faucetURL: "http://localhost:9123/gas",
   });
+
+  // User wallet.
   const wallet = new RawSigner(
     Ed25519Keypair.fromSeed(WALLET_PRIVATE_KEY),
     provider
   );
+
+  // Relayer wallet.
   const relayer = new RawSigner(
     Ed25519Keypair.fromSeed(RELAYER_PRIVATE_KEY),
     provider
   );
 
+  // Deployer wallet.
   const creator = new RawSigner(
     Ed25519Keypair.fromSeed(CREATOR_PRIVATE_KEY),
     provider
@@ -60,13 +64,9 @@ describe(" 2: Hello Token", () => {
 
   const localVariables: any = {};
 
-  before("Airdrop", async () => {
-    // Just in case we add more keypairs to the test...
-  });
-
   describe("Setup", () => {
     it("Get New Emitter", async () => {
-      // Call `get_new_emitter` on Wormhole for Token Bridge.
+      // Call `wormhole::get_new_emitter` on Wormhole for Token Bridge.
       const getNewEmitterTx = await creator
         .executeMoveCall({
           packageObjectId: WORMHOLE_ID,
@@ -101,7 +101,8 @@ describe(" 2: Hello Token", () => {
         expect(localVariables.emitterCapId).is.not.undefined;
         const emitterCapId: string = localVariables.emitterCapId;
 
-        // Call `owner::create_state` on HelloToken
+        // Call `owner::create_state` on HelloToken using the
+        // `wallet` instead of the `creator` signer.
         const createStateTx = await wallet
           .executeMoveCall({
             packageObjectId: HELLO_TOKEN_ID,
@@ -129,7 +130,7 @@ describe(" 2: Hello Token", () => {
         expect(localVariables.emitterCapId).is.not.undefined;
         const emitterCapId: string = localVariables.emitterCapId;
 
-        // Call `owner::create_state` on HelloToken
+        // Call `owner::create_state` on HelloToken.
         const createStateTx = await creator
           .executeMoveCall({
             packageObjectId: HELLO_TOKEN_ID,
@@ -155,6 +156,7 @@ describe(" 2: Hello Token", () => {
         const createdObjects = await getCreatedFromTransaction(createStateTx!);
         expect(createdObjects).has.length(3);
 
+        // Fetch the state object by filtering on shared objects.
         const sharedObjectIds: string[] = [];
         for (const created of createdObjects) {
           const owner = created.owner;
@@ -170,7 +172,8 @@ describe(" 2: Hello Token", () => {
         expect(localVariables.emitterCapId).is.not.undefined;
         const emitterCapId: string = localVariables.emitterCapId;
 
-        // Call `owner::create_state` on HelloToken
+        // Call `owner::create_state` on HelloToken again and
+        // expect a failure.
         const createStateTx = await creator
           .executeMoveCall({
             packageObjectId: HELLO_TOKEN_ID,
@@ -207,7 +210,8 @@ describe(" 2: Hello Token", () => {
         expect(localVariables.stateId).is.not.undefined;
         const stateId: string = localVariables.stateId;
 
-        // Call `owner::create_state` on HelloToken
+        // Call `owner::register_foreign_contract` on HelloToken using `wallet`
+        // instead of the `creator` signer. This should fail.
         const registerTx = await wallet
           .executeMoveCall({
             packageObjectId: HELLO_TOKEN_ID,
@@ -235,7 +239,7 @@ describe(" 2: Hello Token", () => {
         expect(localVariables.stateId).is.not.undefined;
         const stateId: string = localVariables.stateId;
 
-        // Call `owner::create_state` on HelloToken
+        // Call `owner::register_foreign_contract` on HelloToken.
         const registerTx = await creator
           .executeMoveCall({
             packageObjectId: HELLO_TOKEN_ID,
@@ -257,12 +261,13 @@ describe(" 2: Hello Token", () => {
           });
         expect(registerTx).is.not.null;
 
-        // Fetch state info
+        // Fetch HelloToken state object.
         const helloTokenDynamicObjectField = await provider
           .getDynamicFields(stateId)
           .then((result) => result.data);
         expect(helloTokenDynamicObjectField).has.length(1);
 
+        // Grab the registeredContracts table from the state object.
         const registeredContracts = await getTableFromDynamicObjectField(
           provider,
           stateId,
@@ -270,7 +275,7 @@ describe(" 2: Hello Token", () => {
         );
         expect(registeredContracts).has.length(1);
 
-        // Verify state changes
+        // Verify that the contract was registered correctly.
         expect(parseInt(registeredContracts![0][0])).to.equal(foreignChain);
         expect(
           Buffer.from(registeredContracts![0][1].data).toString("hex")
@@ -287,7 +292,7 @@ describe(" 2: Hello Token", () => {
       expect(localVariables.stateId).is.not.undefined;
       const stateId: string = localVariables.stateId;
 
-      // Call `owner::update_relayer_fee` on HelloToken
+      // Call `owner::update_relayer_fee` on HelloToken.
       const registerTx = await creator
         .executeMoveCall({
           packageObjectId: HELLO_TOKEN_ID,
@@ -309,7 +314,8 @@ describe(" 2: Hello Token", () => {
         });
       expect(registerTx).is.not.null;
 
-      // Fetch state info
+      // Fetch HelloToken state object and verify that the relayer
+      // fee was updated correctly.
       const helloTokenState = await getObjectFields(provider, stateId);
       expect(helloTokenState.relayer_fee.fields.precision).to.equal(
         relayerFeePrecision
@@ -324,7 +330,7 @@ describe(" 2: Hello Token", () => {
       ETHEREUM_TOKEN_BRIDGE_ADDRESS
     );
 
-    // Foreign hello token contract.
+    // Foreign HelloToken contract.
     const foreignChain = "2";
     const foreignContractAddress = Buffer.alloc(32, "deadbeef");
 
@@ -339,23 +345,22 @@ describe(" 2: Hello Token", () => {
         expect(localVariables.stateId).is.not.undefined;
         const stateId: string = localVariables.stateId;
 
-        // Create wallet.
+        // Fetch wallet address.
         const walletAddress = await wallet.getAddress();
 
-        // `splitCoin` requires a number even though amounts can be u64, so it
-        // seems that the max amount we can split by is u32. FYI
+        // Set the transfer amount.
         localVariables.transferAmountCoin8 = "100000000";
         const amount = localVariables.transferAmountCoin8;
 
         // Fetch sui coins to pay the wormhole fee.
         const wormholeFeeCoin = await getWormholeFeeCoins(provider, wallet);
 
-        // Grab balance.
+        // Grab COIN_8 balance.
         const [transferCoin] = await provider
           .getCoins(walletAddress, COIN_8_TYPE)
           .then((result) => result.data);
 
-        // Split coin into another object.
+        // Split the coin object into a separate object.
         const splitCoin = await wallet
           .splitCoin({
             coinObjectId: transferCoin.coinObjectId,
@@ -376,7 +381,7 @@ describe(" 2: Hello Token", () => {
           COIN_8_TYPE
         );
 
-        // Send a transfer.
+        // Send a transfer by invoking `transfer::send_tokens_with_payload`
         const sendWithPayloadTx = await wallet
           .executeMoveCall({
             packageObjectId: HELLO_TOKEN_ID,
@@ -402,7 +407,7 @@ describe(" 2: Hello Token", () => {
           });
         expect(sendWithPayloadTx).is.not.null;
 
-        // Fetch the Wormhole messsage
+        // Fetch the Wormhole message emitted by the contract.
         const wormholeMessages = await getWormholeMessagesFromTransaction(
           provider,
           WORMHOLE_ID,
@@ -420,10 +425,9 @@ describe(" 2: Hello Token", () => {
         const helloTokenState = await getObjectFields(provider, stateId);
         expect(helloTokenState.emitter_cap.fields.sequence).equals("0");
 
-        // Verify transfer payload.
+        // Verify the transfer payload.
         const transferPayload = await parseTransferPayload(message.payload);
         expect(transferPayload.amount.toString()).to.equal(amount);
-
         expect(
           transferPayload.fromAddress!.endsWith(
             helloTokenState.emitter_cap.fields.emitter
@@ -435,7 +439,7 @@ describe(" 2: Hello Token", () => {
         );
         expect(transferPayload.targetChain).to.equal(Number(foreignChain));
 
-        // Fetch the coin balance after doing the transfer.
+        // Fetch and validate the coin balance change after the transfer.
         const coinBalanceAfter = await provider.getBalance(
           walletAddress,
           COIN_8_TYPE
@@ -461,7 +465,8 @@ describe(" 2: Hello Token", () => {
           );
         const payload = Buffer.concat([Buffer.alloc(1, 1), destination]);
 
-        // Fetch coin balances before completing the transfer.
+        // Fetch coin balances for the relayer and recipient before
+        // completing the transfer.
         const recipientBalanceBefore = await provider.getBalance(
           await wallet.getAddress(),
           COIN_8_TYPE
@@ -508,7 +513,8 @@ describe(" 2: Hello Token", () => {
           });
         expect(completeTransferTx).is.not.null;
 
-        // Fetch coin balances before completing the transfer.
+        // Fetch coin balances for the recipient and relayer after
+        // completing the transfer.
         const recipientBalanceAfter = await provider.getBalance(
           await wallet.getAddress(),
           COIN_8_TYPE
@@ -525,7 +531,7 @@ describe(" 2: Hello Token", () => {
           helloTokenState.relayer_fee.fields.precision
         );
 
-        // Confirm balance changes
+        // Confirm relayer balance change.
         const expectedRelayerBalanceChange = computeRelayerFee(
           Number(mintAmount),
           relayerFee,
@@ -535,6 +541,7 @@ describe(" 2: Hello Token", () => {
           relayerBalanceAfter.totalBalance - relayerBalanceBefore.totalBalance
         );
 
+        // Confirm recipient balance changes.
         const expectedRecipientBalanceChange =
           Number(mintAmount) - expectedRelayerBalanceChange;
         expect(expectedRecipientBalanceChange).to.equal(
@@ -559,7 +566,7 @@ describe(" 2: Hello Token", () => {
           );
         const payload = Buffer.concat([Buffer.alloc(1, 1), destination]);
 
-        // Fetch coin balances before completing the transfer.
+        // Fetch recipient coin balance before completing the transfer.
         const recipientBalanceBefore = await provider.getBalance(
           await wallet.getAddress(),
           COIN_8_TYPE
@@ -602,13 +609,14 @@ describe(" 2: Hello Token", () => {
           });
         expect(completeTransferTx).is.not.null;
 
-        // Fetch coin balances before completing the transfer.
+        // Fetch recipient coin balances after the completing the transfer
+        // and verify that the recipient received the correct number of coins.
         const recipientBalanceAfter = await provider.getBalance(
           await wallet.getAddress(),
           COIN_8_TYPE
         );
 
-        // Confirm balance changes
+        // Confirm balance changes.
         expect(Number(mintAmount)).to.equal(
           recipientBalanceAfter.totalBalance -
             recipientBalanceBefore.totalBalance
@@ -621,18 +629,17 @@ describe(" 2: Hello Token", () => {
         expect(localVariables.stateId).is.not.undefined;
         const stateId: string = localVariables.stateId;
 
-        // `splitCoin` requires a number even though amounts can be u64, so it
-        // seems that the max amount we can split by is u32. FYI
+        // Fetch wallet address.
+        const walletAddress = await wallet.getAddress();
+
+        // Set the transfer amount.
         localVariables.transferAmountCoin9 = "455";
         const amount = localVariables.transferAmountCoin9;
-
-        // Create wallet.
-        const walletAddress = await wallet.getAddress();
 
         // Fetch sui coins to pay the wormhole fee.
         const wormholeFeeCoin = await getWormholeFeeCoins(provider, wallet);
 
-        // Grab balance.
+        // Grab COIN_9 balance.
         const [transferCoin] = await provider
           .getCoins(walletAddress, COIN_9_TYPE)
           .then((result) => result.data);
@@ -640,13 +647,15 @@ describe(" 2: Hello Token", () => {
         // Fetch the coin metadata.
         const metadata = await provider.getCoinMetadata(COIN_9_TYPE);
 
-        // Compute the normalized amount for data validation.
+        // Compute the normalized amount for data validation. The token
+        // bridge normalizes transfer quantites for tokens that have
+        // decimals greater than 8.
         const normalizedAmount = tokenBridgeNormalizeAmount(
           ethers.BigNumber.from(amount),
           metadata.decimals
         );
 
-        // Split coin into another object.
+        // Split the coin object into a separate object.
         const splitCoin = await wallet
           .splitCoin({
             coinObjectId: transferCoin.coinObjectId,
@@ -667,7 +676,7 @@ describe(" 2: Hello Token", () => {
           COIN_9_TYPE
         );
 
-        // Send a transfer.
+        // Send a transfer by invoking `transfer::send_tokens_with_payload`
         const sendWithPayloadTx = await wallet
           .executeMoveCall({
             packageObjectId: HELLO_TOKEN_ID,
@@ -693,7 +702,7 @@ describe(" 2: Hello Token", () => {
           });
         expect(sendWithPayloadTx).is.not.null;
 
-        // Fetch the Wormhole messsage
+        // Fetch the Wormhole message emitted by the contract.
         const wormholeMessages = await getWormholeMessagesFromTransaction(
           provider,
           WORMHOLE_ID,
@@ -711,7 +720,7 @@ describe(" 2: Hello Token", () => {
         const helloTokenState = await getObjectFields(provider, stateId);
         expect(helloTokenState.emitter_cap.fields.sequence).equals("0");
 
-        // Verify transfer payload.
+        // Verify the transfer payload.
         const transferPayload = await parseTransferPayload(message.payload);
         expect(transferPayload.amount.toString()).to.equal(
           normalizedAmount.toString()
@@ -767,6 +776,7 @@ describe(" 2: Hello Token", () => {
           tokenDecimals
         );
 
+        // Recipient wallet.
         const destination = await wallet
           .getAddress()
           .then((address) =>
@@ -774,7 +784,8 @@ describe(" 2: Hello Token", () => {
           );
         const payload = Buffer.concat([Buffer.alloc(1, 1), destination]);
 
-        // Fetch coin balances before completing the transfer.
+        // Fetch coin balances for the relayer and recipient before
+        // completing the transfer.
         const recipientBalanceBefore = await provider.getBalance(
           await wallet.getAddress(),
           COIN_9_TYPE
@@ -821,7 +832,8 @@ describe(" 2: Hello Token", () => {
           });
         expect(completeTransferTx).is.not.null;
 
-        // Fetch coin balances before completing the transfer.
+        // Fetch coin balances for the recipient and relayer after
+        // completing the transfer.
         const recipientBalanceAfter = await provider.getBalance(
           await wallet.getAddress(),
           COIN_9_TYPE
@@ -844,7 +856,7 @@ describe(" 2: Hello Token", () => {
           tokenDecimals
         ).toNumber();
 
-        // Confirm balance changes
+        // Confirm relayer balance change.
         const expectedRelayerBalanceChange = computeRelayerFee(
           denormalizedMintAmount,
           relayerFee,
@@ -854,6 +866,7 @@ describe(" 2: Hello Token", () => {
           relayerBalanceAfter.totalBalance - relayerBalanceBefore.totalBalance
         );
 
+        // Confirm recipient balance change.
         const expectedRecipientBalanceChange =
           denormalizedMintAmount - expectedRelayerBalanceChange;
         expect(expectedRecipientBalanceChange).to.equal(
@@ -883,6 +896,7 @@ describe(" 2: Hello Token", () => {
           tokenDecimals
         );
 
+        // Recipient wallet.
         const destination = await wallet
           .getAddress()
           .then((address) =>
@@ -890,7 +904,7 @@ describe(" 2: Hello Token", () => {
           );
         const payload = Buffer.concat([Buffer.alloc(1, 1), destination]);
 
-        // Fetch coin balances before completing the transfer.
+        // Fetch recipient coin balance before completing the transfer.
         const recipientBalanceBefore = await provider.getBalance(
           await wallet.getAddress(),
           COIN_9_TYPE
@@ -957,24 +971,23 @@ describe(" 2: Hello Token", () => {
         expect(localVariables.stateId).is.not.undefined;
         const stateId: string = localVariables.stateId;
 
-        // Create wallet.
+        // Fetch wallet address.
         const walletAddress = await wallet.getAddress();
 
-        // `splitCoin` requires a number even though amounts can be u64, so it
-        // seems that the max amount we can split by is u32. FYI
+        // Set the transfer amount.
         const amount = "69";
 
         // Fetch sui coins to pay the wormhole fee.
         const wormholeFeeCoin = await getWormholeFeeCoins(provider, wallet);
 
-        // Grab balance.
+        // Grab wrapped eth balance.
         const coins = await provider
           .getCoins(walletAddress, WRAPPED_WETH_COIN_TYPE)
           .then((result) => result.data);
         const nonzeroCoin = coins.find((coin) => coin.balance > 0);
         expect(nonzeroCoin!.balance > parseInt(amount)).is.true;
 
-        // Split coin into another object.
+        // Split the coin object into a separate object.
         const splitCoin = await wallet
           .splitCoin({
             coinObjectId: nonzeroCoin!.coinObjectId,
@@ -995,7 +1008,7 @@ describe(" 2: Hello Token", () => {
           WRAPPED_WETH_COIN_TYPE
         );
 
-        // Send a transfer.
+        // Send a transfer by invoking `transfer::send_tokens_with_payload`
         const sendWithPayloadTx = await wallet
           .executeMoveCall({
             packageObjectId: HELLO_TOKEN_ID,
@@ -1021,7 +1034,7 @@ describe(" 2: Hello Token", () => {
           });
         expect(sendWithPayloadTx).is.not.null;
 
-        // Fetch the Wormhole messsage
+        // Fetch the Wormhole message emitted by the contract.
         const wormholeMessages = await getWormholeMessagesFromTransaction(
           provider,
           WORMHOLE_ID,
@@ -1039,7 +1052,7 @@ describe(" 2: Hello Token", () => {
         const helloTokenState = await getObjectFields(provider, stateId);
         expect(helloTokenState.emitter_cap.fields.sequence).equals("0");
 
-        // Verify transfer payload.
+        // Verify the transfer payload.
         const transferPayload = await parseTransferPayload(message.payload);
         expect(
           transferPayload.fromAddress!.endsWith(
@@ -1066,13 +1079,10 @@ describe(" 2: Hello Token", () => {
         expect(localVariables.stateId).is.not.undefined;
         const stateId: string = localVariables.stateId;
 
-        // We need to truncate the amount based on the token decimals
-        // the same way that the token bridge does. This test will
-        // fail if this step is not completed, since the amount
-        // deposited in the bridge in the previous test is the truncated
-        // amount.
+        // Set the mint amount.
         const mintAmount = "69000000";
 
+        // Recipient wallet.
         const destination = await wallet
           .getAddress()
           .then((address) =>
@@ -1080,7 +1090,8 @@ describe(" 2: Hello Token", () => {
           );
         const payload = Buffer.concat([Buffer.alloc(1, 1), destination]);
 
-        // Fetch coin balances before completing the transfer.
+        // Fetch coin balances for the relayer and recipient before
+        // completing the transfer.
         const recipientBalanceBefore = await provider.getBalance(
           await wallet.getAddress(),
           WRAPPED_WETH_COIN_TYPE
@@ -1127,7 +1138,8 @@ describe(" 2: Hello Token", () => {
           });
         expect(completeTransferTx).is.not.null;
 
-        // Fetch coin balances before completing the transfer.
+        // Fetch coin balances for the recipient and relayer after
+        // completing the transfer.
         const recipientBalanceAfter = await provider.getBalance(
           await wallet.getAddress(),
           WRAPPED_WETH_COIN_TYPE
@@ -1144,7 +1156,7 @@ describe(" 2: Hello Token", () => {
           helloTokenState.relayer_fee.fields.precision
         );
 
-        // Confirm balance changes
+        // Confirm relayer balance change.
         const expectedRelayerBalanceChange = computeRelayerFee(
           Number(mintAmount),
           relayerFee,
@@ -1154,6 +1166,7 @@ describe(" 2: Hello Token", () => {
           relayerBalanceAfter.totalBalance - relayerBalanceBefore.totalBalance
         );
 
+        // Confirm recipient balance change.
         const expectedRecipientBalanceChange =
           Number(mintAmount) - expectedRelayerBalanceChange;
         expect(expectedRecipientBalanceChange).to.equal(
@@ -1166,13 +1179,10 @@ describe(" 2: Hello Token", () => {
         expect(localVariables.stateId).is.not.undefined;
         const stateId: string = localVariables.stateId;
 
-        // We need to truncate the amount based on the token decimals
-        // the same way that the token bridge does. This test will
-        // fail if this step is not completed, since the amount
-        // deposited in the bridge in the previous test is the truncated
-        // amount.
+        // Set the mint amount.
         const mintAmount = "42000000";
 
+        // Recipient wallet.
         const destination = await wallet
           .getAddress()
           .then((address) =>
@@ -1180,7 +1190,7 @@ describe(" 2: Hello Token", () => {
           );
         const payload = Buffer.concat([Buffer.alloc(1, 1), destination]);
 
-        // Fetch coin balances before completing the transfer.
+        // Fetch recipient coin balance before completing the transfer.
         const recipientBalanceBefore = await provider.getBalance(
           await wallet.getAddress(),
           WRAPPED_WETH_COIN_TYPE
@@ -1226,10 +1236,6 @@ describe(" 2: Hello Token", () => {
         // Fetch coin balances before completing the transfer.
         const recipientBalanceAfter = await provider.getBalance(
           await wallet.getAddress(),
-          WRAPPED_WETH_COIN_TYPE
-        );
-        const relayerBalanceAfter = await provider.getBalance(
-          await relayer.getAddress(),
           WRAPPED_WETH_COIN_TYPE
         );
 
