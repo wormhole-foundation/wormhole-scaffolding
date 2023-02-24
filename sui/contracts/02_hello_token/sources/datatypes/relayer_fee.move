@@ -2,11 +2,13 @@ module hello_token::relayer_fee {
     // Errors.
     const E_INVALID_RELAYER_FEE: u64 = 0;
 
+    /// Relayer fee value and fee precision struct.
     struct RelayerFee has store, drop {
         value: u64,
         precision: u64,
     }
 
+    /// Creates new `RelayerFee` struct.
     public fun new(
         fee: u64,
         precision: u64
@@ -18,6 +20,7 @@ module hello_token::relayer_fee {
         }
     }
 
+    /// Updates the relayer fee and precision values in a `RelayerFee` struct.
     public fun update(
         self: &mut RelayerFee,
         fee: u64,

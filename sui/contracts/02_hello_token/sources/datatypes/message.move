@@ -11,6 +11,7 @@ module hello_token::message {
     const MESSAGE_HELLO_TOKEN: u8 = 1;
 
     struct Message has drop {
+        /// The recipient of the token transfer on the target chain.
         recipient: Bytes32,
     }
 

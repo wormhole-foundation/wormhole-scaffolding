@@ -1,6 +1,7 @@
 module hello_token::state {
     use sui::object::{Self, UID, ID};
     use sui::tx_context::{TxContext};
+
     use wormhole::emitter::{EmitterCapability as EmitterCap};
 
     use hello_token::bytes32::{Bytes32};
@@ -14,6 +15,8 @@ module hello_token::state {
     const E_INVALID_CHAIN: u64 = 0;
     const E_INVALID_CONTRACT_ADDRESS: u64 = 1;
 
+    /// Object that holds this contract's state. Foreign contracts are
+    /// stored as dynamic object fields of `State`.
     struct State has key, store {
         id: UID,
 
@@ -30,6 +33,7 @@ module hello_token::state {
         relayer_fee_precision: u64,
         ctx: &mut TxContext
     ): State {
+        // Create state object.
         let state = State {
             id: object::new(ctx),
             emitter_cap,
@@ -43,6 +47,8 @@ module hello_token::state {
         state
     }
 
+    /// This method registers a foreign contract address. The owner can
+    /// also replace existing foreign contract for a specified chain ID.
     public(friend) fun register_foreign_contract(
         self: &mut State,
         chain: u16,
@@ -63,6 +69,7 @@ module hello_token::state {
         }
     }
 
+    /// Updates the relayer fee and relayer fee precision.
     public(friend) fun update_relayer_fee(
         self: &mut State,
         relayer_fee: u64,
@@ -75,6 +82,7 @@ module hello_token::state {
         );
     }
 
+    /// Computes the relayer fee in terms of the token being transferred.
     public fun compute_relayer_fee(self: &State, amount: u64): u64 {
         relayer_fee::compute(&self.relayer_fee, amount)
     }

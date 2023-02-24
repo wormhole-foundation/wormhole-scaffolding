@@ -3,6 +3,7 @@ module hello_token::owner {
     use sui::object::{Self, UID};
     use sui::transfer::{Self};
     use sui::tx_context::{Self, TxContext};
+
     use wormhole::emitter::{EmitterCapability as EmitterCap};
 
     use hello_token::bytes32::{Self};
@@ -106,12 +107,14 @@ module hello_token::init_tests {
         State as WormholeState
     };
     use wormhole::external_address::{Self};
+
     use token_bridge::state::{
         Self as bridge_state,
         State as BridgeState,
         DeployerCapability as BridgeDeployerCap
     };
 
+    // Test constants.
     const TEST_RELAYER_FEE: u64 = 42069; // 4.2069%
     const TEST_RELAYER_FEE_PRECISION: u64 = 1000000;
 
@@ -124,7 +127,7 @@ module hello_token::init_tests {
         // Get things going.
         test_scenario::next_tx(scenario, creator);
 
-        // We call `init_test_only` to simulate `init`
+        // Simulate calling `init`.
         {
             owner::init_test_only(test_scenario::ctx(scenario));
 
@@ -139,6 +142,8 @@ module hello_token::init_tests {
             let owner_cap =
                 test_scenario::take_from_sender<OwnerCap>(scenario);
             assert!(*owner_cap_id == object::id(&owner_cap), 0);
+
+            // Bye bye.
             test_scenario::return_to_sender<OwnerCap>(scenario, owner_cap);
         };
 
@@ -161,11 +166,12 @@ module hello_token::init_tests {
         let state_id = vector::borrow(&created_ids, 0);
         let state = test_scenario::take_shared<HelloTokenState>(scenario);
         assert!(*state_id == object::id(&state), 0);
+
+        // Bye bye.
         test_scenario::return_shared<HelloTokenState>(state);
 
-        // We expect two objects to be deleted:
-        // 1. state_cap
-        // 2. emitter_cap
+        // We expect one objects to be deleted:
+        // 1. emitter_cap
         let deleted_ids = test_scenario::deleted(&effects);
         assert!(vector::length(&deleted_ids) == 1, 0);
 
@@ -304,7 +310,7 @@ module hello_token::init_tests {
         // Proceed.
         test_scenario::next_tx(scenario, creator);
 
-        // Register an emitter with the same chain ID.
+        // Register another emitter with the same chain ID.
         hello_token::owner::register_foreign_contract(
             &owner_cap,
             &mut state,
@@ -332,7 +338,7 @@ module hello_token::init_tests {
 
     #[test]
     #[expected_failure(abort_code = hello_token::foreign_contracts::E_INVALID_CHAIN)]
-    public fun cannot_register_foreign_contract_chain_zero() {
+    public fun cannot_register_foreign_contract_chain_id_zero() {
         let (creator, _) = people();
         let (my_scenario, _) = set_up(creator);
         let scenario = &mut my_scenario;
@@ -347,7 +353,7 @@ module hello_token::init_tests {
         let owner_cap =
                 test_scenario::take_from_sender<OwnerCap>(scenario);
 
-        // Register the emitter.
+        // The `register_foreign_contract` call should fail.
         hello_token::owner::register_foreign_contract(
             &owner_cap,
             &mut state,
@@ -365,7 +371,7 @@ module hello_token::init_tests {
 
     #[test]
     #[expected_failure(abort_code = hello_token::foreign_contracts::E_INVALID_CHAIN)]
-    public fun cannot_register_foreign_contract_this_chain() {
+    public fun cannot_register_foreign_contract_this_chain_id() {
         let (creator, _) = people();
         let (my_scenario, _) = set_up(creator);
         let scenario = &mut my_scenario;
@@ -380,7 +386,7 @@ module hello_token::init_tests {
         let owner_cap =
                 test_scenario::take_from_sender<OwnerCap>(scenario);
 
-        // Register the emitter.
+        // The `register_foreign_contract` call should fail.
         hello_token::owner::register_foreign_contract(
             &owner_cap,
             &mut state,
@@ -413,7 +419,7 @@ module hello_token::init_tests {
         let owner_cap =
                 test_scenario::take_from_sender<OwnerCap>(scenario);
 
-        // Register the emitter.
+        // The `register_foreign_contract` call should fail.
         hello_token::owner::register_foreign_contract(
             &owner_cap,
             &mut state,
@@ -547,9 +553,15 @@ module hello_token::init_tests {
         test_scenario::end(my_scenario);
     }
 
-    // Utilities
+    // Utility functions.
+
+    /// Returns two unique test addresses.
     public fun people(): (address, address) { (@0xBEEF, @0x1337) }
 
+    /// This function sets up the test scenario for Hello Token by
+    /// initializing the wormhole, token bridge and Hello Token contracts.
+    /// It also creates an `emitter_cap` for Hello Token which is registered
+    /// with the Wormhole contract.
     public fun set_up(creator: address): (Scenario, TransactionEffects) {
         let my_scenario = test_scenario::begin(@0x0);
         let scenario = &mut my_scenario;
@@ -583,8 +595,8 @@ module hello_token::init_tests {
             test_scenario::next_tx(scenario, creator);
         };
 
+        // Create a Wormhole emitter for the Token Bridge.
         {
-            // We need the Wormhole state to create a new emitter.
             let wormhole_state =
                 test_scenario::take_shared<WormholeState>(scenario);
             wormhole::wormhole::get_new_emitter(
@@ -631,8 +643,8 @@ module hello_token::init_tests {
             test_scenario::next_tx(scenario, creator);
         };
 
+        // Create another Wormhole emitter for the HelloToken module.
         {
-            // Create another emitter for the HelloToken module.
             let wormhole_state =
                 test_scenario::take_shared<WormholeState>(scenario);
             wormhole::wormhole::get_new_emitter(
@@ -647,6 +659,7 @@ module hello_token::init_tests {
             test_scenario::next_tx(scenario, creator);
         };
 
+        // Initialize the Hello Token contract.
         {
             // We call `init_test_only` to simulate `init`
             owner::init_test_only(test_scenario::ctx(scenario));
@@ -669,6 +682,7 @@ module hello_token::init_tests {
             test_scenario::next_tx(scenario, creator);
         };
 
+        // Create the Hello Token shared state object.
         {
             let owner_cap =
                 test_scenario::take_from_sender<OwnerCap>(scenario);

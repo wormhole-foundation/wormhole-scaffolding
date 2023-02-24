@@ -27,6 +27,12 @@ module hello_token::transfer {
     const E_UNREGISTERED_FOREIGN_CONTRACT: u64 = 1;
     const E_INSUFFICIENT_AMOUNT: u64 = 2;
 
+    /// Transfers specified coins to any registered Hello Token contract by
+    /// invoking the `transfer_tokens_with_payload` method on the Wormhole
+    /// Token Bridge contract. `transfer_tokens_with_payload` allows the caller
+    /// to send an arbitrary message payload along with a token transfer. In
+    /// this case, the arbitrary message includes the transfer recipient's
+    /// target-chain wallet address.
     public entry fun send_tokens_with_payload<C>(
         t_state: &State,
         wormhole_state: &mut WormholeState,
@@ -38,8 +44,7 @@ module hello_token::transfer {
         target_recipient: vector<u8>,
         ctx: &mut TxContext
     ) {
-        // We must have already registered a foreign contract before we can
-        // bridge tokens to it.
+        // Confirm that the target chain has a registered contract.
         assert!(
             state::contract_registered(t_state, target_chain),
             E_UNREGISTERED_FOREIGN_CONTRACT
@@ -51,7 +56,8 @@ module hello_token::transfer {
         // address.
         let msg = message::from_bytes(target_recipient);
 
-        // Cache token transfer info.
+        // Fetch the token decimals from the token bridge,
+        // and cache the token amount.
         let decimals = coin_decimals<C>(token_bridge_state);
         let amount_received = coin::value(&coins);
 
@@ -66,7 +72,7 @@ module hello_token::transfer {
         assert!(transformed_amount > 0, E_INSUFFICIENT_AMOUNT);
 
         // Split the coins object and send dust back to the user if
-        // the transformedAmount is less the original amount.
+        // the `transformed_amount` is less the original amount.
         let coins_to_transfer;
         if (transformed_amount < amount_received){
             coins_to_transfer = coin::split(&mut coins, transformed_amount, ctx);
@@ -91,6 +97,10 @@ module hello_token::transfer {
         );
     }
 
+    /// Consumes `transfer_with_payload` Wormhole message from a registered
+    /// foreign contract. Sends the transferred tokens to the recipient encoded
+    /// in the additional payload, and pays the relayer a fee if the user is
+    /// not self redeeming the transfer.
     public entry fun redeem_transfer_with_payload<C>(
         t_state: &State,
         wormhole_state: &mut WormholeState,
@@ -98,7 +108,9 @@ module hello_token::transfer {
         vaa: vector<u8>,
         ctx: &mut TxContext
      ) {
-        // Complete the transfer on the token bridge.
+        // Complete the transfer on the Token Bridge. This call returns the
+        // coin object for the amount transferred via the Token Bridge. It
+        // also returns the chain ID of the message sender.
         let (coins, transfer_payload, emitter_chain_id) =
             complete_transfer_with_payload<C>(
                 token_bridge_state,
@@ -133,9 +145,8 @@ module hello_token::transfer {
             coin::value(&coins)
         );
 
-        // If the relayer fee is nonzero and the user is not
-        // self redeeming, split the coins object and transfer
-        // the relayer fee to the signer.
+        // If the relayer fee is nonzero and the user is not self redeeming,
+        // split the coins object and transfer the relayer fee to the signer.
         if (relayer_fee > 0 && recipient != tx_context::sender(ctx)) {
             let coins_for_relayer = coin::split(&mut coins, relayer_fee, ctx);
 
@@ -172,7 +183,7 @@ module hello_token::transfer_tests {
     use token_bridge::state::{State as BridgeState, deposit_test_only};
     use token_bridge::attest_token::{Self};
 
-    // example coins
+    // Example coins.
     use example_coins::coin_8::{Self};
     use example_coins::coin_9::{Self};
 
@@ -185,21 +196,23 @@ module hello_token::transfer_tests {
     const TEST_TOKEN_9_SUPPLY: u64 = 12345678910111;
     const TEST_TOKEN_9_EXPECTED_DUST: u64 = 1;
 
-    // Complete transfer with payload test constants.
+    // `transfer_with_payload` VAA #1.
     const REDEEM_ONE_TRANSFER_VAA: vector<u8> = x"010000000001004a74c709640a12a959f848feece876c91a145ba2cec17ee742d7abc7de10b10b1ceba838814ebd431a73a07cabe788d78b9dcf9d25a553d64fe8b324db60bf9e0063ec0bd800000000000200000000000000000000000000000000000000000000000000000000000000450000000000000000010300000000000000000000000000000000000000000000000000000000000000450000000000000000000000000000000000000000000000000000000000000001001500000000000000000000000000000000000000000000000000000000000000030015000000000000000000000000000000000000000000000000000000000000005901000000000000000000000000000000000000000000000000000000000000beef";
     const REDEEM_ONE_AMOUNT: u64 = 69;
-
-    // Minimum amount.
     const REDEEM_ONE_RELAYER_FEE: u64 = 2;
+
+    // `transfer_with_payload` VAA #2.
     const REDEEM_TWO_TRANSFER_VAA: vector<u8> = x"010000000001002e6c00b81c59b5c5d0760ed95092cf681a2f10ee0c6e285ef4af5cbc835c3716560231184fefb535e0c6dd2f37542ede6f84d727cc70e580cb4fe515e50198700163ecf6db00000000000200000000000000000000000000000000000000000000000000000000000000450000000000000000010300000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000001001500000000000000000000000000000000000000000000000000000000000000030015000000000000000000000000000000000000000000000000000000000000005901000000000000000000000000000000000000000000000000000000000000beef";
     const REDEEM_TWO_AMOUNT: u64 = 1;
 
-    // Maximum amount.
+    // `transfer_with_payload` VAA #3.
     const REDEEM_THREE_TRANSFER_VAA: vector<u8> = x"010000000001006122c3abc84325a7f8454e168bee3e56a2926d1f61e5d45a8dc732b9f56fbd061722b7f14a90b91001960d987344b763906b19cc7be56a1ece1637e8ff1d68c00163ed0b1f000000000002000000000000000000000000000000000000000000000000000000000000004500000000000000000103000000000000000000000000000000000000000000000000fffffffffffffffe0000000000000000000000000000000000000000000000000000000000000001001500000000000000000000000000000000000000000000000000000000000000030015000000000000000000000000000000000000000000000000000000000000005901000000000000000000000000000000000000000000000000000000000000beef";
     const REDEEM_THREE_AMOUNT: u64 = 18446744073709551614;
     const REDEEM_THREE_RELAYER_FEE: u64 = 776036076436887126;
 
     #[test]
+    /// This test transfers tokens with an additional payload using example coin 8
+    /// (which has 8 decimals).
     public fun send_tokens_with_payload_coin_8() {
         let (creator, _) = people();
         let (my_scenario, _) = set_up(creator);
@@ -295,6 +308,8 @@ module hello_token::transfer_tests {
     }
 
     #[test]
+    /// This test transfers tokens with an additional payload using example coin 9
+    /// (which has 9 decimals).
     public fun send_tokens_with_payload_coin_9() {
         let (creator, _) = people();
         let (my_scenario, _) = set_up(creator);
@@ -369,7 +384,9 @@ module hello_token::transfer_tests {
             test_scenario::next_tx(scenario, creator);
         };
 
-        // Send a test transfer.
+        // Send a test transfer. Since the Token Bridge truncates transfer
+        // amounts for tokens with greater than 9 decimals, we should expect
+        // to receive a coin object representing the dust sent to the signer.
         {
             transfer::send_tokens_with_payload(
                 &hello_token_state,
@@ -412,6 +429,8 @@ module hello_token::transfer_tests {
 
     #[test]
     #[expected_failure(abort_code = 2, location=transfer)]
+    /// This test confirms that the Hello Token contract will revert if the
+    /// amount is not large enough to transfer through the Token Bridge.
     public fun cannot_send_tokens_with_payload_coin_9_insufficient_amount() {
         let (creator, _) = people();
         let (my_scenario, _) = set_up(creator);
@@ -508,6 +527,8 @@ module hello_token::transfer_tests {
 
     #[test]
     #[expected_failure(abort_code = 1, location=transfer)]
+    /// This test confirms that the Hello Token contract will revert
+    /// if the specified target chain is not registered.
     public fun cannot_send_tokens_with_payload_contract_not_registered() {
         let (creator, _) = people();
         let (my_scenario, _) = set_up(creator);
@@ -556,6 +577,9 @@ module hello_token::transfer_tests {
     }
 
     #[test]
+    /// This test confirms that the Hello Token contract correctly
+    /// redeems token transfers and does not pay a relayer fee
+    /// since the redeeming wallet is the encoded recipient.
     public fun redeem_transfer_with_payload_self_redemption() {
         let (creator, _) = people();
         let (my_scenario, _) = set_up(creator);
@@ -661,6 +685,9 @@ module hello_token::transfer_tests {
     }
 
     #[test]
+    /// This test confirms that the Hello Token contract correctly
+    /// redeems token transfers and pays a relayer fee to the caller
+    /// for redeeming the transaction.
     public fun redeem_transfer_with_payload_with_relayer() {
         let (creator, relayer) = people();
         let (my_scenario, _) = set_up(creator);
@@ -791,6 +818,10 @@ module hello_token::transfer_tests {
     }
 
     #[test]
+    /// This test confirms that the Hello Token contract correctly
+    /// redeems token transfers for the minimum amount. The contract
+    /// should not pay any relayer fees since the amount is so small
+    /// and the relayer fee calculation rounds down to zero.
     public fun redeem_transfer_with_payload_with_relayer_minimum_amount() {
         let (creator, relayer) = people();
         let (my_scenario, _) = set_up(creator);
@@ -905,6 +936,9 @@ module hello_token::transfer_tests {
     }
 
     #[test]
+    /// This test confirms that the Hello Token contract correctly handles
+    /// transfers for the maximum amount (type(uint64).max) when the caller
+    /// is the encoded recipient.
     public fun redeem_transfer_with_payload_self_redemption_maximum_amount() {
         let (creator, _) = people();
         let (my_scenario, _) = set_up(creator);
@@ -1010,6 +1044,10 @@ module hello_token::transfer_tests {
     }
 
     #[test]
+    /// This test confirms that the Hello Token contract correctly handles
+    /// transfers for the maximum amount (type(uint64).max) when the caller
+    /// is not the encoded recipient. The contract should correctly pay the
+    /// caller the expected relayer fee.
     public fun redeem_transfer_with_payload_with_relayer_maximum_amount() {
         let (creator, relayer) = people();
         let (my_scenario, _) = set_up(creator);
@@ -1141,6 +1179,9 @@ module hello_token::transfer_tests {
 
     #[test]
     #[expected_failure(abort_code = 1, location=transfer)]
+    /// This test confirms that the Hello Token contract will revert
+    /// if the sender of the transfer message is not the registered
+    /// contract for the specified chain ID.
     public fun cannot_redeem_transfer_with_payload_unknown_sender() {
         let (creator, _) = people();
         let (my_scenario, _) = set_up(creator);
@@ -1231,6 +1272,9 @@ module hello_token::transfer_tests {
 
     #[test]
     #[expected_failure(abort_code = hello_token::foreign_contracts::E_CONTRACT_DOES_NOT_EXIST)]
+    /// This test confirms that the Hello Token contract will revert
+    /// if the sender of the transfer message is from a chain that does
+    /// not have a registered contract.
     public fun cannot_redeem_transfer_with_payload_foreign_contract_does_not_exist() {
         let (creator, _) = people();
         let (my_scenario, _) = set_up(creator);
@@ -1302,7 +1346,8 @@ module hello_token::transfer_tests {
         test_scenario::end(my_scenario);
     }
 
-    // utilities
+    /// Utilities.
+
     public fun mint_coin_8(
         amount: u64,
         ctx: &mut TxContext
