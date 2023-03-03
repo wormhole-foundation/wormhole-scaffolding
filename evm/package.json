@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@certusone/wormhole-sdk": "0.9",
-    "@openzeppelin/contracts": "^4.8.0",
+    "@openzeppelin/contracts": "^4.8.2",
     "@typechain/ethers-v5": "^10.1.1",
     "@types/chai": "^4.3.3",
     "@types/mocha": "^9.1.1",
