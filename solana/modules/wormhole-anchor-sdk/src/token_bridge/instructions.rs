@@ -69,8 +69,8 @@ pub struct TransferNativeWithPayload<'info> {
     pub wormhole_program: AccountInfo<'info>,
 }
 
-pub fn transfer_native_with_payload<'a, 'b, 'c, 'info>(
-    ctx: CpiContext<'a, 'b, 'c, 'info, TransferNativeWithPayload<'info>>,
+pub fn transfer_native_with_payload<'info>(
+    ctx: CpiContext<'_, '_, '_, 'info, TransferNativeWithPayload<'info>>,
     batch_id: u32,
     amount: u64,
     recipient_address: [u8; 32],
@@ -137,8 +137,8 @@ pub struct CompleteTransferNativeWithPayload<'info> {
     pub wormhole_program: AccountInfo<'info>,
 }
 
-pub fn complete_transfer_native_with_payload<'a, 'b, 'c, 'info>(
-    ctx: CpiContext<'a, 'b, 'c, 'info, CompleteTransferNativeWithPayload<'info>>,
+pub fn complete_transfer_native_with_payload<'info>(
+    ctx: CpiContext<'_, '_, '_, 'info, CompleteTransferNativeWithPayload<'info>>,
 ) -> Result<()> {
     let ix = solana_program::instruction::Instruction {
         program_id: ctx.program.key(),
@@ -192,8 +192,8 @@ pub struct TransferWrappedWithPayload<'info> {
     pub wormhole_program: AccountInfo<'info>,
 }
 
-pub fn transfer_wrapped_with_payload<'a, 'b, 'c, 'info>(
-    ctx: CpiContext<'a, 'b, 'c, 'info, TransferWrappedWithPayload<'info>>,
+pub fn transfer_wrapped_with_payload<'info>(
+    ctx: CpiContext<'_, '_, '_, 'info, TransferWrappedWithPayload<'info>>,
     batch_id: u32,
     amount: u64,
     recipient_address: [u8; 32],
@@ -260,8 +260,8 @@ pub struct CompleteTransferWrappedWithPayload<'info> {
     pub wormhole_program: AccountInfo<'info>,
 }
 
-pub fn complete_transfer_wrapped_with_payload<'a, 'b, 'c, 'info>(
-    ctx: CpiContext<'a, 'b, 'c, 'info, CompleteTransferWrappedWithPayload<'info>>,
+pub fn complete_transfer_wrapped_with_payload<'info>(
+    ctx: CpiContext<'_, '_, '_, 'info, CompleteTransferWrappedWithPayload<'info>>,
 ) -> Result<()> {
     let ix = solana_program::instruction::Instruction {
         program_id: ctx.program.key(),
