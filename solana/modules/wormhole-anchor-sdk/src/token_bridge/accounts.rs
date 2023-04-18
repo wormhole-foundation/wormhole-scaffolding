@@ -16,10 +16,6 @@ impl Config {
 }
 
 impl AccountDeserialize for Config {
-    fn try_deserialize(buf: &mut &[u8]) -> Result<Self> {
-        Self::try_deserialize_unchecked(buf)
-    }
-
     fn try_deserialize_unchecked(buf: &mut &[u8]) -> Result<Self> {
         Self::deserialize(buf).map_err(Into::into)
     }
@@ -43,10 +39,6 @@ impl WrappedMint {
 }
 
 impl AccountDeserialize for WrappedMint {
-    fn try_deserialize(buf: &mut &[u8]) -> Result<Self> {
-        Self::try_deserialize_unchecked(buf)
-    }
-
     fn try_deserialize_unchecked(buf: &mut &[u8]) -> Result<Self> {
         Ok(Self(anchor_spl::token::Mint::try_deserialize_unchecked(
             buf,
@@ -84,10 +76,6 @@ impl WrappedMeta {
 }
 
 impl AccountDeserialize for WrappedMeta {
-    fn try_deserialize(buf: &mut &[u8]) -> Result<Self> {
-        Self::try_deserialize_unchecked(buf)
-    }
-
     fn try_deserialize_unchecked(buf: &mut &[u8]) -> Result<Self> {
         Self::deserialize(buf).map_err(Into::into)
     }
@@ -109,10 +97,6 @@ pub struct EndpointRegistration {
 }
 
 impl AccountDeserialize for EndpointRegistration {
-    fn try_deserialize(buf: &mut &[u8]) -> Result<Self> {
-        Self::try_deserialize_unchecked(buf)
-    }
-
     fn try_deserialize_unchecked(buf: &mut &[u8]) -> Result<Self> {
         Self::deserialize(buf).map_err(Into::into)
     }

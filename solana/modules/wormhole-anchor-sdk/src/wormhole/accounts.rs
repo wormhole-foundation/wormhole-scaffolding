@@ -39,10 +39,6 @@ pub struct BridgeConfig {
 }
 
 impl AccountDeserialize for BridgeData {
-    fn try_deserialize(buf: &mut &[u8]) -> Result<Self> {
-        Self::try_deserialize_unchecked(buf)
-    }
-
     fn try_deserialize_unchecked(buf: &mut &[u8]) -> Result<Self> {
         Self::deserialize(buf).map_err(Into::into)
     }
@@ -64,10 +60,6 @@ impl FeeCollector {
 }
 
 impl AccountDeserialize for FeeCollector {
-    fn try_deserialize(buf: &mut &[u8]) -> Result<Self> {
-        Self::try_deserialize_unchecked(buf)
-    }
-
     fn try_deserialize_unchecked(buf: &mut &[u8]) -> Result<Self> {
         Self::deserialize(buf).map_err(Into::into)
     }
@@ -99,10 +91,6 @@ impl SequenceTracker {
 }
 
 impl AccountDeserialize for SequenceTracker {
-    fn try_deserialize(buf: &mut &[u8]) -> Result<Self> {
-        Self::try_deserialize_unchecked(buf)
-    }
-
     fn try_deserialize_unchecked(buf: &mut &[u8]) -> Result<Self> {
         Self::deserialize(buf).map_err(Into::into)
     }
@@ -129,10 +117,6 @@ pub struct SignatureSetData {
 }
 
 impl AccountDeserialize for SignatureSetData {
-    fn try_deserialize(buf: &mut &[u8]) -> Result<Self> {
-        Self::try_deserialize_unchecked(buf)
-    }
-
     fn try_deserialize_unchecked(buf: &mut &[u8]) -> Result<Self> {
         Self::deserialize(buf).map_err(Into::into)
     }
@@ -203,10 +187,6 @@ impl AnchorDeserialize for PostedVaaData {
 }
 
 impl AccountDeserialize for PostedVaaData {
-    fn try_deserialize(buf: &mut &[u8]) -> Result<Self> {
-        Self::try_deserialize_unchecked(buf)
-    }
-
     fn try_deserialize_unchecked(buf: &mut &[u8]) -> Result<Self> {
         Self::deserialize(buf).map_err(Into::into)
     }
@@ -292,10 +272,6 @@ impl<D: AnchorDeserialize + AnchorSerialize> AnchorDeserialize for PostedVaa<D> 
 }
 
 impl<D: AnchorDeserialize + AnchorSerialize> AccountDeserialize for PostedVaa<D> {
-    fn try_deserialize(buf: &mut &[u8]) -> Result<Self> {
-        Self::try_deserialize_unchecked(buf)
-    }
-
     fn try_deserialize_unchecked(buf: &mut &[u8]) -> Result<Self> {
         Self::deserialize(buf).map_err(Into::into)
     }
