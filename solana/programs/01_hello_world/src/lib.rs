@@ -10,9 +10,7 @@ pub mod error;
 pub mod message;
 pub mod state;
 
-// WARNING: When you deploy your program, be sure to change this pubkey based
-// on the keypair you generated.
-declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
+declare_id!(Pubkey::new_from_array(*include_bytes!(env!("HELLO_WORLD_PROGRAM_ID_FILE"))));
 
 #[program]
 /// # Hello World (Scaffolding Example #1)

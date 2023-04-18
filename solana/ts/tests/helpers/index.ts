@@ -1,3 +1,3 @@
 export * from "./consts";
-export * from "./error";
+export * from "./utils";
 export * from "./malicious";

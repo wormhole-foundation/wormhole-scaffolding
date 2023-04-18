@@ -9,9 +9,7 @@ pub mod context;
 pub mod error;
 pub mod message;
 pub mod state;
-
-// WARNING: This should be the pubkey of your program's keypair
-declare_id!("GDch61JmJpTo9npwenypnk3KdofmozK1hNaTdbYRkNPb");
+declare_id!(Pubkey::new_from_array(*include_bytes!(env!("HELLO_TOKEN_PROGRAM_ID_FILE"))));
 
 #[program]
 pub mod hello_token {

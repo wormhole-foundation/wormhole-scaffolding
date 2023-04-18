@@ -18,9 +18,10 @@ Read the design documents for each example project:
 First, you will need `cargo` and `anchor` CLI tools. If you need these tools,
 please visit the [Anchor book] for more details.
 
-Once you have the above CLI tools, install this subdirectory's dependencies,
-run `make dependencies`. This will set up `node_modules` and compile program
-BPFs from the `solana` directory of the [Wormhole repo].
+Once you have the above CLI tools, you can build the programs by simply running
+`make` which will also install this subdirectory's dependencies, such as
+`node_modules` and the Wormhole programs from the `solana` directory of the
+[Wormhole repo].
 
 ## Tests
 
