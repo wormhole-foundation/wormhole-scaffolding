@@ -1,6 +1,7 @@
-import { expect } from "chai";
-import { web3 } from "@project-serum/anchor";
-import { LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { expect, use as chaiUse } from "chai";
+import chaiAsPromised from 'chai-as-promised';
+chaiUse(chaiAsPromised);
+import { Connection, PublicKey, Keypair, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import {
   createMint,
   getAccount,
@@ -9,542 +10,313 @@ import {
   getOrCreateAssociatedTokenAccount,
   mintTo,
 } from "@solana/spl-token";
-import { ethers } from "ethers";
 import {
   createWrappedOnSolana,
   redeemOnSolana,
   transferNativeSol,
   tryNativeToHexString,
-  tryNativeToUint8Array,
+  CHAINS,
 } from "@certusone/wormhole-sdk";
 import * as wormhole from "@certusone/wormhole-sdk/lib/cjs/solana/wormhole";
 import * as tokenBridge from "@certusone/wormhole-sdk/lib/cjs/solana/tokenBridge";
 import * as mock from "@certusone/wormhole-sdk/lib/cjs/mock";
 import {
-  NodeWallet,
-  postVaaSolana,
-  signSendAndConfirmTransaction,
-} from "@certusone/wormhole-sdk/lib/cjs/solana";
-import {
-  ETHEREUM_TOKEN_BRIDGE_ADDRESS,
   GOVERNANCE_EMITTER_ADDRESS,
-  GUARDIAN_PRIVATE_KEY,
+  MOCK_GUARDIANS,
   LOCALHOST,
-  MINT_WITH_DECIMALS_9,
-  MINT_9_PRIVATE_KEY,
-  PAYER_PRIVATE_KEY,
-  TOKEN_BRIDGE_ADDRESS,
-  WORMHOLE_ADDRESS,
-  createMaliciousRegisterChainInstruction,
-  RELAYER_PRIVATE_KEY,
+  MINTS_WITH_DECIMALS,
+  PAYER_KEYPAIR,
+  WORMHOLE_CONTRACTS,
+  CORE_BRIDGE_PID,
+  TOKEN_BRIDGE_PID,
+  RELAYER_KEYPAIR,
   WETH_ADDRESS,
-  MINT_8_PRIVATE_KEY,
-  MINT_WITH_DECIMALS_8,
+  boilerPlateReduction,
+  createMaliciousRegisterChainInstruction,
 } from "./helpers";
-import { deriveWrappedMintKey } from "@certusone/wormhole-sdk/lib/cjs/solana/tokenBridge";
 
 describe(" 0: Wormhole", () => {
-  const connection = new web3.Connection(LOCALHOST, "processed");
-  const wallet = NodeWallet.fromSecretKey(PAYER_PRIVATE_KEY);
-  const relayer = NodeWallet.fromSecretKey(RELAYER_PRIVATE_KEY);
+  const connection = new Connection(LOCALHOST, "processed");
+  const payer = PAYER_KEYPAIR;
+  const relayer = RELAYER_KEYPAIR;
 
-  // for signing wormhole messages
-  const guardians = new mock.MockGuardians(0, [GUARDIAN_PRIVATE_KEY]);
+  const defaultMintAmount = 10n ** 6n;
 
-  // for governance actions to modify programs
+  const {
+    requestAirdrop,
+    guardianSign,
+    postSignedMsgAsVaaOnSolana,
+    expectIxToSucceed,
+    expectTxToSucceed,
+  } = boilerPlateReduction(connection, payer);
+
+  const signAndPost = async (message: Buffer) => {
+    const signedMsg = guardianSign(message);
+    await postSignedMsgAsVaaOnSolana(signedMsg);
+    return signedMsg;
+  };
+
   const governance = new mock.GovernanceEmitter(
     GOVERNANCE_EMITTER_ADDRESS.toBuffer().toString("hex"),
     20
   );
 
-  before("Airdrop", async () => {
-    await connection
-      .requestAirdrop(wallet.key(), 1000 * web3.LAMPORTS_PER_SOL)
-      .then((tx) => connection.confirmTransaction(tx));
-
-    await connection
-      .requestAirdrop(relayer.key(), 1000 * web3.LAMPORTS_PER_SOL)
-      .then((tx) => connection.confirmTransaction(tx));
+  before("Airdrop", async function() {
+    await Promise.all([payer, relayer].map(kp => kp.publicKey).map(requestAirdrop));
   });
 
-  describe("Environment", () => {
-    it("Variables", () => {
-      expect(process.env.TESTING_HELLO_WORLD_ADDRESS).is.not.undefined;
-      expect(process.env.TESTING_HELLO_TOKEN_ADDRESS).is.not.undefined;
-    });
-  });
+  describe("Verify Local Validator", function() {
+    it("Create SPL Tokens", async function() {
+      await Promise.all(
+        Array.from(MINTS_WITH_DECIMALS.entries()).map(
+          async ([mintDecimals, {privateKey, publicKey}]) => {
+            const mint = await createMint(
+              connection,
+              payer,
+              payer.publicKey,
+              null, // freezeAuthority
+              mintDecimals,
+              Keypair.fromSecretKey(privateKey)
+            );
+            expect(mint).deep.equals(publicKey);
 
-  describe("Verify Local Validator", () => {
-    it("Balance", async () => {
-      const balance = await connection.getBalance(wallet.key());
-      expect(balance).to.equal(1000 * web3.LAMPORTS_PER_SOL);
-    });
-
-    it("Create SPL Tokens", async () => {
-      {
-        const decimals = 9;
-        const mint = await createMint(
-          connection,
-          wallet.signer(),
-          wallet.key(),
-          null, // freezeAuthority
-          decimals,
-          web3.Keypair.fromSecretKey(MINT_9_PRIVATE_KEY)
-        );
-        expect(mint.equals(MINT_WITH_DECIMALS_9)).is.true;
-
-        const mintDecimals = await getMint(connection, mint).then(
-          (mintInfo) => mintInfo.decimals
-        );
-        expect(mintDecimals).to.equal(9);
-      }
-
-      {
-        const decimals = 8;
-        const mint = await createMint(
-          connection,
-          wallet.signer(),
-          wallet.key(),
-          null, // freezeAuthority
-          decimals,
-          web3.Keypair.fromSecretKey(MINT_8_PRIVATE_KEY)
-        );
-        expect(mint.equals(MINT_WITH_DECIMALS_8)).is.true;
-
-        const mintDecimals = await getMint(connection, mint).then(
-          (mintInfo) => mintInfo.decimals
-        );
-        expect(mintDecimals).to.equal(8);
-      }
+            const {decimals} = await getMint(connection, mint);
+            expect(decimals).equals(mintDecimals);
+          }
+        )
+      );
     });
 
-    it("Create ATAs", async () => {
-      for (const mint of [MINT_WITH_DECIMALS_8, MINT_WITH_DECIMALS_9]) {
-        const walletAccount = await getOrCreateAssociatedTokenAccount(
-          connection,
-          wallet.signer(),
-          mint,
-          wallet.key()
-        ).catch((reason) => null);
-        expect(walletAccount).is.not.null;
-
-        const relayerAccount = await getOrCreateAssociatedTokenAccount(
-          connection,
-          relayer.signer(),
-          mint,
-          relayer.key()
-        ).catch((reason) => null);
-        expect(relayerAccount).is.not.null;
-      }
+    it("Create ATAs", async function() {
+      await Promise.all(
+        Array.from(MINTS_WITH_DECIMALS.values()).flatMap(({publicKey: mint}) => 
+          [payer, relayer].map(wallet =>
+            expect(
+              getOrCreateAssociatedTokenAccount(connection, wallet, mint, wallet.publicKey)
+            ).to.be.fulfilled
+          )
+        )
+      );
     });
 
-    it("Mint to Wallet's ATAs", async () => {
-      for (const mint of [MINT_WITH_DECIMALS_8, MINT_WITH_DECIMALS_9]) {
-        const mintAmount = 69420000n * 1000000000n;
-        const destination = getAssociatedTokenAddressSync(mint, wallet.key());
+    it("Mint to Wallet's ATAs", async function() {
+      await Promise.all(
+        Array.from(MINTS_WITH_DECIMALS.entries()).map(
+          async ([mintDecimals, {publicKey: mint}]) => {
+            const mintAmount = defaultMintAmount * 10n ** BigInt(mintDecimals);
+            const destination = getAssociatedTokenAddressSync(mint, payer.publicKey);
 
-        const mintTx = await mintTo(
-          connection,
-          wallet.signer(),
-          mint,
-          destination,
-          wallet.signer(),
-          mintAmount
-        ).catch((reason) => {
-          // should not happen
-          console.log(reason);
-          return null;
-        });
-        expect(mintTx).is.not.null;
+            await expect(
+              mintTo(connection, payer, mint, destination, payer, mintAmount)
+            ).to.be.fulfilled;
 
-        const amount = await getAccount(connection, destination).then(
-          (account) => account.amount
-        );
-        expect(amount).equals(mintAmount);
-      }
+            const {amount} = await getAccount(connection, destination);
+            expect(amount).equals(mintAmount);
+          }
+        )
+      );
     });
   });
 
-  describe("Verify Wormhole Program", () => {
-    it("Initialize", async () => {
-      // initialize
+  describe("Verify Wormhole Program", function() {
+    it("Initialize", async function() {
       const guardianSetExpirationTime = 86400;
       const fee = 100n;
-
-      const devnetGuardian = Buffer.from(
-        new ethers.Wallet(GUARDIAN_PRIVATE_KEY).address.substring(2),
-        "hex"
-      );
+      const devnetGuardian = MOCK_GUARDIANS.getPublicKeys()[0];
       const initialGuardians = [devnetGuardian];
 
-      const initializeTx = await web3
-        .sendAndConfirmTransaction(
-          connection,
-          new web3.Transaction().add(
-            wormhole.createInitializeInstruction(
-              WORMHOLE_ADDRESS,
-              wallet.key(),
-              guardianSetExpirationTime,
-              fee,
-              initialGuardians
-            )
-          ),
-          [wallet.signer()]
+      await expectIxToSucceed(
+        wormhole.createInitializeInstruction(
+          CORE_BRIDGE_PID,
+          payer.publicKey,
+          guardianSetExpirationTime,
+          fee,
+          initialGuardians
         )
-        .catch((reason) => {
-          // should not happen
-          console.log(reason);
-          return null;
-        });
-      expect(initializeTx).is.not.null;
+      );
 
-      const accounts = await connection.getProgramAccounts(WORMHOLE_ADDRESS);
+      const accounts = await connection.getProgramAccounts(CORE_BRIDGE_PID);
       expect(accounts).has.length(2);
 
-      const info = await wormhole.getWormholeBridgeData(
-        connection,
-        WORMHOLE_ADDRESS
-      );
-      expect(info.guardianSetIndex).to.equal(0);
-      expect(info.config.guardianSetExpirationTime).to.equal(
-        guardianSetExpirationTime
-      );
-      expect(info.config.fee).to.equal(fee);
+      const info = await wormhole.getWormholeBridgeData(connection, CORE_BRIDGE_PID);
+      expect(info.guardianSetIndex).equals(0);
+      expect(info.config.guardianSetExpirationTime).equals(guardianSetExpirationTime);
+      expect(info.config.fee).equals(fee);
 
-      const guardianSet = await wormhole.getGuardianSet(
-        connection,
-        WORMHOLE_ADDRESS,
-        info.guardianSetIndex
-      );
-      expect(guardianSet.index).to.equal(0);
+      const guardianSet =
+        await wormhole.getGuardianSet(connection, CORE_BRIDGE_PID, info.guardianSetIndex);
+      expect(guardianSet.index).equals(0);
       expect(guardianSet.keys).has.length(1);
-      expect(Buffer.compare(guardianSet.keys[0], devnetGuardian)).to.equal(0);
+      expect(devnetGuardian).deep.equal(guardianSet.keys[0]);
     });
   });
 
-  describe("Verify Token Bridge Program", () => {
-    // foreign token bridge
+  describe("Verify Token Bridge Program", function() {
     const ethereumTokenBridge = new mock.MockEthereumTokenBridge(
-      ETHEREUM_TOKEN_BRIDGE_ADDRESS
+      WORMHOLE_CONTRACTS.ethereum.token_bridge
+    );
+    const tokenBridgeWethMint = tokenBridge.deriveWrappedMintKey(
+      TOKEN_BRIDGE_PID,
+      CHAINS.ethereum,
+      WETH_ADDRESS,
     );
 
-    const tokenBridgeWethMint = deriveWrappedMintKey(
-      TOKEN_BRIDGE_ADDRESS,
-      2,
-      WETH_ADDRESS
-    );
-
-    it("Initialize", async () => {
-      // initialize
-      const initializeTx = await web3
-        .sendAndConfirmTransaction(
-          connection,
-          new web3.Transaction().add(
-            tokenBridge.createInitializeInstruction(
-              TOKEN_BRIDGE_ADDRESS,
-              wallet.key(),
-              WORMHOLE_ADDRESS
-            )
-          ),
-          [wallet.signer()]
+    it("Initialize", async function() {
+      await expectIxToSucceed(
+        tokenBridge.createInitializeInstruction(
+          TOKEN_BRIDGE_PID,
+          payer.publicKey,
+          CORE_BRIDGE_PID,
         )
-        .catch((reason) => {
-          // should not happen
-          console.log(reason);
-          return null;
-        });
-      expect(initializeTx).is.not.null;
-
-      const accounts = await connection.getProgramAccounts(
-        TOKEN_BRIDGE_ADDRESS
       );
+
+      const accounts = await connection.getProgramAccounts(TOKEN_BRIDGE_PID);
       expect(accounts).has.length(1);
     });
 
-    it("Register Foreign Endpoint (Ethereum)", async () => {
-      const message = governance.publishTokenBridgeRegisterChain(
-        0, // timestamp
-        2,
-        ETHEREUM_TOKEN_BRIDGE_ADDRESS
-      );
-      const signedWormholeMessage = guardians.addSignatures(message, [0]);
+    const registerForeignEndpoint = async (
+      message: Buffer,
+      isMalicious: boolean,
+      expectedAccountLength: number,
+    ) => {
+      const signedMsg =
+        await expect(signAndPost(message)).to.be.fulfilled;
 
-      const response = await postVaaSolana(
-        connection,
-        wallet.signTransaction,
-        WORMHOLE_ADDRESS,
-        wallet.key(),
-        signedWormholeMessage
-      ).catch((reason) => null);
-      expect(response).is.not.null;
+      const createIxFunc = isMalicious
+        ? createMaliciousRegisterChainInstruction
+        : tokenBridge.createRegisterChainInstruction;
 
-      const registerChainTx = await web3
-        .sendAndConfirmTransaction(
-          connection,
-          new web3.Transaction().add(
-            tokenBridge.createRegisterChainInstruction(
-              TOKEN_BRIDGE_ADDRESS,
-              WORMHOLE_ADDRESS,
-              wallet.key(),
-              signedWormholeMessage
-            )
-          ),
-          [wallet.signer()]
+      await expectIxToSucceed(
+        createIxFunc(
+          TOKEN_BRIDGE_PID,
+          CORE_BRIDGE_PID,
+          payer.publicKey,
+          signedMsg,
         )
-        .catch((reason) => {
-          // should not happen
-          console.log(reason);
-          return null;
-        });
-      expect(registerChainTx).is.not.null;
-
-      const accounts = await connection.getProgramAccounts(
-        TOKEN_BRIDGE_ADDRESS
       );
-      expect(accounts).has.length(3);
+
+      const accounts = await connection.getProgramAccounts(TOKEN_BRIDGE_PID);
+      expect(accounts).has.length(expectedAccountLength);
+    }
+
+    it("Register Foreign Endpoint (Ethereum)", async function() {
+      const message = governance.publishTokenBridgeRegisterChain(
+        0, //timestamp
+        CHAINS.ethereum,
+        WORMHOLE_CONTRACTS.ethereum.token_bridge,
+      );
+      await registerForeignEndpoint(message, false, 3);
     });
 
     // This shouldn't be allowed, but we're doing it just to prove the safety
     // of the scaffold programs.
-    it("Register Bogus Foreign Endpoint (Chain ID == 0)", async () => {
+    it("Register Bogus Foreign Endpoint (Chain ID == 0)", async function() {
       const message = governance.publishTokenBridgeRegisterChain(
         0, // timestamp
-        1,
-        web3.PublicKey.default.toString()
+        CHAINS.solana, //will be overwritten
+        PublicKey.default.toString()
       );
-      message.writeUInt16BE(0, 86);
-      const signedWormholeMessage = guardians.addSignatures(message, [0]);
-
-      const response = await postVaaSolana(
-        connection,
-        wallet.signTransaction,
-        WORMHOLE_ADDRESS,
-        wallet.key(),
-        signedWormholeMessage
-      ).catch((reason) => null);
-      expect(response).is.not.null;
-
-      const registerChainTx = await web3
-        .sendAndConfirmTransaction(
-          connection,
-          new web3.Transaction().add(
-            createMaliciousRegisterChainInstruction(
-              TOKEN_BRIDGE_ADDRESS,
-              WORMHOLE_ADDRESS,
-              wallet.key(),
-              signedWormholeMessage
-            )
-          ),
-          [wallet.signer()]
-        )
-        .catch((reason) => {
-          // should not happen
-          console.log(reason);
-          return null;
-        });
-      expect(registerChainTx).is.not.null;
-
-      const accounts = await connection.getProgramAccounts(
-        TOKEN_BRIDGE_ADDRESS
-      );
-      expect(accounts).has.length(5);
+      message.writeUInt16BE(CHAINS.unset, 86); //overwrite chainId
+      await registerForeignEndpoint(message, true, 5);
     });
 
     // This shouldn't be allowed, but we're doing it just to prove the safety
     // of the scaffold programs.
-    it("Register Bogus Foreign Endpoint (Chain ID == 1)", async () => {
+    it("Register Bogus Foreign Endpoint (Chain ID == 1)", async function() {
       const message = governance.publishTokenBridgeRegisterChain(
         0, // timestamp
-        1,
-        web3.PublicKey.default.toString()
+        CHAINS.solana,
+        PublicKey.default.toString()
       );
-      const signedWormholeMessage = guardians.addSignatures(message, [0]);
-
-      const response = await postVaaSolana(
-        connection,
-        wallet.signTransaction,
-        WORMHOLE_ADDRESS,
-        wallet.key(),
-        signedWormholeMessage
-      ).catch((reason) => null);
-      expect(response).is.not.null;
-
-      const registerChainTx = await web3
-        .sendAndConfirmTransaction(
-          connection,
-          new web3.Transaction().add(
-            createMaliciousRegisterChainInstruction(
-              TOKEN_BRIDGE_ADDRESS,
-              WORMHOLE_ADDRESS,
-              wallet.key(),
-              signedWormholeMessage
-            )
-          ),
-          [wallet.signer()]
-        )
-        .catch((reason) => {
-          // should not happen
-          console.log(reason);
-          return null;
-        });
-      expect(registerChainTx).is.not.null;
-
-      const accounts = await connection.getProgramAccounts(
-        TOKEN_BRIDGE_ADDRESS
-      );
-      expect(accounts).has.length(7);
+      await registerForeignEndpoint(message, true, 7);
     });
 
-    it("Outbound Transfer Native", async () => {
-      const amount = BigInt(1 * LAMPORTS_PER_SOL); // explicitly sending 1 SOL
+    it("Outbound Transfer Native", async function() {
       const targetAddress = Buffer.alloc(32, "deadbeef", "hex");
-      const transferResponse = await transferNativeSol(
-        connection,
-        WORMHOLE_ADDRESS,
-        TOKEN_BRIDGE_ADDRESS,
-        wallet.key(),
-        amount,
-        targetAddress,
-        "ethereum"
-      )
-        .then((transaction) =>
-          signSendAndConfirmTransaction(
-            connection,
-            wallet.key(),
-            wallet.signTransaction,
-            transaction
-          )
-        )
-        .catch((reason) => {
-          // should not happen
-          console.log(reason);
-          return null;
-        });
-      expect(transferResponse).is.not.null;
-
-      const sequence = await wormhole
-        .getProgramSequenceTracker(
+      await expectTxToSucceed(
+        transferNativeSol(
           connection,
-          TOKEN_BRIDGE_ADDRESS,
-          WORMHOLE_ADDRESS
+          CORE_BRIDGE_PID,
+          TOKEN_BRIDGE_PID,
+          payer.publicKey,
+          BigInt(LAMPORTS_PER_SOL), //1 SOL
+          targetAddress,
+          CHAINS.ethereum
         )
-        .then((account) => account.sequence);
-      expect(sequence).to.equal(1n);
+      );
+
+      const {sequence} =
+        await wormhole.getProgramSequenceTracker(connection, TOKEN_BRIDGE_PID, CORE_BRIDGE_PID);
+      expect(sequence).equals(1n);
     });
 
-    it("Attest WETH from Ethereum", async () => {
-      const published = ethereumTokenBridge.publishAttestMeta(
-        WETH_ADDRESS,
-        18,
-        "WETH",
-        "Wrapped Ether"
+    it("Attest WETH from Ethereum", async function() {
+      const signedMsg = await expect(
+        signAndPost(
+          ethereumTokenBridge.publishAttestMeta(WETH_ADDRESS, 18, "WETH", "Wrapped Ether")
+        )
+      ).to.be.fulfilled;
+
+      await expectTxToSucceed(
+        createWrappedOnSolana(
+          connection,
+          CORE_BRIDGE_PID,
+          TOKEN_BRIDGE_PID,
+          payer.publicKey,
+          signedMsg
+        )
       );
-
-      const signedWormholeMessage = guardians.addSignatures(published, [0]);
-
-      const createWrappedTx = await postVaaSolana(
-        connection,
-        wallet.signTransaction,
-        WORMHOLE_ADDRESS,
-        wallet.key(),
-        signedWormholeMessage
-      )
-        .then((_) =>
-          createWrappedOnSolana(
-            connection,
-            WORMHOLE_ADDRESS,
-            TOKEN_BRIDGE_ADDRESS,
-            wallet.key(),
-            signedWormholeMessage
-          )
-        )
-        .then((transaction) =>
-          signSendAndConfirmTransaction(
-            connection,
-            wallet.key(),
-            wallet.signTransaction,
-            transaction
-          )
-        )
-        .catch((reason) => null);
-      expect(createWrappedTx).is.not.null;
     });
 
-    it("Create WETH ATAs", async () => {
-      const walletAccount = await getOrCreateAssociatedTokenAccount(
-        connection,
-        wallet.signer(),
-        tokenBridgeWethMint,
-        wallet.key()
-      ).catch((reason) => null);
-      expect(walletAccount).is.not.null;
-
-      const relayerAccount = await getOrCreateAssociatedTokenAccount(
-        connection,
-        relayer.signer(),
-        tokenBridgeWethMint,
-        relayer.key()
-      ).catch((reason) => null);
-      expect(relayerAccount).is.not.null;
+    it("Create WETH ATAs", async function() {
+      await Promise.all(
+        [payer, relayer].map((wallet) =>
+          expect(
+            getOrCreateAssociatedTokenAccount(
+              connection,
+              wallet,
+              tokenBridgeWethMint,
+              wallet.publicKey
+            )
+          ).to.be.fulfilled
+        )
+      );
     });
 
-    it("Mint WETH to Wallet ATA", async () => {
-      const rawAmount = ethers.utils.parseEther("110000");
-      const mintAmount = BigInt(rawAmount.toString()) / 10n ** (18n - 8n);
+    it("Mint WETH to Wallet ATA", async function() {
+      const destination = getAssociatedTokenAddressSync(tokenBridgeWethMint, payer.publicKey);
 
-      const destination = getAssociatedTokenAddressSync(
-        tokenBridgeWethMint,
-        wallet.key()
-      );
-
-      const published = ethereumTokenBridge.publishTransferTokens(
-        tryNativeToHexString(WETH_ADDRESS, "ethereum"),
-        2, // tokenChain
-        mintAmount,
-        1, // recipientChain
-        destination.toBuffer().toString("hex"),
-        0n
-      );
-
-      const signedWormholeMessage = guardians.addSignatures(published, [0]);
-
-      const mintTx = await postVaaSolana(
-        connection,
-        wallet.signTransaction,
-        WORMHOLE_ADDRESS,
-        wallet.key(),
-        signedWormholeMessage
-      )
-        .then((_) =>
-          redeemOnSolana(
-            connection,
-            WORMHOLE_ADDRESS,
-            TOKEN_BRIDGE_ADDRESS,
-            wallet.key(),
-            signedWormholeMessage
+      const signedMsg = await expect(
+        signAndPost(
+          ethereumTokenBridge.publishTransferTokens(
+            tryNativeToHexString(WETH_ADDRESS, "ethereum"),
+            CHAINS.ethereum, // tokenChain
+            defaultMintAmount,
+            CHAINS.solana, // recipientChain
+            destination.toBuffer().toString("hex"),
+            0n //fee
           )
         )
-        .then((transaction) =>
-          signSendAndConfirmTransaction(
-            connection,
-            wallet.key(),
-            wallet.signTransaction,
-            transaction
-          )
-        )
-        .catch((reason) => null);
-      expect(mintTx).is.not.null;
+      ).to.be.fulfilled;
 
-      const amount = await getAccount(connection, destination).then(
-        (account) => account.amount
+      await expectTxToSucceed(
+        redeemOnSolana(
+          connection,
+          CORE_BRIDGE_PID,
+          TOKEN_BRIDGE_PID,
+          payer.publicKey,
+          signedMsg
+        )
       );
-      expect(amount).equals(mintAmount);
+
+      const {amount} = await getAccount(connection, destination);
+      expect(amount).equals(defaultMintAmount);
     });
   });
 
-  describe("Check wormhole-sdk", () => {
-    it("tryNativeToHexString", async () => {
-      expect(tryNativeToHexString(wallet.key().toString(), "solana")).to.equal(
+  describe("Check wormhole-sdk", function() {
+    it("tryNativeToHexString", async function() {
+      expect(tryNativeToHexString(payer.publicKey.toString(), "solana")).equals(
         "c291b257b963a479bbc5a56aa6525494a6d708e628ff2ad61c8679c99d2afca5"
       );
     });

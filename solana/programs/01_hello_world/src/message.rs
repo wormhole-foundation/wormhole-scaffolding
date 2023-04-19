@@ -30,7 +30,7 @@ impl AnchorSerialize for HelloWorldMessage {
                 if message.len() > HELLO_MESSAGE_MAX_LENGTH {
                     Err(io::Error::new(
                         io::ErrorKind::InvalidInput,
-                        format!("message exceeds {} bytes", HELLO_MESSAGE_MAX_LENGTH),
+                        format!("message exceeds {HELLO_MESSAGE_MAX_LENGTH} bytes"),
                     ))
                 } else {
                     PAYLOAD_ID_HELLO.serialize(writer)?;
@@ -49,7 +49,7 @@ impl AnchorDeserialize for HelloWorldMessage {
     fn deserialize(buf: &mut &[u8]) -> io::Result<Self> {
         match buf[0] {
             PAYLOAD_ID_ALIVE => Ok(HelloWorldMessage::Alive {
-                program_id: Pubkey::new(&buf[1..33]),
+                program_id: Pubkey::try_from(&buf[1..33]).unwrap(),
             }),
             PAYLOAD_ID_HELLO => {
                 let length = {
@@ -60,7 +60,7 @@ impl AnchorDeserialize for HelloWorldMessage {
                 if length > HELLO_MESSAGE_MAX_LENGTH {
                     Err(io::Error::new(
                         io::ErrorKind::InvalidInput,
-                        format!("message exceeds {} bytes", HELLO_MESSAGE_MAX_LENGTH),
+                        format!("message exceeds {HELLO_MESSAGE_MAX_LENGTH} bytes"),
                     ))
                 } else {
                     Ok(HelloWorldMessage::Hello {

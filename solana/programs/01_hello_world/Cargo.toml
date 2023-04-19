@@ -9,6 +9,9 @@ crate-type = ["cdylib", "lib"]
 name = "hello_world"
 
 [features]
+mainnet = ["wormhole-anchor-sdk/mainnet"]
+testnet = ["wormhole-anchor-sdk/solana-devnet"]
+devnet = ["wormhole-anchor-sdk/tilt-devnet"]
 no-entrypoint = []
 no-idl = []
 no-log-ix-name = []
@@ -16,5 +19,5 @@ cpi = ["no-entrypoint"]
 default = []
 
 [dependencies]
-anchor-lang = { version="0.25.0", features = ["init-if-needed"]}
-wormhole-anchor-sdk = { path = "../../modules/wormhole-anchor-sdk", features = ["mainnet"] }
+anchor-lang = { version="0.27.0", features = ["init-if-needed"]}
+wormhole-anchor-sdk = { path = "../../modules/wormhole-anchor-sdk" }

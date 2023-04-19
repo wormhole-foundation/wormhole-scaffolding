@@ -45,8 +45,8 @@ pub struct PostMessage<'info> {
     pub system_program: AccountInfo<'info>,
 }
 
-pub fn post_message<'a, 'b, 'c, 'info>(
-    ctx: CpiContext<'a, 'b, 'c, 'info, PostMessage<'info>>,
+pub fn post_message<'info>(
+    ctx: CpiContext<'_, '_, '_, 'info, PostMessage<'info>>,
     batch_id: u32,
     payload: Vec<u8>,
     finality: Finality,
