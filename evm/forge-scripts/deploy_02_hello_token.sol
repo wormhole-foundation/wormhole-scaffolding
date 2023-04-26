@@ -5,8 +5,8 @@ pragma solidity ^0.8.0;
 import "forge-std/Script.sol";
 import "forge-std/console.sol";
 
-import {IWormhole} from "../src/interfaces/IWormhole.sol";
-import {HelloToken} from "../src/02_hello_token/HelloToken.sol";
+import {IWormhole} from "modules/wormhole/IWormhole.sol";
+import {HelloToken} from "contracts/02_hello_token/HelloToken.sol";
 
 contract ContractScript is Script {
     IWormhole wormhole;

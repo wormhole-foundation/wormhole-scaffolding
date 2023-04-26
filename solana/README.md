@@ -9,6 +9,7 @@ Read the design documents for each example project:
 
 1. [hello-world](../docs/01_hello_world.md)
 2. [hello-token](../docs/02_hello_token.md)
+3. [nft-burn-bridging](../docs/03_nft_burn_bridging.md)
 
 ## Getting Started
 

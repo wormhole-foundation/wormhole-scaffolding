@@ -7,4 +7,4 @@ out
 out.log
 broadcast
 forge-scripts/deploy.out
-ts-test/src/
+ethers-contracts

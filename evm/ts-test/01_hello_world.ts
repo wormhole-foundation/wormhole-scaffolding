@@ -21,7 +21,7 @@ import {
   formatWormholeMessageFromReceipt,
   readHelloWorldContractAddress,
 } from "./helpers/utils";
-import {HelloWorld__factory, IWormhole__factory} from "./src/ethers-contracts";
+import {HelloWorld__factory, IWormhole__factory} from "../ethers-contracts";
 
 describe("Hello World Test", () => {
   // avax wallet

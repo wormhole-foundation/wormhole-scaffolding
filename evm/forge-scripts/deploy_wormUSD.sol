@@ -5,7 +5,7 @@ pragma solidity ^0.8.0;
 import "forge-std/Script.sol";
 import "forge-std/console.sol";
 
-import {WormUSD} from "../src/token/WormUSD.sol";
+import {WormUSD} from "modules/token/WormUSD.sol";
 
 contract ContractScript is Script {
     WormUSD wormUsd;

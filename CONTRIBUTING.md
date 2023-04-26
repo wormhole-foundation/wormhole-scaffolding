@@ -48,7 +48,7 @@ Here are the subdirectories:
 - `forge-scripts` - Useful scripts written in Solidity.
 - `forge-test` - Scripts written in Solidity meant to be run using
   `forge test`.
-- `modules` - Work-in-progress modules that will eventually become dependencies
+- `src/modules` - Work-in-progress modules that will eventually become dependencies
   that exist as an `npm` library or as a `forge` submodule.
 - `shell-scripts` - Useful shell scripts.
 - `src` - Smart contract source code, separated by each example (enumerated).
@@ -69,7 +69,6 @@ subdirectories:
 - `modules` - Work-in-progress modules that will eventually become dependencies
   that exist as a `cargo` library.
 - `programs` - Program source code, separated by each example (enumerated).
-- `shell-scripts` - Useful shell scripts.
 - `ts` - Web3 SDK and scripts written in Typescript ([TS-Mocha]) to interact
   with programs loaded in a Solana local validator run with `anchor test`.
 

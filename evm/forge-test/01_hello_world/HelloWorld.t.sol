@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: Apache 2
-pragma solidity ^0.8.13;
+pragma solidity ^0.8.19;
 
 import "forge-std/Test.sol";
-import "../../src/01_hello_world/HelloWorld.sol";
-import "../../src/01_hello_world/HelloWorldStructs.sol";
-import {WormholeSimulator} from "wormhole-solidity/WormholeSimulator.sol";
-
 import "forge-std/console.sol";
+
+import {WormholeSimulator, SigningWormholeSimulator} from "modules/wormhole/WormholeSimulator.sol";
+
+import "contracts/01_hello_world/HelloWorld.sol";
+import "contracts/01_hello_world/HelloWorldStructs.sol";
 
 /**
  * @title A Test Suite for the EVM HelloWorld Contracts
@@ -32,11 +33,11 @@ contract HelloWorldTest is Test {
         // this will be used to sign Wormhole messages
         guardianSigner = uint256(vm.envBytes32("TESTING_DEVNET_GUARDIAN"));
 
-        // set up Wormhole using Wormhole existing on AVAX mainnet
-        wormholeSimulator = new WormholeSimulator(vm.envAddress("TESTING_AVAX_WORMHOLE_ADDRESS"), guardianSigner);
-
         // we may need to interact with Wormhole throughout the test
-        wormhole = wormholeSimulator.wormhole();
+        wormhole = IWormhole(vm.envAddress("TESTING_AVAX_WORMHOLE_ADDRESS"));
+
+        // set up Wormhole using Wormhole existing on AVAX mainnet
+        wormholeSimulator = new SigningWormholeSimulator(wormhole, guardianSigner);
 
         // verify Wormhole state from fork
         require(wormhole.chainId() == uint16(vm.envUint("TESTING_AVAX_WORMHOLE_CHAINID")), "wrong chainId");
