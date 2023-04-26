@@ -1,15 +1,5 @@
-import {
-  Commitment,
-  Connection,
-  PublicKey,
-  PublicKeyInitData,
-  TransactionInstruction,
-} from "@solana/web3.js";
-import { BN } from "@project-serum/anchor";
-import {
-  getTransferNativeWithPayloadCpiAccounts,
-  getTransferWrappedWithPayloadCpiAccounts,
-} from "@certusone/wormhole-sdk/lib/cjs/solana";
+import { Connection, PublicKey, PublicKeyInitData, TransactionInstruction } from "@solana/web3.js";
+import { getTransferWrappedWithPayloadCpiAccounts } from "@certusone/wormhole-sdk/lib/cjs/solana";
 import { createHelloTokenProgramInterface } from "../program";
 import {
   deriveForeignContractKey,
@@ -21,6 +11,7 @@ import { getProgramSequenceTracker } from "@certusone/wormhole-sdk/lib/cjs/solan
 import { getAssociatedTokenAddressSync } from "@solana/spl-token";
 import { SendTokensParams } from "./types";
 import { getWrappedMeta } from "@certusone/wormhole-sdk/lib/cjs/solana/tokenBridge";
+import { BN } from "@coral-xyz/anchor";
 
 export async function createSendWrappedTokensWithPayloadInstruction(
   connection: Connection,
@@ -29,16 +20,14 @@ export async function createSendWrappedTokensWithPayloadInstruction(
   tokenBridgeProgramId: PublicKeyInitData,
   wormholeProgramId: PublicKeyInitData,
   mint: PublicKeyInitData,
-  params: SendTokensParams,
-  commitment?: Commitment
+  params: SendTokensParams
 ): Promise<TransactionInstruction> {
   const program = createHelloTokenProgramInterface(connection, programId);
 
   return getProgramSequenceTracker(
     connection,
     tokenBridgeProgramId,
-    wormholeProgramId,
-    commitment
+    wormholeProgramId
   )
     .then((tracker) =>
       deriveTokenTransferMessageKey(programId, tracker.sequence + 1n)

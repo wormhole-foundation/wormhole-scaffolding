@@ -1,10 +1,11 @@
+import { ChainId } from "@certusone/wormhole-sdk";
 import { deriveAddress } from "@certusone/wormhole-sdk/lib/cjs/solana";
-import { Commitment, Connection, PublicKeyInitData } from "@solana/web3.js";
+import { Connection, PublicKeyInitData } from "@solana/web3.js";
 import { createHelloTokenProgramInterface } from "../program";
 
 export function deriveForeignContractKey(
   programId: PublicKeyInitData,
-  chain: number
+  chain: ChainId
 ) {
   return deriveAddress(
     [
@@ -20,23 +21,18 @@ export function deriveForeignContractKey(
 }
 
 export interface ForeignEmitter {
-  chain: number;
+  chain: ChainId;
   address: Buffer;
 }
 
 export async function getForeignContractData(
   connection: Connection,
   programId: PublicKeyInitData,
-  chain: number,
-  commitment?: Commitment
+  chain: ChainId
 ): Promise<ForeignEmitter> {
-  const { chain: _, address } = await createHelloTokenProgramInterface(
-    connection,
-    programId
-  ).account.foreignContract.fetch(
-    deriveForeignContractKey(programId, chain),
-    commitment
-  );
+  const { address } = await createHelloTokenProgramInterface(connection, programId)
+    .account.foreignContract.fetch(deriveForeignContractKey(programId, chain));
+  
   return {
     chain,
     address: Buffer.from(address),

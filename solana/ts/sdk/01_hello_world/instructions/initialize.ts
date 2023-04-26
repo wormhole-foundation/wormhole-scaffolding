@@ -1,14 +1,5 @@
-import {
-  Connection,
-  PublicKey,
-  PublicKeyInitData,
-  TransactionInstruction,
-} from "@solana/web3.js";
-import {
-  deriveAddress,
-  getPostMessageCpiAccounts,
-  getWormholeDerivedAccounts,
-} from "@certusone/wormhole-sdk/lib/cjs/solana";
+import { Connection, PublicKey, PublicKeyInitData, TransactionInstruction } from "@solana/web3.js";
+import { getPostMessageCpiAccounts } from "@certusone/wormhole-sdk/lib/cjs/solana";
 import { createHelloWorldProgramInterface } from "../program";
 import { deriveConfigKey, deriveWormholeMessageKey } from "../accounts";
 

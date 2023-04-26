@@ -1,6 +1,6 @@
 import { deriveAddress } from "@certusone/wormhole-sdk/lib/cjs/solana";
 import { deriveWormholeEmitterKey } from "@certusone/wormhole-sdk/lib/cjs/solana/wormhole";
-import { Commitment, Connection, PublicKeyInitData } from "@solana/web3.js";
+import { Connection, PublicKeyInitData } from "@solana/web3.js";
 import { createHelloWorldProgramInterface } from "../program";
 
 export { deriveWormholeEmitterKey };
@@ -28,14 +28,8 @@ export interface WormholeEmitterData {
 
 export async function getWormholeEmitterData(
   connection: Connection,
-  programId: PublicKeyInitData,
-  commitment?: Commitment
+  programId: PublicKeyInitData
 ): Promise<WormholeEmitterData> {
-  return createHelloWorldProgramInterface(
-    connection,
-    programId
-  ).account.wormholeEmitter.fetch(
-    deriveWormholeEmitterKey(programId),
-    commitment
-  );
+  return createHelloWorldProgramInterface(connection, programId)
+    .account.wormholeEmitter.fetch(deriveWormholeEmitterKey(programId));
 }

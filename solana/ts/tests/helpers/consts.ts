@@ -1,5 +1,5 @@
 import { PublicKey, Keypair } from "@solana/web3.js";
-import { CONTRACTS, CHAINS } from "@certusone/wormhole-sdk";
+import { CONTRACTS } from "@certusone/wormhole-sdk";
 import { MockGuardians } from "@certusone/wormhole-sdk/lib/cjs/mock";
 
 export const NETWORK = process.env.NETWORK?.toUpperCase() as keyof typeof CONTRACTS;

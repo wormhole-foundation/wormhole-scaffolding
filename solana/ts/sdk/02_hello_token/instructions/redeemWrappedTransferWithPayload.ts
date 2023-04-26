@@ -1,5 +1,4 @@
 import {
-  Commitment,
   Connection,
   PublicKey,
   PublicKeyInitData,
@@ -7,8 +6,12 @@ import {
   SYSVAR_RENT_PUBKEY,
   TransactionInstruction,
 } from "@solana/web3.js";
-import { CompleteTransferWrappedWithPayloadCpiAccounts } from "@certusone/wormhole-sdk/lib/cjs/solana";
-import { createHelloTokenProgramInterface } from "../program";
+import {
+  CompleteTransferWrappedWithPayloadCpiAccounts
+} from "@certusone/wormhole-sdk/lib/cjs/solana";
+import {
+  createHelloTokenProgramInterface
+} from "../program";
 import {
   deriveForeignContractKey,
   deriveTmpTokenAccountKey,
@@ -43,8 +46,7 @@ export async function createRedeemWrappedTransferWithPayloadInstruction(
   payer: PublicKeyInitData,
   tokenBridgeProgramId: PublicKeyInitData,
   wormholeProgramId: PublicKeyInitData,
-  wormholeMessage: SignedVaa | ParsedTokenTransferVaa,
-  commitment?: Commitment
+  wormholeMessage: SignedVaa | ParsedTokenTransferVaa
 ): Promise<TransactionInstruction> {
   const program = createHelloTokenProgramInterface(connection, programId);
 

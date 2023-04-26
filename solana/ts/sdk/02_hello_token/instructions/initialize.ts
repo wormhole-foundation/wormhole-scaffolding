@@ -1,13 +1,7 @@
-import {
-  Connection,
-  PublicKey,
-  PublicKeyInitData,
-  TransactionInstruction,
-} from "@solana/web3.js";
+import { Connection, PublicKey, PublicKeyInitData, TransactionInstruction } from "@solana/web3.js";
 import { getTokenBridgeDerivedAccounts } from "@certusone/wormhole-sdk/lib/cjs/solana";
 import { createHelloTokenProgramInterface } from "../program";
 import { deriveSenderConfigKey, deriveRedeemerConfigKey } from "../accounts";
-import { BN } from "@project-serum/anchor";
 
 export async function createInitializeInstruction(
   connection: Connection,

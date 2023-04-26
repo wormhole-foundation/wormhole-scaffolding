@@ -1,7 +1,6 @@
 import { deriveAddress } from "@certusone/wormhole-sdk/lib/cjs/solana";
 import { deriveWormholeEmitterKey } from "@certusone/wormhole-sdk/lib/cjs/solana/wormhole";
-import { Commitment, Connection, PublicKeyInitData } from "@solana/web3.js";
-import { createHelloTokenProgramInterface } from "../program";
+import { PublicKeyInitData } from "@solana/web3.js";
 
 export { deriveWormholeEmitterKey };
 

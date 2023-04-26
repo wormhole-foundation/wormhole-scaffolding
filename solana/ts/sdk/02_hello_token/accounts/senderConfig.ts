@@ -1,10 +1,5 @@
 import { deriveAddress } from "@certusone/wormhole-sdk/lib/cjs/solana";
-import {
-  Commitment,
-  Connection,
-  PublicKey,
-  PublicKeyInitData,
-} from "@solana/web3.js";
+import { Connection, PublicKey, PublicKeyInitData } from "@solana/web3.js";
 import { createHelloTokenProgramInterface } from "../program";
 
 export function deriveSenderConfigKey(programId: PublicKeyInitData) {
@@ -31,11 +26,8 @@ export interface SenderConfigData {
 
 export async function getSenderConfigData(
   connection: Connection,
-  programId: PublicKeyInitData,
-  commitment?: Commitment
+  programId: PublicKeyInitData
 ): Promise<SenderConfigData> {
-  return createHelloTokenProgramInterface(
-    connection,
-    programId
-  ).account.senderConfig.fetch(deriveSenderConfigKey(programId), commitment);
+  return createHelloTokenProgramInterface(connection, programId)
+    .account.senderConfig.fetch(deriveSenderConfigKey(programId));
 }
