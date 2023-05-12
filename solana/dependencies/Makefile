@@ -36,7 +36,6 @@ $(network_sos)&: #&: specifies a grouped target
 	  --depth 1 \
 	  --branch main \
 	  --filter=blob:none \
-	  --sparse \
 	  https://github.com/wormhole-foundation/wormhole \
 	  tmp-wormhole > /dev/null 2>&1
 	cd tmp-wormhole; git sparse-checkout set solana > /dev/null 2>&1
