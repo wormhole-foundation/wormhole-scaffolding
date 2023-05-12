@@ -1,6 +1,7 @@
 [package]
 name = "HelloToken"
 version = "0.1.0"
+published-at = "0x3b17ab9de6f1f14ee30fc3150e66fb86dbde7cffcbe5e76c108b29633c372120"
 
 [dependencies.Sui]
 git = "https://github.com/MystenLabs/sui.git"
@@ -14,4 +15,4 @@ local = "../../dependencies/wormhole"
 local = "../../dependencies/token_bridge"
 
 [addresses]
-hello_token = "0x818ef76994a62b9563075f0ff6c8186b2f91943fbd257eb62c0152d19c40ea35"
+hello_token = "0x3b17ab9de6f1f14ee30fc3150e66fb86dbde7cffcbe5e76c108b29633c372120"
