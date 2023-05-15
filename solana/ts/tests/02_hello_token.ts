@@ -155,7 +155,7 @@ describe(" 2: Hello Token", function() {
       await expectIxToFailWithError(
         await createUpdateRelayerFeeIx({sender: relayer.publicKey, relayerFee: relayerFee - 1}),
         "OwnerOnly",
-        [relayer]
+        relayer
       );
     });
 
@@ -204,7 +204,7 @@ describe(" 2: Hello Token", function() {
       await expectIxToFailWithError(
         await createRegisterForeignContractIx({sender: relayer.publicKey, contractAddress}),
         "OwnerOnly",
-        [relayer]
+        relayer
       );
     });
 
@@ -373,7 +373,9 @@ describe(" 2: Hello Token", function() {
           const sequence = await getWormholeSequence();
 
           const balanceBefore = await getTokenBalance(recipientTokenAccount);
-          await expectIxToSucceed(createSendTokensWithPayloadIx());
+          //depending on pda derivations, we can exceed our 200k compute units budget
+          const computeUnits = 250_000;
+          await expectIxToSucceed(createSendTokensWithPayloadIx(), computeUnits);
           const balanceChange = balanceBefore - await getTokenBalance(recipientTokenAccount);
           expect(balanceChange).equals((sendAmount / truncation) * truncation);
 
@@ -439,7 +441,7 @@ describe(" 2: Hello Token", function() {
             await expectIxToFailWithError(
               await createRedeemTransferWithPayloadIx(sender.publicKey, bogusMsg),
               "InvalidForeignContract",
-              [sender]
+              sender
             );
           });
 
@@ -490,7 +492,7 @@ describe(" 2: Hello Token", function() {
             await expectIxToFailWithError(
               maliciousIx,
               "Error Code: InvalidRecipient. Error Number: 6015",
-              [relayer]
+              relayer
             );
           });
 
@@ -502,7 +504,7 @@ describe(" 2: Hello Token", function() {
             const balancesBefore = await Promise.all(tokenAccounts.map(getTokenBalance));
             await expectIxToSucceed(
               createRedeemTransferWithPayloadIx(sender.publicKey, signedMsg),
-              [sender]
+              sender
             );
             const balancesChange = await Promise.all(
               tokenAccounts.map(async (acc, i) => (await getTokenBalance(acc)) - balancesBefore[i])
@@ -527,7 +529,7 @@ describe(" 2: Hello Token", function() {
             await expectIxToFailWithError(
               await createRedeemTransferWithPayloadIx(sender.publicKey, signedMsg),
               "AlreadyRedeemed",
-              [sender]
+              sender
             );
           });
         });

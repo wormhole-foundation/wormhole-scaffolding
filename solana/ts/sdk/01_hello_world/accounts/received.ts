@@ -1,10 +1,11 @@
+import { ChainId } from "@certusone/wormhole-sdk";
 import { deriveAddress } from "@certusone/wormhole-sdk/lib/cjs/solana";
-import { Commitment, Connection, PublicKeyInitData } from "@solana/web3.js";
+import { Connection, PublicKeyInitData } from "@solana/web3.js";
 import { createHelloWorldProgramInterface } from "../program";
 
 export function deriveReceivedKey(
   programId: PublicKeyInitData,
-  chain: number,
+  chain: ChainId,
   sequence: bigint
 ) {
   return deriveAddress(
@@ -29,16 +30,14 @@ export interface Received {
 export async function getReceivedData(
   connection: Connection,
   programId: PublicKeyInitData,
-  chain: number,
-  sequence: bigint,
-  commitment?: Commitment
+  chain: ChainId,
+  sequence: bigint
 ): Promise<Received> {
-  return createHelloWorldProgramInterface(connection, programId)
-    .account.received.fetch(
-      deriveReceivedKey(programId, chain, sequence),
-      commitment
-    )
-    .then((received) => {
-      return { batchId: received.batchId, message: received.message as Buffer };
-    });
+  const received = await createHelloWorldProgramInterface(connection, programId)
+    .account.received.fetch(deriveReceivedKey(programId, chain, sequence));
+
+  return {
+    batchId: received.batchId,
+    message: received.message as Buffer
+  };
 }

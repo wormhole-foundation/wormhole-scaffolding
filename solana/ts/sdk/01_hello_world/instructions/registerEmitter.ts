@@ -1,9 +1,5 @@
-import {
-  Connection,
-  PublicKey,
-  PublicKeyInitData,
-  TransactionInstruction,
-} from "@solana/web3.js";
+import { Connection, PublicKey, PublicKeyInitData, TransactionInstruction } from "@solana/web3.js";
+import {ChainId } from "@certusone/wormhole-sdk";
 import { createHelloWorldProgramInterface } from "../program";
 import { deriveConfigKey, deriveForeignEmitterKey } from "../accounts";
 
@@ -11,7 +7,7 @@ export async function createRegisterForeignEmitterInstruction(
   connection: Connection,
   programId: PublicKeyInitData,
   payer: PublicKeyInitData,
-  emitterChain: number,
+  emitterChain: ChainId,
   emitterAddress: Buffer
 ): Promise<TransactionInstruction> {
   const program = createHelloWorldProgramInterface(connection, programId);

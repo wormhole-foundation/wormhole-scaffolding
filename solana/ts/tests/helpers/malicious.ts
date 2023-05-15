@@ -60,7 +60,7 @@ export function getRegisterChainAccounts(
     config: deriveTokenBridgeConfigKey(tokenBridgeProgramId),
     endpoint: deriveMaliciousTokenBridgeEndpointKey(
       tokenBridgeProgramId,
-      parsed.foreignChain,
+      parsed.foreignChain as ChainId,
       parsed.foreignAddress
     ),
     vaa: derivePostedVaaKey(wormholeProgramId, parsed.hash),
@@ -78,19 +78,17 @@ export function getRegisterChainAccounts(
 
 export function deriveMaliciousTokenBridgeEndpointKey(
   tokenBridgeProgramId: PublicKeyInitData,
-  emitterChain: number,
+  emitterChain: ChainId,
   emitterAddress: Buffer
 ): PublicKey {
-  if (typeof emitterAddress == "string") {
-    emitterAddress = Buffer.from(
-      tryNativeToUint8Array(emitterAddress, emitterChain as ChainId)
-    );
-  }
+  if (typeof emitterAddress == "string")
+    emitterAddress = Buffer.from(tryNativeToUint8Array(emitterAddress, emitterChain));
+  
   return deriveAddress(
     [
       (() => {
         const buf = Buffer.alloc(2);
-        buf.writeUInt16BE(emitterChain as number);
+        buf.writeUInt16BE(emitterChain);
         return buf;
       })(),
       emitterAddress,

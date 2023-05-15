@@ -194,13 +194,13 @@ describe(" 1: Hello World", function() {
       emitterChain: ChainId,
       falseAccounts: any,
       error: string,
-      signers?: Keypair[]
+      signer?: Keypair
     ) => {
       const registerForeignEmitterIx = await program.methods
           .registerEmitter(emitterChain, [...realForeignEmitterAddress])
           .accounts({...realRegisterEmitterAccounts, ...falseAccounts})
           .instruction();
-      await expectIxToFailWithError(registerForeignEmitterIx, error, signers);
+      await expectIxToFailWithError(registerForeignEmitterIx, error, signer);
     }
 
     it("Invalid Account PDA: owner", async function() {
@@ -212,7 +212,7 @@ describe(" 1: Hello World", function() {
             realForeignEmitterChain,
             {owner: nonOwner.publicKey},
             "OwnerOnly",
-            [nonOwner]
+            nonOwner
           );
         })
       );

@@ -1,9 +1,4 @@
-import {
-  Connection,
-  PublicKey,
-  PublicKeyInitData,
-  TransactionInstruction,
-} from "@solana/web3.js";
+import { Connection, PublicKey, PublicKeyInitData, TransactionInstruction } from "@solana/web3.js";
 import { createHelloTokenProgramInterface } from "../program";
 import { deriveRedeemerConfigKey } from "../accounts";
 

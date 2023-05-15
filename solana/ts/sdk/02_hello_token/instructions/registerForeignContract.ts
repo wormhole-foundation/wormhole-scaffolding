@@ -1,9 +1,5 @@
-import {
-  Connection,
-  PublicKey,
-  PublicKeyInitData,
-  TransactionInstruction,
-} from "@solana/web3.js";
+import { Connection, PublicKey, PublicKeyInitData, TransactionInstruction } from "@solana/web3.js";
+import { ChainId } from "@certusone/wormhole-sdk";
 import { deriveEndpointKey } from "@certusone/wormhole-sdk/lib/cjs/solana/tokenBridge";
 import { createHelloTokenProgramInterface } from "../program";
 import { deriveSenderConfigKey, deriveForeignContractKey } from "../accounts";
@@ -13,11 +9,12 @@ export async function createRegisterForeignContractInstruction(
   programId: PublicKeyInitData,
   payer: PublicKeyInitData,
   tokenBridgeProgramId: PublicKeyInitData,
-  chain: number,
+  chain: ChainId,
   contractAddress: Buffer,
   tokenBridgeForeignAddress: string
 ): Promise<TransactionInstruction> {
   const program = createHelloTokenProgramInterface(connection, programId);
+  
   return program.methods
     .registerForeignContract(chain, [...contractAddress])
     .accounts({

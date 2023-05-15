@@ -1,24 +1,26 @@
 {
-    "scripts": {
-        "lint:fix": "prettier */*.js \"*/**/*{.js,.ts}\" -w",
-        "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check"
-    },
-    "dependencies": {
-        "@certusone/wormhole-sdk": "^0.9.3",
-        "@project-serum/anchor": "^0.25.0",
-        "@solana/spl-token": "^0.3.5"
-    },
-    "devDependencies": {
-        "@types/bn.js": "^5.1.0",
-        "@types/chai": "^4.3.4",
-        "@types/chai-as-promised": "^7.1.5",
-        "@types/mocha": "^10.0.1",
-        "@types/node": "^18.14.5",
-        "chai": "^4.3.7",
-        "chai-as-promised": "^7.1.1",
-        "mocha": "^10.0.0",
-        "prettier": "^2.6.2",
-        "ts-mocha": "^10.0.0",
-        "typescript": "^4.3.5"
-    }
+  "scripts": {
+    "lint:fix": "prettier */*.js \"*/**/*{.js,.ts}\" -w",
+    "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check"
+  },
+  "dependencies": {
+     "@certusone/wormhole-sdk": "^0.9.14",
+     "@metaplex-foundation/js": "^0.18.3",
+     "@metaplex-foundation/mpl-token-metadata": "^2.9.0",
+     "@coral-xyz/anchor": "^0.27.0",
+     "@solana/spl-token": "^0.3.7",
+     "ethers": "^5.7.2"
+  },
+  "devDependencies": {
+    "@types/bn.js": "^5.1.0",
+    "@types/chai": "^4.3.4",
+    "@types/chai-as-promised": "^7.1.5",
+    "@types/mocha": "^10.0.1",
+    "@types/node": "^18.14.5",
+    "chai": "^4.3.7",
+    "chai-as-promised": "^7.1.1",
+    "mocha": "^10.0.0",
+    "ts-mocha": "^10.0.0",
+    "typescript": "^4.3.5"
+  }
 }

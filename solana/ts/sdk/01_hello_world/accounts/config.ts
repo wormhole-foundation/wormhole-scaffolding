@@ -1,10 +1,5 @@
 import { deriveAddress } from "@certusone/wormhole-sdk/lib/cjs/solana";
-import {
-  Commitment,
-  Connection,
-  PublicKey,
-  PublicKeyInitData,
-} from "@solana/web3.js";
+import { Connection, PublicKey, PublicKeyInitData } from "@solana/web3.js";
 import { createHelloWorldProgramInterface } from "../program";
 
 export function deriveConfigKey(programId: PublicKeyInitData) {
@@ -24,13 +19,10 @@ export interface ConfigData {
 
 export async function getConfigData(
   connection: Connection,
-  programId: PublicKeyInitData,
-  commitment?: Commitment
+  programId: PublicKeyInitData
 ): Promise<ConfigData> {
-  const data = await createHelloWorldProgramInterface(
-    connection,
-    programId
-  ).account.config.fetch(deriveConfigKey(programId), commitment);
+  const data = await createHelloWorldProgramInterface(connection, programId)
+    .account.config.fetch(deriveConfigKey(programId));
 
   return {
     owner: data.owner,
