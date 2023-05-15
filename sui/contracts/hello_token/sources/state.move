@@ -5,6 +5,7 @@ module hello_token::state {
     // Sui dependencies.
     use sui::object::{Self, UID};
     use sui::tx_context::{TxContext};
+    use sui::table::{Self, Table};
 
     // Wormhole dependencies.
     use wormhole::emitter::{Self, EmitterCap};
@@ -22,6 +23,7 @@ module hello_token::state {
     // Errors.
     const E_INVALID_CHAIN: u64 = 0;
     const E_INVALID_CONTRACT_ADDRESS: u64 = 1;
+    const E_CONTRACT_DOES_NOT_EXIST: u64 = 2;
 
     /// Object that holds this contract's state. Foreign contracts are
     /// stored as dynamic object fields of `State`.
@@ -33,6 +35,9 @@ module hello_token::state {
 
         /// Stores relayer fee and precision.
         relayer_fee: RelayerFee,
+
+        /// Foreign contract registry.
+        foreign_contracts: Table<u16, ExternalAddress>,
     }
 
     /// Creates new `State` object. The `emitter_cap` and `relayer_fee`
@@ -49,10 +54,8 @@ module hello_token::state {
             id: object::new(ctx),
             emitter_cap: emitter::new(wormhole_state, ctx),
             relayer_fee: relayer_fee::new(relayer_fee, relayer_fee_precision),
+            foreign_contracts: table::new(ctx)
         };
-
-        // Make new foreign contracts map.
-        foreign_contracts::new(&mut state.id, ctx);
 
         // Done.
         state
@@ -67,13 +70,13 @@ module hello_token::state {
     ) {
         if (contract_registered(self, chain)) {
             foreign_contracts::update(
-                &mut self.id,
+                &mut self.foreign_contracts,
                 chain,
                 contract_address
             );
         } else {
             foreign_contracts::add(
-                &mut self.id,
+                &mut self.foreign_contracts,
                 chain,
                 contract_address,
             );
@@ -104,11 +107,12 @@ module hello_token::state {
     }
 
     public fun contract_registered(self: &State, chain: u16): bool {
-        foreign_contracts::has(&self.id, chain)
+        table::contains(&self.foreign_contracts, chain)
     }
 
     public fun foreign_contract_address(self: &State, chain: u16): ExternalAddress {
-        *foreign_contracts::contract_address(&self.id, chain)
+        assert!(contract_registered(self, chain), E_CONTRACT_DOES_NOT_EXIST);
+        *table::borrow(&self.foreign_contracts, chain)
     }
 
     public fun fee_value(self: &State): u64 {

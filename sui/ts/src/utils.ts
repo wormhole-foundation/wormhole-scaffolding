@@ -111,20 +111,13 @@ export async function getDynamicObjectFields(
   return dynamicObjectFieldInfo;
 }
 
-export async function getTableFromDynamicObjectField(
+export async function getForeignContractsTable(
   provider: JsonRpcProvider,
-  parentId: string,
-  childName: any
+  objectId: string
 ) {
-  const dynamicObjectInfo = await getDynamicObjectFields(
-    provider,
-    parentId,
-    childName
-  );
-
   // Fetch the table's keys
   const keys = await provider
-    .getDynamicFields({parentId: dynamicObjectInfo!.fields.id.id})
+    .getDynamicFields({parentId: objectId})
     .then((result) => result.data);
 
   if (keys.length == 0) {
@@ -172,34 +165,6 @@ export async function getCoinWithHighestBalance(
   }
 
   return coins[index];
-}
-
-export async function getTableByName(
-  provider: JsonRpcProvider,
-  stateId: string,
-  fieldName: string
-) {
-  // Fetch relayer state dynamic fields.
-  const dynamicField = await provider
-    .getDynamicFields({parentId: stateId})
-    .then((result) =>
-      result.data.filter((name) =>
-        Buffer.from(name.name.value).toString().includes(fieldName)
-      )
-    );
-
-  if (dynamicField.length === null) {
-    return Promise.reject("table not found");
-  }
-
-  // Fetch the `relayer_fee` dynamic field.
-  const relayerFees = await getTableFromDynamicObjectField(
-    provider,
-    stateId,
-    dynamicField[0].name!
-  );
-
-  return relayerFees;
 }
 
 export function tokenBridgeNormalizeAmount(

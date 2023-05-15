@@ -33,10 +33,10 @@ import {
   getWormholeFee,
   getCoinWithHighestBalance,
   parseHelloTokenPayload,
-  getTableByName,
   createHelloTokenPayload,
   getBalanceChangeFromTransaction,
   calculateRelayerFee,
+  getForeignContractsTable,
 } from "../src";
 
 describe("2: Hello Token", () => {
@@ -134,11 +134,11 @@ describe("2: Hello Token", () => {
       });
       expect(result.digest).is.not.null;
 
-      // Fetch the `foreign_contracts` table.
-      const registeredContracts = await getTableByName(
+      // Fetch the registered contracts table from state.
+      const state = await getObjectFields(provider, stateId);
+      const registeredContracts = await getForeignContractsTable(
         provider,
-        stateId,
-        "foreign_contracts"
+        state!.foreign_contracts.fields.id.id
       );
       expect(registeredContracts).has.length(1);
 
