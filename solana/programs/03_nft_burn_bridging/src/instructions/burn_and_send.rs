@@ -116,11 +116,7 @@ pub struct BurnAndSend<'info> {
   pub rent: Sysvar<'info, Rent>,
 }
 
-pub fn burn_and_send(
-  ctx: Context<BurnAndSend>,
-  batch_id: u32,
-  evm_recipient: &EvmAddress
-) -> Result<()> {
+pub fn burn_and_send(ctx: Context<BurnAndSend>, evm_recipient: &EvmAddress) -> Result<()> {
   let accs = ctx.accounts;
 
   // 1. extract the token id from the metadata uri
@@ -224,7 +220,7 @@ pub fn burn_and_send(
         &[Message::SEED_PREFIX, &accs.nft_mint.key().to_bytes(), &[*message_bump]],
       ],
     ),
-    batch_id,
+    0, //batch_id (unused)
     Message { token_id: token_id.to_be_bytes(), evm_recipient }.try_to_vec()?, //.unwrap(),
     wormhole::Finality::Finalized,
   )?;

@@ -221,8 +221,7 @@ export class NftBurnBridging {
   async createSendAndBurnInstruction(
     payer: PublicKey, //must be a signer of the transaction
     nftToken: PublicKey,
-    evmRecipient: string,
-    batchId = 1,
+    evmRecipient: string
   ) : Promise<TransactionInstruction> {
     if (!ethers.utils.isAddress(evmRecipient))
       throw Error("Invalid EVM recipient address");
@@ -271,7 +270,7 @@ export class NftBurnBridging {
       };
     };
       
-    return this.program.methods.burnAndSend(batchId, evmRecipientArrayified).accounts({
+    return this.program.methods.burnAndSend(evmRecipientArrayified).accounts({
       instance: instance.address,
       payer,
       nftOwner: nft.token.ownerAddress,
