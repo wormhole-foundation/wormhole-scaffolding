@@ -28,7 +28,7 @@ contract HelloTokenStorage {
         uint32 relayerFeePercentage;
 
         /**
-         * Wormhole chain ID to known emitter address mapping. Xdapps using
+         * Wormhole chain ID to known emitter address mapping. xDapps using
          * Wormhole should register all deployed contracts on each chain to
          * verify that messages being consumed are from trusted contracts.
          */
