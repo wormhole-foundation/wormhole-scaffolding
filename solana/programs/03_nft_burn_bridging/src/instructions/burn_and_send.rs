@@ -145,38 +145,14 @@ pub fn burn_and_send(ctx: Context<BurnAndSend>, evm_recipient: &EvmAddress) -> R
       .mint(*accs.nft_mint.key)
       .token(*accs.nft_token.key);
     
-    //only set the token_record account if we are dealing with a pNFT, otherwise use the metaplex
-    // program id which is the canonical solution for positional optional accounts according to the
-    // docs: https://github.com/metaplex-foundation/metaplex-program-library/blob/master/token-metadata/program/ProgrammableNFTGuide.md#%EF%B8%8F--positional-optional-accounts
-    let token_record = match accs.nft_meta.token_standard {
-      Some(TokenStandard::ProgrammableNonFungible) => {
-        builder.token_record(*accs.token_record.key);
-        accs.token_record.to_account_info()
-      },
-      _ => {
-        accs.metadata_program.to_account_info()
-      },
+    //only set the token_record account if we are dealing with a pNFT
+    if let Some(TokenStandard::ProgrammableNonFungible) = accs.nft_meta.token_standard {
+      builder.token_record(*accs.token_record.key);
     };
 
     anchor_lang::solana_program::program::invoke(
       &builder.build(BurnArgs::V1{amount: 1}).unwrap().instruction(),
-      &[
-        accs.nft_owner.to_account_info(),
-        accs.collection_meta.to_account_info(),
-        accs.nft_meta.to_account_info(),
-        accs.nft_master_edition.to_account_info(),
-        accs.nft_mint.to_account_info(),
-        accs.nft_token.to_account_info(),
-        token_record,
-        accs.metadata_program.to_account_info(), //ignored
-        accs.metadata_program.to_account_info(), //ignored
-        accs.metadata_program.to_account_info(), //ignored
-        accs.metadata_program.to_account_info(), //ignored
-        accs.sysvar_instructions.to_account_info(),
-        accs.token_program.to_account_info(),
-        accs.system_program.to_account_info(),
-        accs.metadata_program.to_account_info(),
-      ],
+      &accs.to_account_infos()[..],
     )?;
   }
 
