@@ -105,7 +105,7 @@ module hello_token::transfer {
         // Return to sender.
         coin_utils::return_nonzero(dust, ctx);
 
-        (prepared_transfer)
+        prepared_transfer
     }
 
     /// `redeem_transfer_with_payload` calls Wormhole's Token Bridge Contract
