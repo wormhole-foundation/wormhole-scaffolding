@@ -1,0 +1,11 @@
+[package]
+name = "ExampleCoins"
+version = "0.1.0"
+
+[dependencies.Sui]
+git = "https://github.com/MystenLabs/sui.git"
+subdir = "crates/sui-framework/packages/sui-framework"
+rev = "09b2081498366df936abae26eea4b2d5cafb2788"
+
+[addresses]
+example_coins = "0xbfa8d913ccc41ca8522c2f0b3567097316a70ae0eb00bb290d08f9c9047056ce"
