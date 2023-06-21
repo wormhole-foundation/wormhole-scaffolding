@@ -6,7 +6,7 @@ Create a `HelloWorld` style example for using Wormhole's generic-messaging layer
 
 ## Background
 
-Currently, no production grade examples exist that detail how to safely integrate with Wormhole's generic-messaging layer on all available networks. Network specific test cases and smart contract design are critical to safely operating an XDapp.
+Currently, no production grade examples exist that detail how to safely integrate with Wormhole's generic-messaging layer on all available networks. Network specific test cases and smart contract design are critical to safely operating an xDapp.
 
 ## Goals
 
@@ -27,7 +27,7 @@ This design focuses only on providing an example to interact with Wormhole's gen
 
 ## Detailed Design
 
-The HelloWorld example XDapp utilizes the Wormhole generic-messaging layer to send and receive arbitrary HelloWorld messages between smart contracts.
+The HelloWorld example xDapp utilizes the Wormhole generic-messaging layer to send and receive arbitrary HelloWorld messages between smart contracts.
 
 Before the HelloWorld contracts can send and receive messages, the owner (see [Registering Foreign Emitters](#registering-foreign-emitters)) of the contract must invoke the `registerEmitter` method to register trusted HelloWorld contracts on other blockchains. The HelloWorld contracts will confirm that all messages that it receives are sent by trusted HelloWorld contracts on other blockchains.
 
