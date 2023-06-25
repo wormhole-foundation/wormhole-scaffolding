@@ -16,12 +16,12 @@ Provide a complete example for integrating with Wormhole's generic-messaging lay
 - Unit and integration test suite
 - Deployment scripts
 - Dependencies for interacting with the Wormhole smart contracts
+- An example off-chain relayer
 
 ## Non-Goals
 
 This design focuses only on providing an example to interact with Wormhole's generic-message layer. It does not provide:
 
-- An example off-chain relayer
 - Testnet or mainnet deployment funds
 - An example User Interface
 
@@ -58,6 +58,7 @@ Once the message is attested by the Wormhole guardians, one will invoke the `rec
     pub fn send_message(ctx: Context<SendMessage>, message: Vec<u8>)
     pub fn receive_message(ctx: Context<ReceiveMessage>, vaa_hash: [u8; 32])
 ```
+
 
 ### Registering Foreign Emitters
 
