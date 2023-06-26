@@ -104,10 +104,11 @@ export const boilerPlateReduction = (connection: Connection, defaultSigner: Sign
     const tx = new Transaction().add(await ix);
     if (units)
       tx.add(ComputeBudgetProgram.setComputeUnitLimit({units}));
+
+
     try {
       return await sendAndConfirmTransaction(connection, tx, signers);
-    }
-    catch (error: any) {
+    } catch (error: any) {
       throw new SendIxError(error);
     }
   }

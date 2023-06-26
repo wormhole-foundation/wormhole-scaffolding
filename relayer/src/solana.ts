@@ -1,6 +1,6 @@
 import * as wh from "@certusone/wormhole-sdk";
 
-import { Connection, GetVersionedTransactionConfig } from "@solana/web3.js";
+import { Connection, GetVersionedTransactionConfig, PublicKey, TransactionResponse } from "@solana/web3.js";
 
 import * as helloWorld from "../../solana/ts/sdk/01_hello_world/";
 import {
@@ -11,22 +11,26 @@ import {
   boilerPlateReduction,
 } from "../../solana/ts/tests/helpers";
 
-const HELLO_WORLD_PID = programIdFromEnvVar("HELLO_WORLD_PROGRAM_ID");
-const connection = new Connection(LOCALHOST, "processed");
+export const HELLO_WORLD_PID = new PublicKey("3v6vnffes8BPB3tuYcMfQEp15FPjGobYaqDJn96qSb2Q");
+
+
+
+// const HELLO_WORLD_PID = programIdFromEnvVar("HELLO_WORLD_PROGRAM_ID");
+const connection = new Connection(LOCALHOST, "confirmed");
 const payer = PAYER_KEYPAIR;
 
-const { postSignedMsgAsVaaOnSolana, sendAndConfirmIx } = boilerPlateReduction(
+const { requestAirdrop, postSignedMsgAsVaaOnSolana, sendAndConfirmIx } = boilerPlateReduction(
   connection,
   payer
 );
 
-//const config = helloWorld.deriveConfigKey(HELLO_WORLD_PID);
-//const program = helloWorld.createHelloWorldProgramInterface(
-//  connection,
-//  HELLO_WORLD_PID
-//);
 
 async function initProgram() {
+  await requestAirdrop(payer.publicKey);
+
+  console.log(HELLO_WORLD_PID)
+  console.log(CORE_BRIDGE_PID)
+
   await sendAndConfirmIx(
     helloWorld.createInitializeInstruction(
       connection,
@@ -44,8 +48,7 @@ async function registerEmitter(emitterChain: wh.ChainId, emitterAddress: string)
       HELLO_WORLD_PID,
       payer.publicKey,
       emitterChain,
-      // TODO: Assume leading 0x
-      Buffer.from(emitterAddress, "hex").subarray(2)
+      Buffer.from(emitterAddress, "hex")
     )
   );
 
@@ -67,6 +70,7 @@ async function sendMessage(msg: Buffer): Promise<string> {
       msg
     )
   );
+  console.log(txid)
   return await getSequence(txid);
 }
 
@@ -96,11 +100,12 @@ async function receiveMessage(vaa: Buffer): Promise<Buffer> {
 async function getSequence(txid: string): Promise<string> {
   const vtc: GetVersionedTransactionConfig = {
     commitment: "confirmed",
-    maxSupportedTransactionVersion: 1,
+    maxSupportedTransactionVersion: 2,
   };
 
   // TODO: flagged as deprecated, passing version tx config tho?
-  const info = await connection.getTransaction(txid, vtc);
+  const info = await connection.getTransaction(txid);
+
 
   if (info === null)
     throw new Error("Couldn't get info for transaction: " + txid);
