@@ -32,8 +32,8 @@ export async function getVAA(
 }
 
 
-export async function fakeVAA(chainId: wh.ChainId, emitter: string, message: Buffer): Promise<Buffer> {
-    const mockEmitter = new mock.MockEmitter(emitter, chainId);
+export async function fakeVAA(chainId: wh.ChainId, emitter: string, message: Buffer, seq: number): Promise<Buffer> {
+    const mockEmitter = new mock.MockEmitter(emitter, chainId, seq);
 
     const createPayload = () => {
       const length = message.length;

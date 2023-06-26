@@ -1,6 +1,11 @@
 import * as wh from "@certusone/wormhole-sdk";
 
-import { Connection, GetVersionedTransactionConfig, PublicKey, TransactionResponse } from "@solana/web3.js";
+import {
+  Connection,
+  GetVersionedTransactionConfig,
+  PublicKey,
+  TransactionResponse,
+} from "@solana/web3.js";
 
 import * as helloWorld from "../../solana/ts/sdk/01_hello_world/";
 import {
@@ -10,27 +15,31 @@ import {
   programIdFromEnvVar,
   boilerPlateReduction,
 } from "../../solana/ts/tests/helpers";
+import { HelloWorld } from "../../solana/target/types/hello_world";
 
-export const HELLO_WORLD_PID = new PublicKey("3v6vnffes8BPB3tuYcMfQEp15FPjGobYaqDJn96qSb2Q");
-
-
-
+export const HELLO_WORLD_PID = new PublicKey(
+  "3v6vnffes8BPB3tuYcMfQEp15FPjGobYaqDJn96qSb2Q"
+);
 // const HELLO_WORLD_PID = programIdFromEnvVar("HELLO_WORLD_PROGRAM_ID");
+
 const connection = new Connection(LOCALHOST, "confirmed");
 const payer = PAYER_KEYPAIR;
 
-const { requestAirdrop, postSignedMsgAsVaaOnSolana, sendAndConfirmIx } = boilerPlateReduction(
-  connection,
-  payer
-);
+const { requestAirdrop, postSignedMsgAsVaaOnSolana, sendAndConfirmIx } =
+  boilerPlateReduction(connection, payer);
 
+async function initProgram(): Promise<helloWorld.ConfigData> {
+  try {
+    const configData = await helloWorld.getConfigData(
+      connection,
+      HELLO_WORLD_PID
+    );
+    return configData;
+  } catch (e) {
+    /*noop*/
+  }
 
-async function initProgram() {
   await requestAirdrop(payer.publicKey);
-
-  console.log(HELLO_WORLD_PID)
-  console.log(CORE_BRIDGE_PID)
-
   await sendAndConfirmIx(
     helloWorld.createInitializeInstruction(
       connection,
@@ -39,9 +48,26 @@ async function initProgram() {
       CORE_BRIDGE_PID
     )
   );
+
+  return await helloWorld.getConfigData(connection, HELLO_WORLD_PID);
 }
 
-async function registerEmitter(emitterChain: wh.ChainId, emitterAddress: string) {
+async function registerEmitter(
+  emitterChain: wh.ChainId,
+  emitterAddress: string
+) {
+  try {
+    const { chain, address } = await helloWorld.getForeignEmitterData(
+      connection,
+      HELLO_WORLD_PID,
+      emitterChain
+    );
+    console.log(`Already registered ${address} for chain ${chain}`);
+    return
+  } catch (e) {
+    /*noop*/
+  }
+
   await sendAndConfirmIx(
     helloWorld.createRegisterForeignEmitterInstruction(
       connection,
@@ -55,7 +81,7 @@ async function registerEmitter(emitterChain: wh.ChainId, emitterAddress: string)
   const { chain, address } = await helloWorld.getForeignEmitterData(
     connection,
     HELLO_WORLD_PID,
-    emitterChain 
+    emitterChain
   );
   console.log(`Registered ${address} for chain ${chain}`);
 }
@@ -70,7 +96,6 @@ async function sendMessage(msg: Buffer): Promise<string> {
       msg
     )
   );
-  console.log(txid)
   return await getSequence(txid);
 }
 
@@ -105,7 +130,6 @@ async function getSequence(txid: string): Promise<string> {
 
   // TODO: flagged as deprecated, passing version tx config tho?
   const info = await connection.getTransaction(txid);
-
 
   if (info === null)
     throw new Error("Couldn't get info for transaction: " + txid);

@@ -5,11 +5,11 @@ import {CHAIN_ID_ETH, CHAIN_ID_SOLANA, getEmitterAddressEth, getEmitterAddressSo
 import * as sol_client from './solana';
 
 
-const tmp = "0x0290FB167208Af455bB137780163b7B7a9a10C16";
+const ETH_TOKEN_BRIDGE = "0x0290FB167208Af455bB137780163b7B7a9a10C16";
 
 (async function(){
 
-    const ethEmitter = getEmitterAddressEth(tmp)
+    const ethEmitter = getEmitterAddressEth(ETH_TOKEN_BRIDGE)
 
     console.log("Initializing program")
     await sol_client.initProgram()
@@ -25,7 +25,8 @@ const tmp = "0x0290FB167208Af455bB137780163b7B7a9a10C16";
     // TODO: make the guardian pick these up
     // const solEmitter = getEmitterAddressSolana(sol_client.HELLO_WORLD_PID)
     // const vaa = await getVAA(CHAIN_ID_SOLANA, solEmitter, seq)
-    const vaa = await fakeVAA(CHAIN_ID_ETH, ethEmitter, Buffer.from("hey"))
+
+    const vaa = await fakeVAA(CHAIN_ID_ETH, ethEmitter, msg, parseInt(seq));
     console.log(`Got VAA: ${parseVaa(vaa)}`)
 
     const receivedMessage = await sol_client.receiveMessage(vaa);
