@@ -15,12 +15,13 @@ import {
   programIdFromEnvVar,
   boilerPlateReduction,
 } from "../../solana/ts/tests/helpers";
-import { HelloWorld } from "../../solana/target/types/hello_world";
+import { HelloWorldContract } from "./hello-world-contract";
 
-export const HELLO_WORLD_PID = new PublicKey(
+// TODO: dont hardcode it
+// const HELLO_WORLD_PID = programIdFromEnvVar("HELLO_WORLD_PROGRAM_ID");
+const HELLO_WORLD_PID = new PublicKey(
   "3v6vnffes8BPB3tuYcMfQEp15FPjGobYaqDJn96qSb2Q"
 );
-// const HELLO_WORLD_PID = programIdFromEnvVar("HELLO_WORLD_PROGRAM_ID");
 
 const connection = new Connection(LOCALHOST, "confirmed");
 const payer = PAYER_KEYPAIR;
@@ -28,13 +29,12 @@ const payer = PAYER_KEYPAIR;
 const { requestAirdrop, postSignedMsgAsVaaOnSolana, sendAndConfirmIx } =
   boilerPlateReduction(connection, payer);
 
-async function initProgram(): Promise<helloWorld.ConfigData> {
+async function initProgram(): Promise<string> {
   try {
-    const configData = await helloWorld.getConfigData(
-      connection,
-      HELLO_WORLD_PID
-    );
-    return configData;
+    // Check to see if its been deployed
+    // an error here implies its not been deployed
+    await helloWorld.getConfigData(connection, HELLO_WORLD_PID);
+    return wh.getEmitterAddressSolana(HELLO_WORLD_PID);
   } catch (e) {
     /*noop*/
   }
@@ -48,8 +48,7 @@ async function initProgram(): Promise<helloWorld.ConfigData> {
       CORE_BRIDGE_PID
     )
   );
-
-  return await helloWorld.getConfigData(connection, HELLO_WORLD_PID);
+  return wh.getEmitterAddressSolana(HELLO_WORLD_PID);
 }
 
 async function registerEmitter(
@@ -63,7 +62,7 @@ async function registerEmitter(
       emitterChain
     );
     console.log(`Already registered ${address} for chain ${chain}`);
-    return
+    return;
   } catch (e) {
     /*noop*/
   }
@@ -137,4 +136,9 @@ async function getSequence(txid: string): Promise<string> {
   return wh.parseSequenceFromLogSolana(info);
 }
 
-export { initProgram, registerEmitter, sendMessage, receiveMessage };
+export const SolanaContract: HelloWorldContract = {
+  deploy: initProgram,
+  registerEmitter,
+  send: sendMessage,
+  receive: receiveMessage,
+};
