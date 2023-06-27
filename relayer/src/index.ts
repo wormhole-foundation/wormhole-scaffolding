@@ -1,9 +1,9 @@
 process.env.NETWORK = "devnet";
-import { CHAINS, parseVaa } from "@certusone/wormhole-sdk";
+import * as wh from "@certusone/wormhole-sdk";
 
 import { HelloWorldContract } from "./hello-world-contract";
 import { getVAA } from "./wormhole";
-import { SolanaContract } from "./solana";
+import { SolanaContract, HELLO_WORLD_PID } from "./solana";
 import { EVMContract } from "./evm";
 
 type DeployedContract = {
@@ -11,10 +11,13 @@ type DeployedContract = {
   address: string;
 };
 
-type ImplementedChain = keyof Pick<typeof CHAINS, "ethereum" | "solana">;
+type ImplementedChain = keyof Pick<typeof wh.CHAINS, "ethereum" | "solana">;
 
 const CONTRACT_CLIENTS: Record<ImplementedChain, DeployedContract> = {
-  solana: { client: SolanaContract, address: "" },
+  solana: {
+    client: SolanaContract,
+    address: wh.getEmitterAddressSolana(HELLO_WORLD_PID),
+  },
   ethereum: { client: EVMContract, address: "" },
 };
 
@@ -31,8 +34,6 @@ async function main() {
   const srcContract = CONTRACT_CLIENTS[srcName];
 
   // Choose a contract to receive the message
-  // NOTE: this is _not_ passed to the emitter since this
-  // payload is multicast
   const dstName: ImplementedChain = "ethereum";
   const destContract = CONTRACT_CLIENTS[dstName];
 
@@ -44,9 +45,9 @@ async function main() {
 
   // We have the information we need to fetch the VAA
   // from the guardian network or Wormhole API
-  // namely, [chain id, emitter address, and sequence
-  const vaa = await getVAA(CHAINS[srcName], srcContract.address, seq, msg);
-  console.log(`Got VAA: ${parseVaa(vaa)}`);
+  // namely: [chain id, emitter address, sequence]
+  const vaa = await getVAA(wh.CHAINS[srcName], srcContract.address, seq, msg);
+  console.log("Got VAA: ", wh.parseVaa(vaa));
 
   // Submit the VAA to the destination and wait for confirmation
   const payload = await destContract.client.receive(vaa);
@@ -62,22 +63,25 @@ async function deployContracts() {
       await contract.client.deploy();
   }
 
-  console.log("All contracts deployed");
+  console.log("All contracts deployed, registering emitters");
 
   for (const [srcName, srcContract] of Object.entries(CONTRACT_CLIENTS)) {
     for (const [dstName, dstContract] of Object.entries(CONTRACT_CLIENTS)) {
+      // Don't register a contract with itself
       if (srcName === dstName) continue;
 
       console.log(
-        `Registering ${srcContract.address} for ${srcName} on chain id: ${dstName}`
+        `Registering ${srcContract.address} for ${srcName} on ${dstName}`
       );
 
       await dstContract.client.registerEmitter(
-        CHAINS[srcName as ImplementedChain],
+        wh.CHAINS[srcName as ImplementedChain],
         srcContract.address
       );
     }
   }
+
+  console.log("Finished deployment an initialization");
 }
 
 (async function () {

@@ -19,7 +19,7 @@ import { HelloWorldContract } from "./hello-world-contract";
 
 // TODO: dont hardcode it
 // const HELLO_WORLD_PID = programIdFromEnvVar("HELLO_WORLD_PROGRAM_ID");
-const HELLO_WORLD_PID = new PublicKey(
+export const HELLO_WORLD_PID = new PublicKey(
   "3v6vnffes8BPB3tuYcMfQEp15FPjGobYaqDJn96qSb2Q"
 );
 
