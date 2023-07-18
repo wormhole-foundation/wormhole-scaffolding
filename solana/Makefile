@@ -107,11 +107,11 @@ unit-test: build-prerequs
 	cargo test --features $(NETWORK)
 
 integration-test: build-prerequs
-	anchor test -- --features $(NETWORK)
+	anchor test --arch sbf -- --features $(NETWORK)
 
 build: build-prerequs
 	@echo "> Building programs"
-	anchor build -- --features $(NETWORK)
+	anchor build --arch sbf -- --features $(NETWORK)
 
 build-prerequs: dependencies Anchor.toml node_modules \
     $(foreach pname,$(programs),$($(pname)_pid_bin_file))

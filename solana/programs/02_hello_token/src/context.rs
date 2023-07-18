@@ -467,7 +467,7 @@ pub struct RedeemNativeTransferWithPayload<'info> {
         ],
         bump,
         seeds::program = wormhole_program,
-        constraint = vaa.data().to() == *program_id || vaa.data().to() == config.key() @ HelloTokenError::InvalidTransferToAddress,
+        constraint = vaa.data().to() == crate::ID || vaa.data().to() == config.key() @ HelloTokenError::InvalidTransferToAddress,
         constraint = vaa.data().to_chain() == wormhole::CHAIN_ID_SOLANA @ HelloTokenError::InvalidTransferToChain,
         constraint = vaa.data().token_chain() == wormhole::CHAIN_ID_SOLANA @ HelloTokenError::InvalidTransferTokenChain
     )]
@@ -794,7 +794,7 @@ pub struct RedeemWrappedTransferWithPayload<'info> {
         ],
         bump,
         seeds::program = wormhole_program,
-        constraint = vaa.data().to() == *program_id || vaa.data().to() == config.key() @ HelloTokenError::InvalidTransferToAddress,
+        constraint = vaa.data().to() == crate::ID || vaa.data().to() == config.key() @ HelloTokenError::InvalidTransferToAddress,
         constraint = vaa.data().to_chain() == wormhole::CHAIN_ID_SOLANA @ HelloTokenError::InvalidTransferToChain,
         constraint = vaa.data().token_chain() != wormhole::CHAIN_ID_SOLANA @ HelloTokenError::InvalidTransferTokenChain
     )]

@@ -13,7 +13,8 @@ Read the design documents for each example project:
 ## Getting Started
 
 > **Warning**
-> Known to cause problems with Solana version 1.15 - downgrade to Solana 1.14.14
+> These programs are written assuming you are building with Solana 1.14.19. Any
+> higher versions are untested.
 
 First, you will need `cargo` and `anchor` CLI tools. If you need these tools,
 please visit the [Anchor book] for more details.
