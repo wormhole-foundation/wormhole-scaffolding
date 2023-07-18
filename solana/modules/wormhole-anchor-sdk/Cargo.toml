@@ -5,6 +5,7 @@ edition = "2021"
 description = "SDK using Anchor interfaces to interact with Wormhole Solana Programs"
 
 [features]
+default = ["mainnet"]
 mainnet = []
 solana-devnet = []
 tilt-devnet = []
