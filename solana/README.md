@@ -24,7 +24,13 @@ Once you have the above CLI tools, you can build the programs by simply running
 `node_modules` and the Wormhole programs from the `solana` directory of the
 [Wormhole repo].
 
+
+
 ## Tests
+
+> **Note**
+> Some users reported issues with `make --version` < 4.x. 
+> If you get a make error like `*** missing separator`, try updating to a later `make` version
 
 To run both unit and integration tests, run `make test`. If you want to isolate
 your testing, use either of these commands:
@@ -41,4 +47,4 @@ old artifacts. Then running the tests above afterwards to ensure that all of
 the tests run as you expect.
 
 [anchor book]: https://book.anchor-lang.com/getting_started/installation.html
-[wormhole repo]: https://github.com/wormhole-foundation/wormhole/tree/dev.v2/solana
+[wormhole repo]: https://github.com/wormhole-foundation/wormhole/tree/main/solana
