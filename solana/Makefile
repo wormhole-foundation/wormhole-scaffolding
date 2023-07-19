@@ -74,7 +74,7 @@ endef
 
 #`anchor keys list` generates all keypair files in target/deploy as a side effect if they don't
 # exist hence there's no rule for them yet!
-keys_list_syntax = \([^:]*\):\s*\($(base58_char)*\)
+keys_list_syntax = \([^:]*\): *\($(base58_char)*\)
 anchor_keys_list := $(shell \
   mv -f Anchor.toml Anchor.toml.tmp 2>/dev/null; cp Anchor.toml.base Anchor.toml; \
   anchor keys list | sed 's/^$(keys_list_syntax)$$/\1:\2/'; \
@@ -107,11 +107,11 @@ unit-test: build-prerequs
 	cargo test --features $(NETWORK)
 
 integration-test: build-prerequs
-	anchor test -- --features $(NETWORK)
+	anchor test --arch sbf -- --features $(NETWORK)
 
 build: build-prerequs
 	@echo "> Building programs"
-	anchor build -- --features $(NETWORK)
+	anchor build --arch sbf -- --features $(NETWORK)
 
 build-prerequs: dependencies Anchor.toml node_modules \
     $(foreach pname,$(programs),$($(pname)_pid_bin_file))

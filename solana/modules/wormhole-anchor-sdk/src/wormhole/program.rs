@@ -1,13 +1,14 @@
 use anchor_lang::prelude::*;
 
-#[cfg(feature = "mainnet")]
-declare_id!("worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth");
-
-#[cfg(feature = "solana-devnet")]
-declare_id!("3u8hJUVTA4jH1wYAyUur7FFZVQ8H635K3tSHHF4ssjQ5");
-
-#[cfg(feature = "tilt-devnet")]
-declare_id!("Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o");
+cfg_if! {
+    if #[cfg(feature = "mainnet")] {
+        declare_id!("worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth");
+    } else if #[cfg(feature = "solana-devnet")] {
+        declare_id!("3u8hJUVTA4jH1wYAyUur7FFZVQ8H635K3tSHHF4ssjQ5");
+    } else if #[cfg(feature = "tilt-devnet")]{
+        declare_id!("Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o");
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct Wormhole;

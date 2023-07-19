@@ -19,6 +19,6 @@ cpi = ["no-entrypoint"]
 default = []
 
 [dependencies]
-anchor-lang = { version="0.27.0", features = ["init-if-needed"]}
-anchor-spl = "0.27.0"
-wormhole-anchor-sdk = { path = "../../modules/wormhole-anchor-sdk", features = ["token-bridge"]}
+anchor-lang = { version="0.28.0", features = ["init-if-needed"]}
+anchor-spl = "0.28.0"
+wormhole-anchor-sdk = { path = "../../modules/wormhole-anchor-sdk", default-features = false, features = ["token-bridge"]}

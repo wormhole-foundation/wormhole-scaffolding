@@ -1,0 +1,8 @@
+node_modules
+contracts/*/build
+sui.log.*
+deploy.out
+dependencies/wormhole
+dependencies/token_bridge
+ts/tests/sui_config/authorities_db
+ts/tests/sui_config/consensus_db
