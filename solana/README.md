@@ -13,7 +13,8 @@ Read the design documents for each example project:
 ## Getting Started
 
 > **Warning**
-> Known to cause problems with Solana version 1.15 - downgrade to Solana 1.14.14
+> These programs are written assuming you are building with Solana 1.14.19. Any
+> higher versions are untested.
 
 First, you will need `cargo` and `anchor` CLI tools. If you need these tools,
 please visit the [Anchor book] for more details.
@@ -23,7 +24,13 @@ Once you have the above CLI tools, you can build the programs by simply running
 `node_modules` and the Wormhole programs from the `solana` directory of the
 [Wormhole repo].
 
+
+
 ## Tests
+
+> **Note**
+> Some users reported issues with `make --version` < 4.x. 
+> If you get a make error like `*** missing separator`, try updating to a later `make` version
 
 To run both unit and integration tests, run `make test`. If you want to isolate
 your testing, use either of these commands:
@@ -40,4 +47,4 @@ old artifacts. Then running the tests above afterwards to ensure that all of
 the tests run as you expect.
 
 [anchor book]: https://book.anchor-lang.com/getting_started/installation.html
-[wormhole repo]: https://github.com/wormhole-foundation/wormhole/tree/dev.v2/solana
+[wormhole repo]: https://github.com/wormhole-foundation/wormhole/tree/main/solana

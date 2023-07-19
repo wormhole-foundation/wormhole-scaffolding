@@ -5,11 +5,13 @@ edition = "2021"
 description = "SDK using Anchor interfaces to interact with Wormhole Solana Programs"
 
 [features]
+default = ["mainnet"]
 mainnet = []
 solana-devnet = []
 tilt-devnet = []
 token-bridge = []
 
 [dependencies]
-anchor-lang = "0.27.0"
-anchor-spl = "0.27.0"
+anchor-lang = "0.28.0"
+anchor-spl = "0.28.0"
+cfg-if = "1.0.0"

@@ -32,6 +32,9 @@ lparen := (
 rparen := )
 $(network_sos)&: #&: specifies a grouped target
 	@echo "> Fetching Solana bridge programs from Wormhole repo"
+	@if [ -d "tmp-wormhole" ]; then  \
+		rm -rf "tmp-wormhole"; \
+	fi
 	git clone \
 	  --depth 1 \
 	  --branch main \

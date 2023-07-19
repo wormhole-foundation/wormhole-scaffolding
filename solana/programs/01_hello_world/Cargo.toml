@@ -19,5 +19,5 @@ cpi = ["no-entrypoint"]
 default = []
 
 [dependencies]
-anchor-lang = { version="0.27.0", features = ["init-if-needed"]}
-wormhole-anchor-sdk = { path = "../../modules/wormhole-anchor-sdk" }
+anchor-lang = { version="0.28.0", features = ["init-if-needed"]}
+wormhole-anchor-sdk = { path = "../../modules/wormhole-anchor-sdk", default-features = false }
