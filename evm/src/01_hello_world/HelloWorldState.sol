@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache 2
-pragma solidity ^0.8.13;
+pragma solidity ^0.8.19;
 
-import {IWormhole} from "../interfaces/IWormhole.sol";
+import "modules/wormhole/IWormhole.sol";
 
 contract HelloWorldStorage {
     struct State {

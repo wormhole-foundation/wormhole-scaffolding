@@ -1,5 +1,8 @@
 # TODO
 
+## General
+* remove all references to batchVAAs
+
 ## Modules
 * perhaps disregard all following points and wait until bridges have been rewritten using Anchor?
 * extract modules (core bridge and token bridge) to be stand alone Rust crates

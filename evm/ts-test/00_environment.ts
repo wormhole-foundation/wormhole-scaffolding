@@ -28,7 +28,7 @@ import {
   formatWormholeMessageFromReceipt,
   readWormUSDContractAddress,
 } from "./helpers/utils";
-import {IWormhole__factory, IERC20__factory} from "./src/ethers-contracts";
+import {IWormhole__factory, IERC20__factory} from "../ethers-contracts";
 import {ITokenBridge__factory} from "@certusone/wormhole-sdk/lib/cjs/ethers-contracts";
 
 describe("Environment Test", () => {

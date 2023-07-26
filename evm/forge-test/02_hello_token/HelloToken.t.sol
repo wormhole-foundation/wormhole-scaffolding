@@ -1,18 +1,17 @@
 // SPDX-License-Identifier: Apache 2
-pragma solidity ^0.8.13;
+pragma solidity ^0.8.19;
 
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
 
-import {IWETH} from "../../src/interfaces/IWETH.sol";
-
-import {WormholeSimulator} from "wormhole-solidity/WormholeSimulator.sol";
+import "modules/token/IWETH.sol";
+import {WormholeSimulator, SigningWormholeSimulator} from "modules/wormhole/WormholeSimulator.sol";
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-import "../../src/02_hello_token/HelloToken.sol";
-import "../../src/02_hello_token/HelloTokenStructs.sol";
+import "contracts/02_hello_token/HelloToken.sol";
+import "contracts/02_hello_token/HelloTokenStructs.sol";
 
 /**
  * @title A Test Suite for the EVM HelloToken Contracts
@@ -55,14 +54,11 @@ contract HelloTokenTest is Test {
         // this will be used to sign Wormhole messages
         guardianSigner = uint256(vm.envBytes32("TESTING_DEVNET_GUARDIAN"));
 
-        // set up Wormhole using Wormhole existing on AVAX mainnet
-        wormholeSimulator = new WormholeSimulator(
-            vm.envAddress("TESTING_AVAX_WORMHOLE_ADDRESS"),
-            guardianSigner
-        );
-
         // we may need to interact with Wormhole throughout the test
-        wormhole = wormholeSimulator.wormhole();
+        wormhole = IWormhole(vm.envAddress("TESTING_AVAX_WORMHOLE_ADDRESS"));
+
+        // set up Wormhole using Wormhole existing on AVAX mainnet
+        wormholeSimulator = new SigningWormholeSimulator(wormhole, guardianSigner);
 
         // verify Wormhole state from fork
         require(
@@ -410,7 +406,7 @@ contract HelloTokenTest is Test {
 
         // find published wormhole messages from log
         Vm.Log[] memory publishedMessages =
-            wormholeSimulator.fetchWormholeMessageFromLog(logs, 1);
+            wormholeSimulator.fetchWormholeMessageFromLog(logs);
 
         // simulate signing the Wormhole message
         // NOTE: in the wormhole-sdk, signed Wormhole messages are referred to as signed VAAs

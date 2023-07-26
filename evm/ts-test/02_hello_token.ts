@@ -31,7 +31,7 @@ import {
   HelloToken__factory,
   ITokenBridge__factory,
   IWormhole__factory,
-} from "./src/ethers-contracts";
+} from "../ethers-contracts";
 import {makeContract} from "./helpers/io";
 import {IWETH__factory} from "@certusone/wormhole-sdk/lib/cjs/ethers-contracts";
 

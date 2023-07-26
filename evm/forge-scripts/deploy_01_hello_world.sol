@@ -5,8 +5,8 @@ pragma solidity ^0.8.0;
 import "forge-std/Script.sol";
 import "forge-std/console.sol";
 
-import {IWormhole} from "../src/interfaces/IWormhole.sol";
-import {HelloWorld} from "../src/01_hello_world/HelloWorld.sol";
+import {IWormhole} from "modules/wormhole/IWormhole.sol";
+import {HelloWorld} from "contracts/01_hello_world/HelloWorld.sol";
 
 contract ContractScript is Script {
     IWormhole wormhole;
