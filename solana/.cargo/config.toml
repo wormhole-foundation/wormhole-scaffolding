@@ -1,0 +1,4 @@
+[env]
+NFT_BURN_BRIDGING_PROGRAM_ID_FILE = "../../../target/deploy/nft_burn_bridging-program_id.bin"
+HELLO_WORLD_PROGRAM_ID_FILE = "../../../target/deploy/hello_world-program_id.bin"
+HELLO_TOKEN_PROGRAM_ID_FILE = "../../../target/deploy/hello_token-program_id.bin"
