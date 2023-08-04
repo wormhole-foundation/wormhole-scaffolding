@@ -5,11 +5,10 @@ WORMHOLE_BRIDGES := bridge token_bridge
 wormhole_sos := $(addsuffix .so, $(WORMHOLE_BRIDGES))
 network_sos := $(addprefix $(NETWORK)/,$(wormhole_sos))
 
-all: $(network_sos) mpl_token_metadata.so
+all: $(network_sos)
 
 clean:
 	$(foreach network,$(supported_networks),rm -rf $(network);)
-	rm -f mpl_token_metadata.so
 
 #building Wormhole bridges with Solana version 1.15 or newer causes very strange behavior with
 # the BPFLoaderUpgradeab1e program and how Wormhole bridges are loaded into the Solana validator
@@ -51,16 +50,3 @@ $(network_sos)&: #&: specifies a grouped target
 	  sed -n 's/^\(.*\)_ADDRESS_$(NETWORK)=\(.*\)$$/\1 = \2/p' \
 	  > $(NETWORK)/wormhole_program_ids.toml
 	rm -rf tmp-wormhole
-
-mpl_token_metadata.so:
-	@echo "> Fetching Metaplex token metadata program from Metaplex repo"
-	rm -rf tmp-metaplex
-	git clone https://github.com/metaplex-foundation/metaplex-program-library.git \
-    tmp-metaplex > /dev/null 2>&1
-
-	@echo "> Building Metaplex token metadata program"
-#metaplex build script expects to be run from the root of its repo
-	cd tmp-metaplex; ./build.sh token-metadata
-
-	mv tmp-metaplex/test-programs/mpl_token_metadata.so .
-	rm -rf tmp-metaplex
