@@ -130,7 +130,7 @@ impl Owner for SignatureSetData {
     }
 }
 
-#[derive(Default, AnchorSerialize, Clone, PartialEq, Eq)]
+#[derive(Default, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq)]
 pub struct PostedVaaData {
     pub meta: PostedVaaMeta,
     pub payload: Vec<u8>,
@@ -176,15 +176,17 @@ impl PostedVaaData {
     }
 }
 
-impl AnchorDeserialize for PostedVaaData {
-    fn deserialize(buf: &mut &[u8]) -> io::Result<Self> {
-        let buf = remove_vaa_discriminator(buf)?;
-        Ok(PostedVaaData {
-            meta: PostedVaaMeta::deserialize(&mut &buf[..88])?,
-            payload: Vec::deserialize(&mut &buf[88..])?,
-        })
-    }
-}
+//impl AnchorDeserialize for PostedVaaData {
+//     fn deserialize_reader<R: io::Read>(reader: &mut R) -> io::Result<Self> {
+//         let discriminator = <[u8; 3]>::deserialize_reader(&mut reader)?;
+//         //fn deserialize(buf: &mut &[u8]) -> io::Result<Self> {
+//         let buf = remove_vaa_discriminator(buf)?;
+//         Ok(PostedVaaData {
+//             meta: PostedVaaMeta::deserialize_reader(&mut &buf[..88])?,
+//             payload: Vec::deserialize(&mut &buf[88..])?,
+//         })
+//     }
+// }
 
 impl AccountDeserialize for PostedVaaData {
     fn try_deserialize_unchecked(buf: &mut &[u8]) -> Result<Self> {
