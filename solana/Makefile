@@ -154,11 +154,11 @@ target/network_changed:
 
 define pid_bin_file_rule
 $($(1)_pid_bin_file): $($(1)_keypair_file) node_modules
-	yarn run ts-node ts/generate_pid_bytes_file.ts $($(1)_base58_pid) $($(1)_pid_bin_file)
+	npx ts-node ts/generate_pid_bytes_file.ts $($(1)_base58_pid) $($(1)_pid_bin_file)
 endef
 $(foreach pname,$(programs),$(eval $(call pid_bin_file_rule,$(pname))))
 	
-node_modules: package.json yarn.lock
+node_modules: package.json package-lock.json
 	@echo "> Updating node modules"
-	yarn
+	npm ci
 	touch node_modules

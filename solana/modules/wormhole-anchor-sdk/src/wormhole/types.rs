@@ -6,17 +6,17 @@ pub enum Finality {
     Finalized,
 }
 
-impl Default for Finality {
-    fn default() -> Finality {
-        Finality::Confirmed
-    }
-}
+impl TryFrom<u8> for Finality {
+    type Error = std::io::Error;
 
-impl From<u8> for Finality {
-    fn from(value: u8) -> Self {
+    fn try_from(value: u8) -> std::result::Result<Self, Self::Error> {
         match value {
-            1u8 => Finality::Finalized,
-            _ => Finality::default(),
+            0 => Ok(Finality::Confirmed),
+            1 => Ok(Finality::Finalized),
+            _ => Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "invalid finality",
+            )),
         }
     }
 }

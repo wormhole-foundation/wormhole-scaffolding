@@ -1,5 +1,4 @@
 use anchor_lang::{prelude::*, solana_program};
-use std::io;
 
 use crate::wormhole::{message::PostedVaaMeta, program::ID};
 
@@ -130,7 +129,7 @@ impl Owner for SignatureSetData {
     }
 }
 
-#[derive(Default, AnchorSerialize, Clone, PartialEq, Eq)]
+#[derive(Default, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq)]
 pub struct PostedVaaData {
     pub meta: PostedVaaMeta,
     pub payload: Vec<u8>,
@@ -176,16 +175,6 @@ impl PostedVaaData {
     }
 }
 
-impl AnchorDeserialize for PostedVaaData {
-    fn deserialize(buf: &mut &[u8]) -> io::Result<Self> {
-        let buf = remove_vaa_discriminator(buf)?;
-        Ok(PostedVaaData {
-            meta: PostedVaaMeta::deserialize(&mut &buf[..88])?,
-            payload: Vec::deserialize(&mut &buf[88..])?,
-        })
-    }
-}
-
 impl AccountDeserialize for PostedVaaData {
     fn try_deserialize_unchecked(buf: &mut &[u8]) -> Result<Self> {
         Self::deserialize(buf).map_err(Into::into)
@@ -200,7 +189,7 @@ impl Owner for PostedVaaData {
     }
 }
 
-#[derive(Default, AnchorSerialize, Clone, PartialEq, Eq)]
+#[derive(Default, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq)]
 pub struct PostedVaa<D: AnchorDeserialize + AnchorSerialize> {
     pub meta: PostedVaaMeta,
     pub payload: (u32, D),
@@ -256,24 +245,21 @@ impl<D: AnchorDeserialize + AnchorSerialize> PostedVaa<D> {
     }
 }
 
-impl<D: AnchorDeserialize + AnchorSerialize> AnchorDeserialize for PostedVaa<D> {
-    fn deserialize(buf: &mut &[u8]) -> io::Result<Self> {
-        let buf = remove_vaa_discriminator(buf)?;
-        let data_size = u32::deserialize(&mut &buf[88..92])?;
-
-        Ok(PostedVaa {
-            meta: PostedVaaMeta::deserialize(&mut &buf[..88])?,
-            payload: (
-                data_size,
-                D::deserialize(&mut &buf[92..(92 + data_size as usize)])?,
-            ),
-        })
-    }
-}
-
 impl<D: AnchorDeserialize + AnchorSerialize> AccountDeserialize for PostedVaa<D> {
+    fn try_deserialize(buf: &mut &[u8]) -> Result<Self> {
+        require!(buf.len() >= 3, ErrorCode::AccountDiscriminatorNotFound);
+        let given_disc = &buf[..3];
+        require!(
+            *given_disc == *b"vaa",
+            ErrorCode::AccountDiscriminatorMismatch
+        );
+        Self::try_deserialize_unchecked(buf)
+    }
+
     fn try_deserialize_unchecked(buf: &mut &[u8]) -> Result<Self> {
-        Self::deserialize(buf).map_err(Into::into)
+        let mut data: &[u8] = &buf[3..];
+        AnchorDeserialize::deserialize(&mut data).map_err(Into::into)
+        //.map_err(|_| anchor_lang::error::ErrorCode::AccountDidNotDeserialize.into())
     }
 }
 
@@ -283,25 +269,4 @@ impl<D: AnchorDeserialize + AnchorSerialize> Owner for PostedVaa<D> {
     fn owner() -> Pubkey {
         ID
     }
-}
-
-fn remove_vaa_discriminator(buf: &'_ [u8]) -> io::Result<&[u8]> {
-    if buf.len() < 3 {
-        return Err(io::Error::new(
-            io::ErrorKind::Other,
-            "Invalid Wormhole Message",
-        ));
-    }
-
-    // We accept "vaa", "msg", or "msu" because it's convenient to read all of
-    // these as PostedVAAData
-    let expected: [&[u8]; 3] = [b"vaa", b"msg", b"msu"];
-    let magic: &[u8] = &buf[0..3];
-    if !expected.contains(&magic) {
-        return Err(io::Error::new(
-            io::ErrorKind::Other,
-            "Invalid Wormhole Message",
-        ));
-    };
-    Ok(&buf[3..])
 }

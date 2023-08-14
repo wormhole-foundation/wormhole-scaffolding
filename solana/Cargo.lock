@@ -773,7 +773,7 @@ version = "0.1.0"
 dependencies = [
  "anchor-lang",
  "anchor-spl",
- "wormhole-anchor-sdk",
+ "wormhole-anchor-sdk 0.1.0-alpha.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -781,7 +781,7 @@ name = "hello-world"
 version = "0.1.0"
 dependencies = [
  "anchor-lang",
- "wormhole-anchor-sdk",
+ "wormhole-anchor-sdk 0.1.0-alpha.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -1111,7 +1111,7 @@ dependencies = [
  "anchor-lang",
  "anchor-spl",
  "mpl-token-metadata",
- "wormhole-anchor-sdk",
+ "wormhole-anchor-sdk 0.1.0-alpha.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -2220,7 +2220,18 @@ dependencies = [
 
 [[package]]
 name = "wormhole-anchor-sdk"
-version = "0.1.0"
+version = "0.1.0-alpha.1"
+dependencies = [
+ "anchor-lang",
+ "anchor-spl",
+ "cfg-if",
+]
+
+[[package]]
+name = "wormhole-anchor-sdk"
+version = "0.1.0-alpha.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d1789eb9fd2113b6e2945cb67123b902141a9bfde1ec33762be58447eb2431f6"
 dependencies = [
  "anchor-lang",
  "anchor-spl",

@@ -470,7 +470,7 @@ describe(" 1: Hello World", function() {
       const received = await helloWorld.getReceivedData(
         connection,
         HELLO_WORLD_PID,
-        parsed.emitterChain,
+        parsed.emitterChain as ChainId, // don't do this at home, kids
         parsed.sequence
       );
       expect(received.batchId).equals(batchId);
