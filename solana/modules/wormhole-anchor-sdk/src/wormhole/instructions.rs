@@ -61,8 +61,8 @@ pub fn post_message<'info>(
             AccountMeta::new(ctx.accounts.payer.key(), true),
             AccountMeta::new(ctx.accounts.fee_collector.key(), false),
             AccountMeta::new_readonly(ctx.accounts.clock.key(), false),
-            AccountMeta::new_readonly(ctx.accounts.rent.key(), false),
             AccountMeta::new_readonly(ctx.accounts.system_program.key(), false),
+            AccountMeta::new_readonly(ctx.accounts.rent.key(), false),
         ],
         data: Instruction::PostMessage {
             batch_id,
