@@ -20,4 +20,4 @@ default = []
 
 [dependencies]
 anchor-lang = { version = "0.28.0", features = ["init-if-needed"]}
-wormhole-anchor-sdk = { version = "0.1.0-alpha.1", default-features = false }
+wormhole-anchor-sdk = { version = "0.1.0-alpha.2", default-features = false }

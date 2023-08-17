@@ -22,4 +22,4 @@ default = []
 anchor-lang = { version = "0.28.0", features=["init-if-needed"]}
 anchor-spl = { version = "0.28.0", features = [ "metadata" ] }
 mpl-token-metadata = { version = "1.9.0", features = [ "no-entrypoint" ] }
-wormhole-anchor-sdk = { version = "0.1.0-alpha.1", default-features = false }
+wormhole-anchor-sdk = { version = "0.1.0-alpha.2", default-features = false }
