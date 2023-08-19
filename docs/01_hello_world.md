@@ -35,6 +35,13 @@ To send a HelloWorld message, one will invoke the `sendMessage` method and pass 
 
 Once the message is attested by the Wormhole guardians, one will invoke the `receiveMessage` method and pass the attested Wormhole message as an argument. The receiving HelloWorld contract will parse and verify the attested Wormhole message, and save the arbitrary HelloWorld message in its state.
 
+To summarise all the Cross program invocations  that interact with Wormhole core contract made->
+1. **registerEmitter** to flag the user HelloWorld contract. 
+2. **sendMessage** invoke the message parsing of womrhole which is picked by Gaurdians.
+3. **receiveMessage** to recieve VAAs from the wormhole contract and verify the  payload. 
+<img width="646" alt="Screenshot 2023-08-19 at 7 41 58 PM" src="https://github.com/wormhole-foundation/wormhole-scaffolding/assets/88841339/03121963-1276-4ee9-baa2-33e2e92a4dbf">
+
+
 ### EVM Interface
 
 ```solidity
@@ -50,11 +57,13 @@ Once the message is attested by the Wormhole guardians, one will invoke the `rec
 
 ```rust
     pub fn initialize(ctx: Context<Initialize>)
+    // creates a public function (open for cpi)
     pub fn register_emitter(
         ctx: Context<RegisterEmitter>,
         chain: u16,
         address: [u8; 32],
     )
+    // register_emitter can only be invoked by the account owner 
     pub fn send_message(ctx: Context<SendMessage>, message: Vec<u8>)
     pub fn receive_message(ctx: Context<ReceiveMessage>, vaa_hash: [u8; 32])
 ```
