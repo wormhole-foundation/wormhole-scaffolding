@@ -11,6 +11,7 @@ If your xChain app will require EVM smart contracts, we recommend using [Foundry
 ### Solana
 
 If your xChain app will require Solana programs, prepare your development environment by installing [Solana and Anchor dependencies](https://book.anchor-lang.com/getting_started/installation.html), which include `solana` and `anchor` CLI tools.
+Anchor helps in abstracting solana architecture boilerplate code but has its own challenges so you can still write solana contracts in native rust, download ['rust-analyzer'](https://rust-analyzer.github.io/) to debug rust code.
 
 ### SUI
 
@@ -22,16 +23,18 @@ cargo install --locked --git https://github.com/MystenLabs/sui.git --rev 09b2081
 
 ### Worm CLI
 
-First, checkout the [Wormhole](https://github.com/wormhole-foundation/wormhole) repo, then install the CLI tool by running:
+First, check out the [Wormhole](https://github.com/wormhole-foundation/wormhole) repo, then install the CLI tool by running:
 
 ```sh
 wormhole/clients/js $ make install
 ```
 
 `worm` is the swiss army knife for interacting with wormhole contracts on all
-supported chains, and generating signed messages (VAAs) for testing.
+supported chains, verifying payloads, and generating VAAs. 
+Head to [Cli docs](https://docs.wormhole.com/wormhole/reference/cli-docs) to learn more. 
 
 ## Build and Test
 
 Each directory represents Wormhole integrations for specific blockchain networks. Please navigate
 to a network subdirectory to see more details on building and testing.
+If you have questions or doubts join the [wormhole discord](https://discord.gg/8dRSUqAW). 
