@@ -1,6 +1,6 @@
 # Documents
 
-## Whitepapers
+## Getting Started walkthroughts 
 
 1. [Hello World](01_hello_world.md)
    - A simple set of programs employing Wormhole's universal messaging to transmit an arbitrary message, that can be verified by any contract after integrating with Wormhole core Instructions. 
