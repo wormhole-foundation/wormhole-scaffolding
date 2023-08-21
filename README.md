@@ -3,6 +3,11 @@
 This repository warehouses apps that integrate with Wormhole generic messaging and existing apps that use Wormhole message passing. These apps range in complexity and demonstrate how to organize your business logic in your smart contracts. These examples show the basic structure of an xdapp and how the wormhole works with the respective programming environment.
 Example repos also include tests to debug and deploy the dapps in local environment. 
 
+There are 3 example dapps that give a walkthrough on some of the core components of the wormhole messaging and portal token bridge. 
+1. [Hello World](https://github.com/wormhole-foundation/wormhole-scaffolding/blob/main/docs/01_hello_world.md) -> [Solana](https://github.com/wormhole-foundation/wormhole-scaffolding/tree/main/solana/programs/01_hello_world) | [EVM](https://github.com/wormhole-foundation/wormhole-scaffolding/tree/main/evm/src/01_hello_world)
+2. [Hello Token](https://github.com/wormhole-foundation/wormhole-scaffolding/blob/main/docs/02_hello_token.md) -> [Solana](https://github.com/wormhole-foundation/wormhole-scaffolding/tree/main/solana/programs/02_hello_token) | [EVM](https://github.com/wormhole-foundation/wormhole-scaffolding/tree/main/evm/src/02_hello_token)
+3. [NFT Burn Bridging](https://github.com/wormhole-foundation/wormhole-scaffolding/blob/main/docs/03_nft_burn_bridging.md) -> [Solana](https://github.com/wormhole-foundation/wormhole-scaffolding/tree/main/solana/programs/03_nft_burn_bridging) | [EVM](https://github.com/wormhole-foundation/wormhole-scaffolding/tree/main/evm/src/03_nft_burn_bridging)
+
 ## Prerequisites
 
 ### EVM
