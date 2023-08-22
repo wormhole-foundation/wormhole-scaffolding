@@ -1,6 +1,6 @@
 # Purpose
 
-The NftBurnBridging example implements two smart contracts which allow native-to-native bridging of Metaplex NFTs from Solana to an EVM chain using a burn-and-remint mechanism. It showcases an alternative to Wormhole's NFT bridge which locks the original NFT on the source chain and mints a wrapped version on the target chain.
+The NftBurnBridging example demonstrates the implementation of two smart contracts facilitating native-to-native bridging of Metaplex NFTs from Solana to an EVM chain using a burn-and-remint mechanism. This approach provides an alternative to Wormhole's NFT bridge, where the original NFT is locked on the source chain, and a wrapped version is minted on the target chain.
 
 # Overview
 
