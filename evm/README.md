@@ -24,5 +24,5 @@ Run the Solidity-based unit tests with `make unit-test` and the local-validator 
 
 ## Deployment 
 
-The repo can either be run on a local testnet or deployed on [Ethereum mainnet + testnet with Forge](https://book.getfoundry.sh/forge/deploying).  
+The repo can either be run on a local testnet with [Anvil](https://book.getfoundry.sh/anvil/) or deployed on [Ethereum mainnet + testnet with Forge](https://book.getfoundry.sh/forge/deploying).  
 To avoid the overhead of setting up rpc and wallets, use [Remix IDE](https://remix.ethereum.org/). 
