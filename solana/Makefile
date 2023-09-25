@@ -21,8 +21,7 @@ ifdef NETWORK
 	@echo "> Building programs for $(NETWORK)"
 	anchor build --arch sbf -- --features $(NETWORK)
 else
-$(info No NETWORK specified, defaulting to local cluster (devnet))
-NETWORK = devnet
+$(error No NETWORK specified. Set NETWORK to "mainnet", "testnet" or "devnet")
 endif
 
 clean:
