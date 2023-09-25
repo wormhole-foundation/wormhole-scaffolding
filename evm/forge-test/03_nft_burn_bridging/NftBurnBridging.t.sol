@@ -12,9 +12,10 @@ import "modules/wormhole/MockWormhole.sol";
 import "modules/utils/BytesLib.sol";
 import {WormholeSimulator, FakeWormholeSimulator} from "modules/wormhole/WormholeSimulator.sol";
 
+import {TestNftBurnBridging, TestHelpers} from "./TestHelpers.sol";
 import "contracts/03_nft_burn_bridging/NftBurnBridging.sol";
 
-contract NftBurnBridgingTest is Test {
+contract NftBurnBridgingTest is TestHelpers {
   using BytesLib for bytes;
 
   string constant BASEURI = "https://our.metadata.url/";
@@ -23,12 +24,16 @@ contract NftBurnBridgingTest is Test {
   uint16  constant wormholeChainId = 2;
   // Solana has wormhole chain id 1
   uint16  constant emitterChainId = 1;
+  uint16 constant maxSupply = 15_000;
   bytes32 constant emitterAddress = bytes32("emitter address") >> 12 * 8;
+  uint8  constant finality = 201;
+  uint16 constant maxBatchSize = 10;
   bytes32 constant userAddress = bytes32("user address") >> 12 * 8;
+  uint256 constant wormholeFee = 1e6;
 
   IWormhole wormhole;
   WormholeSimulator wormholeSimulator;
-  NftBurnBridging nftBurnBridging;
+  TestNftBurnBridging nft;
 
   function setUp() public {
     MockWormhole mockWormhole = new MockWormhole({
@@ -38,48 +43,72 @@ contract NftBurnBridgingTest is Test {
     wormhole = mockWormhole;
 
     wormholeSimulator = new FakeWormholeSimulator(mockWormhole);
-    nftBurnBridging = new NftBurnBridging(wormhole, emitterChainId, emitterAddress);
-  }
+    wormholeSimulator.setMessageFee(wormholeFee);
 
-  /**
-    * TESTS
-    */
-
-  function toWormholeFormat(address addr) internal pure returns (bytes32 whFormat) {
-    return bytes32(uint256(uint160(addr)));
-  }
-
-  function fromWormholeFormat(bytes32 whFormatAddress) internal pure returns (address addr) {
-    return address(uint160(uint256(whFormatAddress)));
-  }
-
-  function craftValidVaa(uint16 tokenId, address evmRecipient) internal returns (bytes memory) {
-    IWormhole.VM memory vaa = IWormhole.VM({
-      version: 1,
-      timestamp: 0,
-      nonce: 0,
-      emitterChainId: emitterChainId,
-      emitterAddress: emitterAddress,
-      sequence: 0,
-      consistencyLevel: 1,
-      payload: abi.encodePacked(tokenId, evmRecipient),
-      guardianSetIndex: wormhole.getCurrentGuardianSetIndex(),
-      signatures: new IWormhole.Signature[](0),
-      hash: 0x00
-    });
-
-    return wormholeSimulator.encodeAndSignMessage(vaa);
-  }
-
-  function testReceiveAndMintAndURI() public {
-    uint16 tokenId = 5;
-    bytes memory mintVaa = craftValidVaa(tokenId, fromWormholeFormat(userAddress));
-    nftBurnBridging.receiveAndMint(mintVaa);
-    assertEq(nftBurnBridging.ownerOf(tokenId), fromWormholeFormat(userAddress));
-    //can't have that as a separate testcase because tokenURI requires the tokenId to exist
-    assertEq(
-      nftBurnBridging.tokenURI(tokenId),
-      string(abi.encodePacked(BASEURI, Strings.toString(tokenId), string(".json")))
+    nft = new TestNftBurnBridging(
+      wormhole, 
+      emitterChainId, 
+      emitterAddress, 
+      finality, 
+      maxBatchSize
     );
   }
+
+  function testBurnAndSend(uint16 tokenId) public {
+		vm.assume(tokenId < maxSupply);
+
+		address recipient = fromWormholeFormat(userAddress);
+
+		// mint an NFT
+		nft.mintTestOnly(recipient, tokenId);
+
+		// burn and send the NFT on polygon
+		vm.prank(address(recipient));
+		nft.approve(address(this), tokenId);
+		vm.deal(address(this), wormholeFee);
+
+    assertEq(nft.balanceOf(recipient), 1);
+    assertEq(nft.ownerOf(tokenId), recipient);
+    assertTrue(nft.exists(tokenId));
+
+		// start recording logs to capture the wormhole message
+		vm.recordLogs();
+		nft.burnAndSend{value: wormholeFee}(tokenId, recipient);
+
+		// Fetch the emitted VM and parse the payload. The wormhole message will
+		// be the second log, since the first log is the `Transfer` event.
+		Vm.Log[] memory entries = vm.getRecordedLogs();
+
+		IWormhole.VM memory vm_ = wormholeSimulator.parseVMFromLogs(entries[1]);
+		assertEq(vm_.payload.toUint16(0), tokenId);
+		assertEq(vm_.payload.toAddress(BytesLib.uint16Size), recipient);
+
+    assertEq(nft.balanceOf(recipient), 0);
+		assertFalse(nft.exists(tokenId));
+	}
+
+  function testReceiveAndMint(uint16 tokenId) public {
+		vm.assume(tokenId < maxSupply);
+
+    address recipient = fromWormholeFormat(userAddress);
+
+		// craft a VAA to mint an NFT on ethereum
+		bytes memory mintVaa = craftValidVaa(
+      wormhole, 
+      wormholeSimulator,
+			tokenId,
+			recipient,
+			emitterChainId,
+			emitterAddress
+		);
+
+		// check balances before minting
+    assertEq(nft.balanceOf(recipient), 0);
+    assertFalse(nft.exists(tokenId));
+
+		nft.receiveAndMint(mintVaa);
+
+		assertEq(nft.ownerOf(tokenId), recipient);
+		assertEq(nft.balanceOf(recipient), 1);
+	}
 }
