@@ -25,7 +25,7 @@ import {
 } from "./helpers";
 
 const FUZZ_TEST_ITERATIONS = 64;
-const HELLO_WORLD_PID = programIdFromEnvVar("HELLO_WORLD_PROGRAM_ID");
+const HELLO_WORLD_PID = new PublicKey("Scaffo1dingHe11oWor1d1111111111111111111111");
 
 describe(" 1: Hello World", function() {
   const connection = new Connection(LOCALHOST, "processed");

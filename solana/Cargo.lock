@@ -1035,9 +1035,9 @@ dependencies = [
 
 [[package]]
 name = "mpl-token-auth-rules"
-version = "1.4.3"
+version = "1.4.3-beta.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "66b1ec5ee0570f688cc84ff4624c5c50732f1a2bfc789f6b34af5b563428d971"
+checksum = "81a34d740606a10a9dac7507d0c9025d72e0ce311c68ae85b6634982cf69a9c6"
 dependencies = [
  "borsh",
  "bytemuck",
@@ -1054,9 +1054,9 @@ dependencies = [
 
 [[package]]
 name = "mpl-token-metadata"
-version = "1.13.1"
+version = "1.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "84e73b5df66f4e6f98606e3fb327cbc6a0dba8df11085246f2e766949acb96bb"
+checksum = "654976568c99887549e1291e7b7e55ae31a70732e56ebb25cb1cdfc08c018333"
 dependencies = [
  "arrayref",
  "borsh",
@@ -1094,14 +1094,13 @@ dependencies = [
 
 [[package]]
 name = "mpl-utils"
-version = "0.2.0"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "822133b6cba8f9a43e5e0e189813be63dd795858f54155c729833be472ffdb51"
+checksum = "3f2e4f92aec317d5853c0cc4c03c55f5178511c45bb3dbb441aea63117bf3dc9"
 dependencies = [
  "arrayref",
- "borsh",
  "solana-program",
- "spl-token",
+ "spl-token-2022",
 ]
 
 [[package]]
