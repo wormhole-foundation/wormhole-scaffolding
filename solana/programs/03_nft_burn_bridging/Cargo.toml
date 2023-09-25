@@ -9,6 +9,7 @@ crate-type = ["cdylib", "lib"]
 name = "nft_burn_bridging"
 
 [features]
+default = ["mainnet"]
 mainnet = ["wormhole-anchor-sdk/mainnet"]
 testnet = ["wormhole-anchor-sdk/solana-devnet"]
 devnet = ["wormhole-anchor-sdk/tilt-devnet"]
@@ -16,10 +17,9 @@ no-entrypoint = []
 no-idl = []
 no-log-ix-name = []
 cpi = ["no-entrypoint"]
-default = []
 
 [dependencies]
 anchor-lang = { version = "0.28.0", features=["init-if-needed"]}
 anchor-spl = { version = "0.28.0", features = [ "metadata" ] }
-mpl-token-metadata = { version = "1.9.0", features = [ "no-entrypoint" ] }
+mpl-token-metadata = { version = "1.13.2", features = [ "no-entrypoint" ] }
 wormhole-anchor-sdk = { version = "0.1.0-alpha.2", default-features = false }
