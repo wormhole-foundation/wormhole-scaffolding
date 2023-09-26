@@ -5,7 +5,12 @@ import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "modules/wormhole/IWormhole.sol";
 import "modules/utils/BytesLib.sol";
 
-//An ERC721 NFT contract that mints tokens based on VAAs.
+/**
+ * @notice An ERC721 NFT contract that mints tokens based on VAAs.
+ * @dev This implementation enables batch minting of tokens. The Solana
+ * implementation does not support batch minting yet. This should be considered
+ * when deploying the contract.
+ */
 contract NftBurnBridging is ERC721Enumerable {
   using BytesLib for bytes;
 
@@ -20,7 +25,12 @@ contract NftBurnBridging is ERC721Enumerable {
   uint16    private immutable _emitterChainId;
   //Finality of outbound messages
   uint8     private immutable _finality;
-  //Maximum number of tokens that can be minted in a single batch
+  /**
+   * Maximum number of tokens that can be minted in a single batch. This value 
+   * is meant to prevent the contract from running out of gas when minting a
+   * large number of tokens. Configure this value based on the gas limit of the
+   * network where the contract will be deployed.
+   */
   uint16    immutable _maxBatchSize;
   //Only VAAs from this emitter can mint NFTs
   bytes32   private immutable _emitterAddress;
