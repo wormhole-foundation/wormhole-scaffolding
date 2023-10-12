@@ -35,7 +35,7 @@ To send a HelloWorld message, one will invoke the `sendMessage` method and pass 
 
 Once the message is attested by the Wormhole guardians, one will invoke the `receiveMessage` method and pass the attested Wormhole message as an argument. The receiving HelloWorld contract will parse and verify the attested Wormhole message, and save the arbitrary HelloWorld message in its state.
 
-To summarise all the Cross program invocations  that interact with Wormhole core contract made->
+To summarise all the Cross program invocations that interact with Wormhole core contract made->
 1. **registerEmitter** to flag the user's HelloWorld contract. 
 2. **sendMessage** invoke the message parsing of wormhole which is picked by Guardians.
 3. **receiveMessage** to receive VAAs from the wormhole contract and verify the  payload. 
