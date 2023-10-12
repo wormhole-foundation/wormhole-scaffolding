@@ -7,7 +7,7 @@
      "@certusone/wormhole-sdk": "^0.9.14",
      "@metaplex-foundation/js": "^0.18.3",
      "@metaplex-foundation/mpl-token-metadata": "^2.9.0",
-     "@coral-xyz/anchor": "^0.27.0",
+     "@coral-xyz/anchor": "^0.28.0",
      "@solana/spl-token": "^0.3.7",
      "ethers": "^5.7.2"
   },
