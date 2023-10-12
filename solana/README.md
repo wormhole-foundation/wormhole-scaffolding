@@ -18,7 +18,7 @@ Read the design documents for each example project:
 > higher versions are untested.
 
 First, you will need `cargo` and `anchor` CLI tools. If you need these tools,
-Please visit the [Anchor book] for more details.
+please visit the [Anchor book] for more details.
 
 Once you have the above CLI tools, you can build the programs by simply running
 `make` that runs the [Makefile](https://github.com/wormhole-foundation/wormhole-scaffolding/blob/main/solana/Makefile) and install  subdirectory's dependencies, such as
