@@ -16,8 +16,13 @@ Install [Foundry tools](https://book.getfoundry.sh/getting-started/installation)
 
 ## Build
 
-Simply run `make` to install the necessary dependencies and to build the smart contracts.
+Simply run `make` to install the necessary dependencies and build with forge, which runs the test simultaneously.
 
 ## Test Suite
 
 Run the Solidity-based unit tests with `make unit-test` and the local-validator integration tests via `make integration-test`, or simply `make test` to run both of of them.
+
+## Deployment 
+
+The repo can either be run on a local testnet with [Anvil](https://book.getfoundry.sh/anvil/) or deployed on [Ethereum mainnet + testnet with Forge](https://book.getfoundry.sh/forge/deploying).  
+To avoid the overhead of setting up rpc and wallets, use [Remix IDE](https://remix.ethereum.org/). 
