@@ -14,7 +14,7 @@ Read the design documents for each example project:
 ## Getting Started
 
 > **Warning**
-> These programs are written assuming you are building with Solana 1.14.19. Any
+> These programs are written assuming you are building with Solana 1.14. Any
 > higher versions are untested.
 
 First, you will need `cargo` and `anchor` CLI tools. If you need these tools,
@@ -25,13 +25,22 @@ Once you have the above CLI tools, you can build the programs by simply running
 `node_modules` and the Wormhole programs from the `solana` directory of the
 [Wormhole repo].
 
+## Build
 
+Set the `NETWORK` environment variable to either "devnet", "testnet" or
+"mainnet" prior to using the `make build` command. For example:
+
+```sh
+NETWORK=testnet make build
+```
 
 ## Tests
 
 > **Note**
+
 > Some users reported issues with `make --version` < 4.x. 
 > If you get a make error like `*** missing separator`, try updating to a later `make` version with 'brew reinstall make'
+
 
 To run both unit and integration tests, run `make test`. If you want to isolate
 your testing, use either of these commands:
@@ -49,4 +58,6 @@ the tests run as you expect.
 
 [anchor book]: https://book.anchor-lang.com/getting_started/installation.html
 [wormhole repo]: https://github.com/wormhole-foundation/wormhole/tree/main/solana
+
 [Solana docs]: https://docs.solana.com/
+

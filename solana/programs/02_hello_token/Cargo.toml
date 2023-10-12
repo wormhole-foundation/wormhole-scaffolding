@@ -9,6 +9,7 @@ crate-type = ["cdylib", "lib"]
 name = "hello_token"
 
 [features]
+default = ["mainnet"]
 mainnet = ["wormhole-anchor-sdk/mainnet"]
 testnet = ["wormhole-anchor-sdk/solana-devnet"]
 devnet = ["wormhole-anchor-sdk/tilt-devnet"]
@@ -16,9 +17,9 @@ no-entrypoint = []
 no-idl = []
 no-log-ix-name = []
 cpi = ["no-entrypoint"]
-default = []
 
 [dependencies]
+solana-program = "1.16.16"
 anchor-lang = { version = "0.28.0", features = ["init-if-needed"]}
 anchor-spl = "0.28.0"
 wormhole-anchor-sdk = { version = "0.1.0-alpha.2", default-features = false, features = ["token-bridge"]}

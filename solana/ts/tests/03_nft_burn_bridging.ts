@@ -24,7 +24,7 @@ import {
   range,
 } from "./helpers";
 
-const NFT_BURN_BRIDGING_PID = programIdFromEnvVar("NFT_BURN_BRIDGING_PROGRAM_ID");
+const NFT_BURN_BRIDGING_PID = new PublicKey("Scaffo1dingNftBurnBridging11111111111111111");
 
 describe(" 3: Nft Burn Bridging", function() {
   const connection = new Connection(LOCALHOST, "processed");

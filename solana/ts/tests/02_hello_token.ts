@@ -32,7 +32,7 @@ import {
   boilerPlateReduction,
 } from "./helpers";
 
-const HELLO_TOKEN_PID = programIdFromEnvVar("HELLO_TOKEN_PROGRAM_ID");
+const HELLO_TOKEN_PID = new PublicKey("Scaffo1dingHe11oToken1111111111111111111111");
 const ETHEREUM_TOKEN_BRIDGE_ADDRESS = WORMHOLE_CONTRACTS.ethereum.token_bridge;
 
 describe(" 2: Hello Token", function() {
@@ -478,7 +478,7 @@ describe(" 2: Hello Token", function() {
                 .accounts({
                   config: helloToken.deriveRedeemerConfigKey(HELLO_TOKEN_PID),
                   foreignContract:
-                    helloToken.deriveForeignContractKey(HELLO_TOKEN_PID, parsed.emitterChain),
+                    helloToken.deriveForeignContractKey(HELLO_TOKEN_PID, parsed.emitterChain as ChainId),
                   tmpTokenAccount,
                   recipientTokenAccount: bogusTokenAccount,
                   recipient: relayer.publicKey,

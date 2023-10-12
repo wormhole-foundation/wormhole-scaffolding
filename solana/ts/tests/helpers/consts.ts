@@ -2,9 +2,7 @@ import { PublicKey, Keypair } from "@solana/web3.js";
 import { CONTRACTS } from "@certusone/wormhole-sdk";
 import { MockGuardians } from "@certusone/wormhole-sdk/lib/cjs/mock";
 
-export const NETWORK = process.env.NETWORK?.toUpperCase() as keyof typeof CONTRACTS;
-if (!(NETWORK in CONTRACTS))
-  throw new Error("NETWORK environment variable must be one of [mainnet|testnet|devnet]");
+export const NETWORK = "MAINNET";
 
 export const WORMHOLE_CONTRACTS = CONTRACTS[NETWORK];
 export const CORE_BRIDGE_PID = new PublicKey(WORMHOLE_CONTRACTS.solana.core);

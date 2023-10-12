@@ -1,0 +1,43 @@
+[features]
+seeds = false
+skip-lint = false
+
+[workspace]
+members = [
+    "programs/01_hello_world",
+    "programs/02_hello_token",
+    "programs/03_nft_burn_bridging",
+]
+
+[programs.localnet]
+hello_world = "Scaffo1dingHe11oWor1d1111111111111111111111"
+hello_token = "Scaffo1dingHe11oToken1111111111111111111111"
+nft_burn_bridging = "Scaffo1dingNftBurnBridging11111111111111111"
+
+[registry]
+url = "https://api.apr.dev"
+
+[provider]
+cluster = "localnet"
+wallet = "~/.config/solana/id.json"
+
+[scripts]
+test = "npx ts-mocha -p ./tsconfig.json -t 1000000 ts/tests/*.ts"
+
+[test]
+startup_wait = 10000
+
+[test.validator]
+url = "https://api.mainnet-beta.solana.com"
+
+### MPL Token Metadata
+[[test.validator.clone]]
+address = "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
+
+### Wormhole Core Bridge
+[[test.validator.clone]]
+address = "worm2ZoG2kUd4vFXhvjh93UUH596ayRfgQ2MgjNMTth"
+
+### Wormhole Token Bridge
+[[test.validator.clone]]
+address = "wormDTUJ6AWPNvk59vGQbDvGJmqbDTdgWgAqcLBCgUb"
