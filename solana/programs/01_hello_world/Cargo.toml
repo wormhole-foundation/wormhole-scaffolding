@@ -19,5 +19,6 @@ no-log-ix-name = []
 cpi = ["no-entrypoint"]
 
 [dependencies]
+solana-program = "1.16.16"
 anchor-lang = { version = "0.28.0", features = ["init-if-needed"]}
 wormhole-anchor-sdk = { version = "0.1.0-alpha.2", default-features = false }
