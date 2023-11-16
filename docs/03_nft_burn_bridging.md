@@ -35,7 +35,7 @@ The [Solana program](https://docs.solana.com/terminology#program) which burns Me
 
 The program supports:
 * an optional whitelist -- Passing a size argument of 0 to the `initialize` instruction disables the whitelist, otherwise it must be set to the size of the collection (there is no way to undo an initialization that used the wrong size argument!).
-* whitelisting (`whitelist` and `whitelist_bulk`) -- `whitelist` sets the corresponding bit of an NFT with the given token id to true and is hence more natural, while `whitelist_bulk` allows writing directly to the underlying bit array for a more efficient approach (primarily inteded for setting up the initial state of the whitelist).
+* whitelisting (`whitelist` and `whitelist_bulk`) -- `whitelist` sets the corresponding bit of an NFT with the given token id to true and is hence more natural, while `whitelist_bulk` allows writing directly to the underlying bit array for a more efficient approach (primarily intended for setting up the initial state of the whitelist).
 * delegating (`set_delegate`) -- Allows delegating admin functionality to a separate account (known as the delegate).
 * pausing (`set_paused`) -- So `burnAndSend` instructions will fail even if all other prerequisites are met.
 
