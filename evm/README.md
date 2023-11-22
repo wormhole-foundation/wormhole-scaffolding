@@ -20,7 +20,7 @@ Simply run `make` to install the necessary dependencies and build with forge, wh
 
 ## Test Suite
 
-Run the Solidity-based unit tests with `make unit-test` and the local-validator integration tests via `make integration-test`, or simply `make test` to run both of of them.
+Run the Solidity-based unit tests with `make unit-test` and the local-validator integration tests via `make integration-test`, or simply `make test` to run both of  them.
 
 ## Deployment 
 

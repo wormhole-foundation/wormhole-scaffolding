@@ -59,7 +59,7 @@ Please read the [evm README] for more details.
 
 ### Solana
 
-We have put tgoether the Solana directory assuming a program structure similar
+We have put together the Solana directory assuming a program structure similar
 to how `anchor init` creates your environment. Because of this, all of these
 programs are written assuming the [Anchor] framework. Here are the
 subdirectories:
@@ -160,7 +160,7 @@ different networks talk to each other can be modeled using networking
 designs like [ZeroMQ Messaging Patterns] for example.
 
 If you have a new idea for an example, you should start by writing a whitepaper
-with some psuedocode at least (targeting specific blockchain development
+with some pseudocode at least (targeting specific blockchain development
 languages is preferred, though).
 
 Here is the list of [new example issues].
