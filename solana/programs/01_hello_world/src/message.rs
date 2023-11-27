@@ -8,10 +8,8 @@ pub const HELLO_MESSAGE_MAX_LENGTH: usize = 512;
 
 #[derive(Clone)]
 /// Expected message types for this program. Only valid payloads are:
-/// * `Alive`: Payload ID == 0. Emitted when [`initialize`](crate::initialize)
-///  is called).
-/// * `Hello`: Payload ID == 1. Emitted when
-/// [`send_message`](crate::send_message) is called).
+/// * `Alive`: Payload ID == 0. Emitted when [`initialize`](crate::initialize) is called).
+/// * `Hello`: Payload ID == 1. Emitted when [`send_message`](crate::send_message) is called).
 ///
 /// Payload IDs are encoded as u8.
 pub enum HelloWorldMessage {
@@ -28,18 +26,17 @@ impl AnchorSerialize for HelloWorldMessage {
             }
             HelloWorldMessage::Hello { message } => {
                 if message.len() > HELLO_MESSAGE_MAX_LENGTH {
-                    Err(io::Error::new(
+                    return Err(io::Error::new(
                         io::ErrorKind::InvalidInput,
-                        format!("message exceeds {HELLO_MESSAGE_MAX_LENGTH} bytes"),
-                    ))
-                } else {
-                    PAYLOAD_ID_HELLO.serialize(writer)?;
-                    (message.len() as u16).to_be_bytes().serialize(writer)?;
-                    for item in message {
-                        item.serialize(writer)?;
-                    }
-                    Ok(())
+                        format!("message exceeds {} bytes", HELLO_MESSAGE_MAX_LENGTH),
+                    ));
                 }
+                PAYLOAD_ID_HELLO.serialize(writer)?;
+                (message.len() as u16).to_be_bytes().serialize(writer)?;
+                for item in message {
+                    item.serialize(writer)?;
+                }
+                Ok(())
             }
         }
     }
@@ -58,15 +55,14 @@ impl AnchorDeserialize for HelloWorldMessage {
                     u16::from_be_bytes(out) as usize
                 };
                 if length > HELLO_MESSAGE_MAX_LENGTH {
-                    Err(io::Error::new(
+                    return Err(io::Error::new(
                         io::ErrorKind::InvalidInput,
-                        format!("message exceeds {HELLO_MESSAGE_MAX_LENGTH} bytes"),
-                    ))
-                } else {
-                    Ok(HelloWorldMessage::Hello {
-                        message: buf[3..(3 + length)].to_vec(),
-                    })
+                        format!("message exceeds {} bytes", HELLO_MESSAGE_MAX_LENGTH),
+                    ));
                 }
+                Ok(HelloWorldMessage::Hello {
+                    message: buf[3..(3 + length)].to_vec(),
+                })
             }
             _ => Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
@@ -80,7 +76,7 @@ impl AnchorDeserialize for HelloWorldMessage {
 pub mod test {
     use super::*;
     use anchor_lang::prelude::Result;
-    use std::{mem::size_of, str, string::String};
+    use std::{mem::size_of, str};
 
     #[test]
     fn test_message_alive() -> Result<()> {
@@ -207,3 +203,4 @@ pub mod test {
         Ok(())
     }
 }
+
