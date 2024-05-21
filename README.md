@@ -44,4 +44,4 @@ Head to [Cli docs](https://docs.wormhole.com/wormhole/reference/cli-docs) to lea
 
 Each directory represents Wormhole integrations for specific blockchain networks. Please navigate
 to a network subdirectory to see more details on building and testing.
-If you have questions or doubts join the [wormhole discord](https://discord.gg/8dRSUqAW). 
+If you have questions or doubts join the [wormhole discord](https://discord.com/invite/wormholecrypto). 
