@@ -81,10 +81,7 @@ pub mod hello_world {
         // sign for the `wormhole::post_message` instruction.
         //
         // But for fun, we will store our emitter's bump for convenience.
-        ctx.accounts.wormhole_emitter.bump = *ctx
-            .bumps
-            .get("wormhole_emitter")
-            .ok_or(HelloWorldError::BumpNotFound)?;
+        ctx.accounts.wormhole_emitter.bump = ctx.bumps.wormhole_emitter;
 
         // This scope shows the steps of how to post a message with the
         // Wormhole program.
@@ -160,10 +157,7 @@ pub mod hello_world {
                         &[
                             SEED_PREFIX_SENT,
                             &wormhole::INITIAL_SEQUENCE.to_le_bytes()[..],
-                            &[*ctx
-                                .bumps
-                                .get("wormhole_message")
-                                .ok_or(HelloWorldError::BumpNotFound)?],
+                            &[ctx.bumps.wormhole_message],
                         ],
                         &[wormhole::SEED_PREFIX_EMITTER, &[wormhole_emitter.bump]],
                     ],
@@ -282,10 +276,7 @@ pub mod hello_world {
                     &[
                         SEED_PREFIX_SENT,
                         &ctx.accounts.wormhole_sequence.next_value().to_le_bytes()[..],
-                        &[*ctx
-                            .bumps
-                            .get("wormhole_message")
-                            .ok_or(HelloWorldError::BumpNotFound)?],
+                        &[ctx.bumps.wormhole_message],
                     ],
                     &[wormhole::SEED_PREFIX_EMITTER, &[wormhole_emitter.bump]],
                 ],

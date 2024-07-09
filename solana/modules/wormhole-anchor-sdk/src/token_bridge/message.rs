@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use std::io;
+use std::{io, slice};
 
 pub const PAYLOAD_ID_TRANSFER: u8 = 1;
 pub const PAYLOAD_ID_ASSET_META: u8 = 2;
@@ -22,35 +22,51 @@ pub struct TransferWithMeta {
 }
 
 impl AnchorDeserialize for TransferWithMeta {
-    fn deserialize(buf: &mut &[u8]) -> io::Result<Self> {
+    fn deserialize_reader<R: io::Read>(reader: &mut R) -> io::Result<Self> {
+        let mut variant = 0;
+        reader.read_exact(slice::from_mut(&mut variant))?;
         // Verify Payload ID is a token transfer with payload.
-        if buf[0] != PAYLOAD_ID_TRANSFER_WITH_PAYLOAD {
+        if variant != PAYLOAD_ID_TRANSFER_WITH_PAYLOAD {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
                 "Invalid Token Bridge Transfer With Payload",
             ));
         }
 
+        // Skip the next 24 bytes:
+        {
+            let mut _discard = [0u8; 32];
+            reader.read_exact(&mut _discard)?;
+        }
+
         // Encoded amount should be the last 8 bytes of bytes 1 through 33,
         // otherwise we will have serious issues in the Token Bridge program.
         let amount = {
-            let mut out = [0u8; 8];
-            out.copy_from_slice(&buf[25..33]);
-            u64::from_be_bytes(out)
+            let mut buf = [0u8; 8];
+            reader.read_exact(&mut buf)?;
+            u64::from_be_bytes(buf)
         };
 
         let mut token_address = [0u8; 32];
-        token_address.copy_from_slice(&buf[33..65]);
+        reader.read_exact(&mut token_address)?;
 
-        let token_chain = to_u16_be(&buf[65..67]);
+        let token_chain = {
+            let mut buf = [0u8; 2];
+            reader.read_exact(&mut buf)?;
+            u16::from_be_bytes(buf)
+        };
 
         let mut to_address = [0u8; 32];
-        to_address.copy_from_slice(&buf[67..99]);
+        reader.read_exact(&mut to_address)?;
 
-        let to_chain = to_u16_be(&buf[99..101]);
+        let to_chain = {
+            let mut buf = [0u8; 2];
+            reader.read_exact(&mut buf)?;
+            u16::from_be_bytes(buf)
+        };
 
         let mut from_address = [0u8; 32];
-        from_address.copy_from_slice(&buf[101..133]);
+        reader.read_exact(&mut from_address)?;
 
         Ok(TransferWithMeta {
             amount,
@@ -61,10 +77,4 @@ impl AnchorDeserialize for TransferWithMeta {
             from_address,
         })
     }
-}
-
-fn to_u16_be(buf: &[u8]) -> u16 {
-    let mut out = [0u8; 2];
-    out.copy_from_slice(buf);
-    u16::from_be_bytes(out)
 }

@@ -19,7 +19,7 @@ no-log-ix-name = []
 cpi = ["no-entrypoint"]
 
 [dependencies]
-solana-program = "1.16.16"
-anchor-lang = { version = "0.28.0", features = ["init-if-needed"]}
-anchor-spl = "0.28.0"
-wormhole-anchor-sdk = { version = "0.1.0-alpha.2", default-features = false, features = ["token-bridge"]}
+solana-program = "1.18.17"
+anchor-lang = { version = "0.30.1", features = ["init-if-needed"]}
+anchor-spl = "0.30.1"
+wormhole-anchor-sdk = { path = "../../modules/wormhole-anchor-sdk", default-features = false, features = ["token-bridge"]}

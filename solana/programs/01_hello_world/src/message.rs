@@ -1,5 +1,5 @@
 use anchor_lang::{prelude::Pubkey, AnchorDeserialize, AnchorSerialize};
-use std::io;
+use std::{io, slice};
 
 const PAYLOAD_ID_ALIVE: u8 = 0;
 const PAYLOAD_ID_HELLO: u8 = 1;
@@ -46,16 +46,22 @@ impl AnchorSerialize for HelloWorldMessage {
 }
 
 impl AnchorDeserialize for HelloWorldMessage {
-    fn deserialize(buf: &mut &[u8]) -> io::Result<Self> {
-        match buf[0] {
-            PAYLOAD_ID_ALIVE => Ok(HelloWorldMessage::Alive {
-                program_id: Pubkey::try_from(&buf[1..33]).unwrap(),
-            }),
+    fn deserialize_reader<R: io::Read>(reader: &mut R) -> io::Result<Self> {
+        let mut variant = 0;
+        reader.read_exact(slice::from_mut(&mut variant))?;
+        match variant {
+            PAYLOAD_ID_ALIVE => {
+                let mut buf = [0; 32];
+                reader.read_exact(&mut buf)?;
+                Ok(HelloWorldMessage::Alive {
+                    program_id: Pubkey::try_from(buf).unwrap(),
+                })
+            }
             PAYLOAD_ID_HELLO => {
                 let length = {
-                    let mut out = [0u8; 2];
-                    out.copy_from_slice(&buf[1..3]);
-                    u16::from_be_bytes(out) as usize
+                    let mut buf = [0u8; 2];
+                    reader.read_exact(&mut buf)?;
+                    u16::from_be_bytes(buf) as usize
                 };
                 if length > HELLO_MESSAGE_MAX_LENGTH {
                     Err(io::Error::new(
@@ -63,9 +69,9 @@ impl AnchorDeserialize for HelloWorldMessage {
                         format!("message exceeds {HELLO_MESSAGE_MAX_LENGTH} bytes"),
                     ))
                 } else {
-                    Ok(HelloWorldMessage::Hello {
-                        message: buf[3..(3 + length)].to_vec(),
-                    })
+                    let mut buf = vec![0; length];
+                    reader.read_exact(&mut buf)?;
+                    Ok(HelloWorldMessage::Hello { message: buf })
                 }
             }
             _ => Err(io::Error::new(

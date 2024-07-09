@@ -1,5 +1,5 @@
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
-use std::io;
+use std::{io, slice};
 use wormhole_anchor_sdk::token_bridge;
 
 const PAYLOAD_ID_HELLO: u8 = 1;
@@ -25,11 +25,15 @@ impl AnchorSerialize for HelloTokenMessage {
 }
 
 impl AnchorDeserialize for HelloTokenMessage {
-    fn deserialize(buf: &mut &[u8]) -> io::Result<Self> {
-        match buf[0] {
-            PAYLOAD_ID_HELLO => Ok(HelloTokenMessage::Hello {
-                recipient: <[u8; 32]>::deserialize(&mut &buf[1..33])?,
-            }),
+    fn deserialize_reader<R: io::Read>(reader: &mut R) -> io::Result<Self> {
+        let mut variant = 0;
+        reader.read_exact(slice::from_mut(&mut variant))?;
+        match variant {
+            PAYLOAD_ID_HELLO => {
+                let mut recipient = [0; 32];
+                reader.read_exact(&mut recipient)?;
+                Ok(HelloTokenMessage::Hello { recipient })
+            }
             _ => Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
                 "invalid payload ID",
