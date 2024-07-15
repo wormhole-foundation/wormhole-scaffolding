@@ -21,6 +21,6 @@ cpi = ["no-entrypoint"]
 [dependencies]
 solana-program = "1.18.17"
 anchor-lang = { version = "0.30.1", features=["init-if-needed"]}
-anchor-spl = { version = "0.30.1", features = [ "metadata" ] }
+anchor-spl = { version = "0.30.1", features = ["metadata"] }
 mpl-token-metadata = { version = "4" }
 wormhole-anchor-sdk = { path = "../../modules/wormhole-anchor-sdk", default-features = false }

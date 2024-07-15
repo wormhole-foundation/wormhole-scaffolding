@@ -22,3 +22,4 @@ cpi = ["no-entrypoint"]
 solana-program = "1.18.17"
 anchor-lang = { version = "0.30.1", features = ["init-if-needed"]}
 wormhole-anchor-sdk = { path = "../../modules/wormhole-anchor-sdk", default-features = false }
+wormhole-io = { workspace = true }

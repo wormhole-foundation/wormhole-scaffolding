@@ -1,5 +1,6 @@
 use anchor_lang::{prelude::Pubkey, AnchorDeserialize, AnchorSerialize};
-use std::{io, slice};
+use std::io;
+use wormhole_io::Readable;
 
 const PAYLOAD_ID_ALIVE: u8 = 0;
 const PAYLOAD_ID_HELLO: u8 = 1;
@@ -47,22 +48,12 @@ impl AnchorSerialize for HelloWorldMessage {
 
 impl AnchorDeserialize for HelloWorldMessage {
     fn deserialize_reader<R: io::Read>(reader: &mut R) -> io::Result<Self> {
-        let mut variant = 0;
-        reader.read_exact(slice::from_mut(&mut variant))?;
-        match variant {
-            PAYLOAD_ID_ALIVE => {
-                let mut buf = [0; 32];
-                reader.read_exact(&mut buf)?;
-                Ok(HelloWorldMessage::Alive {
-                    program_id: Pubkey::try_from(buf).unwrap(),
-                })
-            }
+        match u8::read(reader)? {
+            PAYLOAD_ID_ALIVE => Ok(HelloWorldMessage::Alive {
+                program_id: Pubkey::try_from(<[u8; 32]>::read(reader)?).unwrap(),
+            }),
             PAYLOAD_ID_HELLO => {
-                let length = {
-                    let mut buf = [0u8; 2];
-                    reader.read_exact(&mut buf)?;
-                    u16::from_be_bytes(buf) as usize
-                };
+                let length = u16::read(reader)? as usize;
                 if length > HELLO_MESSAGE_MAX_LENGTH {
                     Err(io::Error::new(
                         io::ErrorKind::InvalidInput,

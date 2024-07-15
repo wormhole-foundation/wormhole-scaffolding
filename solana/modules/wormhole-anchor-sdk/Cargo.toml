@@ -1,6 +1,6 @@
 [package]
 name = "wormhole-anchor-sdk"
-version = "0.30.0"
+version = "0.30.1"
 description = "SDK using Anchor interfaces to interact with Wormhole Solana Programs"
 edition = "2021"
 authors = ["W7"]
@@ -19,3 +19,7 @@ token-bridge = []
 anchor-lang = "0.30.1"
 anchor-spl = "0.30.1"
 cfg-if = "1.0.0"
+wormhole-io = { workspace = true }
+
+[dev-dependencies]
+rand = "0.8"
