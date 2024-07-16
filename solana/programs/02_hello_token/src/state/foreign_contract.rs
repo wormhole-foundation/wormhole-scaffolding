@@ -69,7 +69,7 @@ pub mod test {
             payload: (
                 0,
                 token_bridge::TransferWith::new(
-                    &token_bridge::TransferWithMeta {
+                    &token_bridge::TransferHeader {
                         amount: 1,
                         token_chain: 2,
                         token_address: Pubkey::new_unique().to_bytes(),

@@ -35,10 +35,7 @@ pub mod hello_token {
         // Set the owner of the sender config (effectively the owner of the
         // program).
         sender_config.owner = ctx.accounts.owner.key();
-        sender_config.bump = *ctx
-            .bumps
-            .get("sender_config")
-            .ok_or(HelloTokenError::BumpNotFound)?;
+        sender_config.bump = ctx.bumps.sender_config;
 
         // Set Token Bridge related addresses.
         {
@@ -58,10 +55,7 @@ pub mod hello_token {
         // Set the owner of the redeemer config (effectively the owner of the
         // program).
         redeemer_config.owner = ctx.accounts.owner.key();
-        redeemer_config.bump = *ctx
-            .bumps
-            .get("redeemer_config")
-            .ok_or(HelloTokenError::BumpNotFound)?;
+        redeemer_config.bump = ctx.bumps.redeemer_config;
         redeemer_config.relayer_fee = relayer_fee;
         redeemer_config.relayer_fee_precision = relayer_fee_precision;
 
@@ -231,10 +225,7 @@ pub mod hello_token {
                             .token_bridge_sequence
                             .next_value()
                             .to_le_bytes()[..],
-                        &[*ctx
-                            .bumps
-                            .get("wormhole_message")
-                            .ok_or(HelloTokenError::BumpNotFound)?],
+                        &[ctx.bumps.wormhole_message],
                     ],
                 ],
             ),
@@ -485,10 +476,7 @@ pub mod hello_token {
                             .token_bridge_sequence
                             .next_value()
                             .to_le_bytes()[..],
-                        &[*ctx
-                            .bumps
-                            .get("wormhole_message")
-                            .ok_or(HelloTokenError::BumpNotFound)?],
+                        &[ctx.bumps.wormhole_message],
                     ],
                 ],
             ),

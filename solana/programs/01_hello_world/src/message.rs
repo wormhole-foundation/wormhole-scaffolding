@@ -1,5 +1,6 @@
 use anchor_lang::{prelude::Pubkey, AnchorDeserialize, AnchorSerialize};
 use std::io;
+use wormhole_io::Readable;
 
 const PAYLOAD_ID_ALIVE: u8 = 0;
 const PAYLOAD_ID_HELLO: u8 = 1;
@@ -46,26 +47,22 @@ impl AnchorSerialize for HelloWorldMessage {
 }
 
 impl AnchorDeserialize for HelloWorldMessage {
-    fn deserialize(buf: &mut &[u8]) -> io::Result<Self> {
-        match buf[0] {
+    fn deserialize_reader<R: io::Read>(reader: &mut R) -> io::Result<Self> {
+        match u8::read(reader)? {
             PAYLOAD_ID_ALIVE => Ok(HelloWorldMessage::Alive {
-                program_id: Pubkey::try_from(&buf[1..33]).unwrap(),
+                program_id: Pubkey::try_from(<[u8; 32]>::read(reader)?).unwrap(),
             }),
             PAYLOAD_ID_HELLO => {
-                let length = {
-                    let mut out = [0u8; 2];
-                    out.copy_from_slice(&buf[1..3]);
-                    u16::from_be_bytes(out) as usize
-                };
+                let length = u16::read(reader)? as usize;
                 if length > HELLO_MESSAGE_MAX_LENGTH {
                     Err(io::Error::new(
                         io::ErrorKind::InvalidInput,
                         format!("message exceeds {HELLO_MESSAGE_MAX_LENGTH} bytes"),
                     ))
                 } else {
-                    Ok(HelloWorldMessage::Hello {
-                        message: buf[3..(3 + length)].to_vec(),
-                    })
+                    let mut buf = vec![0; length];
+                    reader.read_exact(&mut buf)?;
+                    Ok(HelloWorldMessage::Hello { message: buf })
                 }
             }
             _ => Err(io::Error::new(

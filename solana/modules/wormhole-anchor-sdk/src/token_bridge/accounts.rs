@@ -1,10 +1,12 @@
 use anchor_lang::prelude::*;
+use std::io::Write;
 use std::{io, ops::Deref};
+use wormhole_io::{Readable, Writeable, WriteableBytes};
 
-use crate::token_bridge::{message::TransferWithMeta, program::ID};
+use crate::token_bridge::{message::TransferHeader, program::ID};
 use crate::wormhole::{PostedVaa, CHAIN_ID_SOLANA};
 
-#[derive(Default, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Default, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq)]
 /// Token Bridge config data.
 pub struct Config {
     pub wormhole_bridge: Pubkey,
@@ -29,7 +31,7 @@ impl Owner for Config {
     }
 }
 
-#[derive(Default, Clone, PartialEq)]
+#[derive(Debug, Default, Clone, PartialEq)]
 /// Token Bridge wrapped mint. See [`anchor_spl::token::Mint`].
 pub struct WrappedMint(anchor_spl::token::Mint);
 
@@ -62,7 +64,7 @@ impl Deref for WrappedMint {
     }
 }
 
-#[derive(Default, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Default, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq)]
 /// Token Bridge wrapped metadata (for native token data).
 pub struct WrappedMeta {
     pub chain: u16,
@@ -89,7 +91,7 @@ impl Owner for WrappedMeta {
     }
 }
 
-#[derive(Default, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Default, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq)]
 /// Token Bridge foreign endpoint registration data.
 pub struct EndpointRegistration {
     pub emitter_chain: u16,
@@ -110,12 +112,12 @@ impl Owner for EndpointRegistration {
     }
 }
 
-#[derive(Default, AnchorSerialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 /// Token Bridge Transfer With Payload data. This data is found as the payload
 /// of a posted Wormhole message.
 pub struct TransferWithPayload {
-    meta: TransferWithMeta,
-    payload: Vec<u8>,
+    meta: TransferHeader,
+    payload: WriteableBytes,
 }
 
 impl TransferWithPayload {
@@ -164,25 +166,98 @@ impl TransferWithPayload {
     }
 }
 
-impl AnchorDeserialize for TransferWithPayload {
-    fn deserialize(buf: &mut &[u8]) -> io::Result<Self> {
+impl Writeable for TransferWithPayload {
+    fn write<W>(&self, writer: &mut W) -> io::Result<()>
+    where
+        W: io::Write,
+    {
+        let Self { meta, payload } = self;
+
+        meta.write(writer)?;
+        payload.write(writer)?;
+
+        Ok(())
+    }
+
+    fn written_size(&self) -> usize {
+        let Self { meta, payload } = self;
+
+        meta.written_size() + payload.written_size()
+    }
+}
+
+impl Readable for TransferWithPayload {
+    const SIZE: Option<usize> = None;
+
+    fn read<R>(reader: &mut R) -> io::Result<Self>
+    where
+        Self: Sized,
+        R: io::Read,
+    {
         Ok(TransferWithPayload {
-            meta: TransferWithMeta::deserialize(&mut &buf[..133])?,
-            payload: buf[133..].to_vec(),
+            meta: TransferHeader::read(reader)?,
+            payload: WriteableBytes::read(reader)?.into(),
         })
     }
 }
 
-#[derive(Default, AnchorSerialize, Clone, PartialEq, Eq)]
+impl AnchorSerialize for TransferWithPayload {
+    fn serialize<W: Write>(&self, writer: &mut W) -> io::Result<()> {
+        self.write(writer)
+    }
+}
+
+impl AnchorDeserialize for TransferWithPayload {
+    fn deserialize_reader<R: io::Read>(reader: &mut R) -> io::Result<Self> {
+        Readable::read(reader)
+    }
+}
+
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 /// Token Bridge Transfer with generic payload type `P`. This data is found as
 /// the payload of a posted Wormhole message.
 pub struct TransferWith<P> {
-    meta: TransferWithMeta,
+    meta: TransferHeader,
     payload: P,
 }
 
+impl<P: Writeable> Writeable for TransferWith<P> {
+    fn write<W>(&self, writer: &mut W) -> io::Result<()>
+    where
+        W: io::Write,
+    {
+        let Self { meta, payload } = self;
+
+        meta.write(writer)?;
+        payload.write(writer)?;
+
+        Ok(())
+    }
+
+    fn written_size(&self) -> usize {
+        let Self { meta, payload } = self;
+
+        meta.written_size() + payload.written_size()
+    }
+}
+
+impl<P: Readable> Readable for TransferWith<P> {
+    const SIZE: Option<usize> = None;
+
+    fn read<R>(reader: &mut R) -> io::Result<Self>
+    where
+        Self: Sized,
+        R: io::Read,
+    {
+        Ok(TransferWith {
+            meta: TransferHeader::read(reader)?,
+            payload: P::read(reader)?.into(),
+        })
+    }
+}
+
 impl<P: AnchorDeserialize + AnchorSerialize + Copy> TransferWith<P> {
-    pub fn new(meta: &TransferWithMeta, payload: &P) -> Self {
+    pub fn new(meta: &TransferHeader, payload: &P) -> Self {
         Self {
             meta: *meta,
             payload: *payload,
@@ -235,11 +310,22 @@ impl<P: AnchorDeserialize + AnchorSerialize + Copy> TransferWith<P> {
 }
 
 impl<P: AnchorSerialize + AnchorDeserialize> AnchorDeserialize for TransferWith<P> {
-    fn deserialize(buf: &mut &[u8]) -> io::Result<Self> {
+    fn deserialize_reader<R: io::Read>(reader: &mut R) -> io::Result<Self> {
         Ok(TransferWith {
-            meta: TransferWithMeta::deserialize(&mut &buf[..133])?,
-            payload: P::deserialize(&mut &buf[133..])?,
+            meta: TransferHeader::read(reader)?,
+            payload: P::deserialize_reader(reader)?,
         })
+    }
+}
+
+impl<P: AnchorSerialize + AnchorDeserialize> AnchorSerialize for TransferWith<P> {
+    fn serialize<W: Write>(&self, writer: &mut W) -> io::Result<()> {
+        let Self { meta, payload } = self;
+
+        meta.write(writer)?;
+        payload.serialize(writer)?;
+
+        Ok(())
     }
 }
 
@@ -250,3 +336,46 @@ pub type PostedTransferWithPayload = PostedVaa<TransferWithPayload>;
 /// Posted VAA (verified Wormhole message) of a Token Bridge transfer with
 /// generic payload type `P`.
 pub type PostedTransferWith<P> = PostedVaa<TransferWith<P>>;
+
+#[test]
+fn transfer_with_payload_roundtrip_serialization() {
+    use rand::prelude::*;
+
+    let rng = &mut rand::thread_rng();
+    let payload: [u8; 32] = rng.gen();
+
+    let original = TransferWithPayload {
+        meta: TransferHeader::random(rng),
+        payload: Vec::from(payload).into(),
+    };
+
+    let deserialized = TransferWithPayload::deserialize(
+        &mut original
+            .try_to_vec()
+            .expect("Serialization should work")
+            .as_ref(),
+    )
+    .expect("Deserialization should work");
+
+    assert_eq!(original, deserialized);
+}
+
+#[test]
+fn transfer_with_roundtrip_serialization() {
+    let rng = &mut rand::thread_rng();
+
+    let original = TransferWith {
+        meta: TransferHeader::random(rng),
+        payload: Pubkey::new_unique(),
+    };
+
+    let deserialized = TransferWith::deserialize(
+        &mut original
+            .try_to_vec()
+            .expect("Serialization should work")
+            .as_ref(),
+    )
+    .expect("Deserialization should work");
+
+    assert_eq!(original, deserialized);
+}

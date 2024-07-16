@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-#[derive(Default, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Default, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq)]
 pub struct PostedVaaMeta {
     /// Header of the posted VAA
     pub version: u8,
