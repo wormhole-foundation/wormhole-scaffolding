@@ -58,7 +58,7 @@ pub fn initialize(ctx: Context<Initialize>, whitelist_size: u16) -> Result<()> {
 }
 
 #[cfg(test)]
-pub mod test {
+mod test {
     use super::*;
 
     #[test]

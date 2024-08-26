@@ -3,7 +3,10 @@ use anchor_spl::{
     associated_token::AssociatedToken,
     token::{Mint, Token, TokenAccount},
 };
-use wormhole_anchor_sdk::{token_bridge, wormhole};
+use wormhole_anchor_sdk::{
+    token_bridge::{self, program::TokenBridge},
+    wormhole::{self, program::Wormhole},
+};
 
 use super::{
     state::{ForeignContract, RedeemerConfig, SenderConfig},
@@ -50,15 +53,15 @@ pub struct Initialize<'info> {
     pub redeemer_config: Box<Account<'info, RedeemerConfig>>,
 
     /// Wormhole program.
-    pub wormhole_program: Program<'info, wormhole::program::Wormhole>,
+    pub wormhole_program: Program<'info, Wormhole>,
 
     /// Token Bridge program.
-    pub token_bridge_program: Program<'info, token_bridge::program::TokenBridge>,
+    pub token_bridge_program: Program<'info, TokenBridge>,
 
     #[account(
         seeds = [token_bridge::Config::SEED_PREFIX],
         bump,
-        seeds::program = token_bridge_program,
+        seeds::program = token_bridge_program.key,
     )]
     /// Token Bridge config. Token Bridge program needs this account to
     /// invoke the Wormhole program to post messages. Even though it is a
@@ -69,7 +72,7 @@ pub struct Initialize<'info> {
     #[account(
         seeds = [token_bridge::SEED_PREFIX_AUTHORITY_SIGNER],
         bump,
-        seeds::program = token_bridge_program,
+        seeds::program = token_bridge_program.key,
     )]
     /// CHECK: Token Bridge authority signer. This isn't an account that holds
     /// data; it is purely just a signer for SPL tranfers when it is delegated
@@ -79,7 +82,7 @@ pub struct Initialize<'info> {
     #[account(
         seeds = [token_bridge::SEED_PREFIX_CUSTODY_SIGNER],
         bump,
-        seeds::program = token_bridge_program,
+        seeds::program = token_bridge_program.key,
     )]
     /// CHECK: Token Bridge custody signer. This isn't an account that holds
     /// data; it is purely just a signer for Token Bridge SPL tranfers.
@@ -88,7 +91,7 @@ pub struct Initialize<'info> {
     #[account(
         seeds = [token_bridge::SEED_PREFIX_MINT_AUTHORITY],
         bump,
-        seeds::program = token_bridge_program,
+        seeds::program = token_bridge_program.key,
     )]
     /// CHECK: Token Bridge mint authority. This isn't an account that holds
     /// data; it is purely just a signer (SPL mint authority) for Token Bridge
@@ -98,7 +101,7 @@ pub struct Initialize<'info> {
     #[account(
         seeds = [wormhole::BridgeData::SEED_PREFIX],
         bump,
-        seeds::program = wormhole_program,
+        seeds::program = wormhole_program.key,
     )]
     /// Wormhole bridge data account (a.k.a. its config).
     pub wormhole_bridge: Box<Account<'info, wormhole::BridgeData>>,
@@ -106,7 +109,7 @@ pub struct Initialize<'info> {
     #[account(
         seeds = [token_bridge::SEED_PREFIX_EMITTER],
         bump,
-        seeds::program = token_bridge_program
+        seeds::program = token_bridge_program.key
     )]
     /// CHECK: Token Bridge program's emitter account. This isn't an account
     /// that holds data; it is purely just a signer for posting Wormhole
@@ -116,7 +119,7 @@ pub struct Initialize<'info> {
     #[account(
         seeds = [wormhole::FeeCollector::SEED_PREFIX],
         bump,
-        seeds::program = wormhole_program
+        seeds::program = wormhole_program.key
     )]
     /// Wormhole fee collector account, which requires lamports before the
     /// program can post a message (if there is a fee). Token Bridge program
@@ -129,7 +132,7 @@ pub struct Initialize<'info> {
             token_bridge_emitter.key().as_ref()
         ],
         bump,
-        seeds::program = wormhole_program
+        seeds::program = wormhole_program.key
     )]
     /// Token Bridge emitter's sequence account. Like with all Wormhole
     /// emitters, this account keeps track of the sequence number of the last
@@ -178,7 +181,7 @@ pub struct RegisterForeignContract<'info> {
             token_bridge_foreign_endpoint.emitter_address.as_ref()
         ],
         bump,
-        seeds::program = token_bridge_program
+        seeds::program = token_bridge_program.key
     )]
     /// Token Bridge foreign endpoint. This account should really be one
     /// endpoint per chain, but Token Bridge's PDA allows for multiple
@@ -187,7 +190,7 @@ pub struct RegisterForeignContract<'info> {
     pub token_bridge_foreign_endpoint: Account<'info, token_bridge::EndpointRegistration>,
 
     /// Token Bridge program.
-    pub token_bridge_program: Program<'info, token_bridge::program::TokenBridge>,
+    pub token_bridge_program: Program<'info, TokenBridge>,
 
     /// System program.
     pub system_program: Program<'info, System>,
@@ -281,10 +284,10 @@ pub struct SendNativeTokensWithPayload<'info> {
     pub tmp_token_account: Box<Account<'info, TokenAccount>>,
 
     /// Wormhole program.
-    pub wormhole_program: Program<'info, wormhole::program::Wormhole>,
+    pub wormhole_program: Program<'info, Wormhole>,
 
     /// Token Bridge program.
-    pub token_bridge_program: Program<'info, token_bridge::program::TokenBridge>,
+    pub token_bridge_program: Program<'info, TokenBridge>,
 
     #[account(
         address = config.token_bridge.config @ HelloTokenError::InvalidTokenBridgeConfig
@@ -296,7 +299,7 @@ pub struct SendNativeTokensWithPayload<'info> {
         mut,
         seeds = [mint.key().as_ref()],
         bump,
-        seeds::program = token_bridge_program
+        seeds::program = token_bridge_program.key
     )]
     /// CHECK: Token Bridge custody. This is the Token Bridge program's token
     /// account that holds this mint's balance. This account needs to be
@@ -410,7 +413,8 @@ pub struct RedeemNativeTransferWithPayload<'info> {
     pub foreign_contract: Box<Account<'info, ForeignContract>>,
 
     #[account(
-        address = vaa.data().mint()
+        //address = vaa.data().mint() // This is bugged at the moment.
+        constraint = mint.key() == vaa.data().mint()
     )]
     /// Mint info. This is the SPL token that will be bridged over from the
     /// foreign contract. This must match the token address specified in the
@@ -449,10 +453,10 @@ pub struct RedeemNativeTransferWithPayload<'info> {
     pub tmp_token_account: Box<Account<'info, TokenAccount>>,
 
     /// Wormhole program.
-    pub wormhole_program: Program<'info, wormhole::program::Wormhole>,
+    pub wormhole_program: Program<'info, Wormhole>,
 
     /// Token Bridge program.
-    pub token_bridge_program: Program<'info, token_bridge::program::TokenBridge>,
+    pub token_bridge_program: Program<'info, TokenBridge>,
 
     #[account(
         address = config.token_bridge.config @ HelloTokenError::InvalidTokenBridgeConfig
@@ -466,7 +470,7 @@ pub struct RedeemNativeTransferWithPayload<'info> {
             &vaa_hash
         ],
         bump,
-        seeds::program = wormhole_program,
+        seeds::program = wormhole_program.key,
         constraint = vaa.data().to() == crate::ID || vaa.data().to() == config.key() @ HelloTokenError::InvalidTransferToAddress,
         constraint = vaa.data().to_chain() == wormhole::CHAIN_ID_SOLANA @ HelloTokenError::InvalidTransferToChain,
         constraint = vaa.data().token_chain() == wormhole::CHAIN_ID_SOLANA @ HelloTokenError::InvalidTransferTokenChain
@@ -493,7 +497,7 @@ pub struct RedeemNativeTransferWithPayload<'info> {
         mut,
         seeds = [mint.key().as_ref()],
         bump,
-        seeds::program = token_bridge_program
+        seeds::program = token_bridge_program.key
     )]
     /// CHECK: Token Bridge custody. This is the Token Bridge program's token
     /// account that holds this mint's balance.
@@ -588,10 +592,10 @@ pub struct SendWrappedTokensWithPayload<'info> {
     pub tmp_token_account: Box<Account<'info, TokenAccount>>,
 
     /// Wormhole program.
-    pub wormhole_program: Program<'info, wormhole::program::Wormhole>,
+    pub wormhole_program: Program<'info, Wormhole>,
 
     /// Token Bridge program.
-    pub token_bridge_program: Program<'info, token_bridge::program::TokenBridge>,
+    pub token_bridge_program: Program<'info, TokenBridge>,
 
     #[account(
         seeds = [
@@ -599,7 +603,7 @@ pub struct SendWrappedTokensWithPayload<'info> {
             token_bridge_wrapped_mint.key().as_ref()
         ],
         bump,
-        seeds::program = token_bridge_program
+        seeds::program = token_bridge_program.key
     )]
     /// Token Bridge program's wrapped metadata, which stores info
     /// about the token from its native chain:
@@ -722,7 +726,7 @@ pub struct RedeemWrappedTransferWithPayload<'info> {
             vaa.data().token_address()
         ],
         bump,
-        seeds::program = token_bridge_program
+        seeds::program = token_bridge_program.key
     )]
     /// Token Bridge wrapped mint info. This is the SPL token that will be
     /// bridged from the foreign contract. The wrapped mint PDA must agree
@@ -761,10 +765,10 @@ pub struct RedeemWrappedTransferWithPayload<'info> {
     pub tmp_token_account: Box<Account<'info, TokenAccount>>,
 
     /// Wormhole program.
-    pub wormhole_program: Program<'info, wormhole::program::Wormhole>,
+    pub wormhole_program: Program<'info, Wormhole>,
 
     /// Token Bridge program.
-    pub token_bridge_program: Program<'info, token_bridge::program::TokenBridge>,
+    pub token_bridge_program: Program<'info, TokenBridge>,
 
     #[account(
         seeds = [
@@ -772,7 +776,7 @@ pub struct RedeemWrappedTransferWithPayload<'info> {
             token_bridge_wrapped_mint.key().as_ref()
         ],
         bump,
-        seeds::program = token_bridge_program
+        seeds::program = token_bridge_program.key
     )]
     /// Token Bridge program's wrapped metadata, which stores info
     /// about the token from its native chain:
@@ -793,7 +797,7 @@ pub struct RedeemWrappedTransferWithPayload<'info> {
             &vaa_hash
         ],
         bump,
-        seeds::program = wormhole_program,
+        seeds::program = wormhole_program.key,
         constraint = vaa.data().to() == crate::ID || vaa.data().to() == config.key() @ HelloTokenError::InvalidTransferToAddress,
         constraint = vaa.data().to_chain() == wormhole::CHAIN_ID_SOLANA @ HelloTokenError::InvalidTransferToChain,
         constraint = vaa.data().token_chain() != wormhole::CHAIN_ID_SOLANA @ HelloTokenError::InvalidTransferTokenChain

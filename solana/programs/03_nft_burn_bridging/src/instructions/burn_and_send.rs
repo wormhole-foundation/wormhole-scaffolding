@@ -1,8 +1,11 @@
 use crate::{error::NftBurnBridging, instance::Instance};
 use anchor_lang::prelude::*;
-use anchor_spl::{metadata::MetadataAccount as Metadata, token::Token};
+use anchor_spl::{
+    metadata::{Metadata as MetadataProgram, MetadataAccount},
+    token::Token,
+};
 use mpl_token_metadata::{instructions::BurnBuilder, types::TokenStandard};
-use wormhole_anchor_sdk::wormhole;
+use wormhole_anchor_sdk::wormhole::{self, program::Wormhole};
 
 pub type EvmAddress = [u8; 20];
 
@@ -60,7 +63,7 @@ pub struct BurnAndSend<'info> {
     //we need the uri of the nft thus we have to deserialize its metadata
     //we have to box the account as to not exceed max stack offset of 4k
     /// CHECK: account will be checked by the metaplex metadata program
-    pub nft_meta: Box<Account<'info, Metadata>>,
+    pub nft_meta: Box<Account<'info, MetadataAccount>>,
 
     #[account(mut)]
     /// CHECK: account will be checked by the metaplex metadata program
@@ -98,8 +101,8 @@ pub struct BurnAndSend<'info> {
     /// CHECK: account will be checked and maybe initialized by the wormhole core bridge
     pub wormhole_sequence: UncheckedAccount<'info>,
 
-    pub wormhole_program: Program<'info, wormhole::program::Wormhole>,
-    pub metadata_program: Program<'info, anchor_spl::metadata::Metadata>,
+    pub wormhole_program: Program<'info, Wormhole>,
+    pub metadata_program: Program<'info, MetadataProgram>,
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
 
@@ -213,7 +216,7 @@ pub fn burn_and_send(ctx: Context<BurnAndSend>, evm_recipient: &EvmAddress) -> R
 }
 
 #[cfg(test)]
-pub mod test {
+mod test {
     use super::*;
 
     #[test]
