@@ -4,7 +4,7 @@ use anchor_spl::{
     metadata::{Metadata as MetadataProgram, MetadataAccount},
     token::Token,
 };
-use mpl_token_metadata::{instructions::BurnBuilder, types::TokenStandard};
+use mpl_token_metadata::{instructions::BurnBuilder, types::{BurnArgs, TokenStandard}};
 use wormhole_anchor_sdk::wormhole::{self, program::Wormhole};
 
 pub type EvmAddress = [u8; 20];
@@ -143,7 +143,8 @@ pub fn burn_and_send(ctx: Context<BurnAndSend>, evm_recipient: &EvmAddress) -> R
             .metadata(*accs.nft_meta.to_account_info().key)
             .edition(Some(*accs.nft_master_edition.key))
             .mint(*accs.nft_mint.key)
-            .token(*accs.nft_token.key);
+            .token(*accs.nft_token.key)
+            .burn_args(BurnArgs::V1 { amount: 1 });
 
         //only set the token_record account if we are dealing with a pNFT
         if let Some(TokenStandard::ProgrammableNonFungible) = accs.nft_meta.token_standard {
@@ -205,7 +206,7 @@ pub fn burn_and_send(ctx: Context<BurnAndSend>, evm_recipient: &EvmAddress) -> R
             token_id: token_id.to_be_bytes(),
             evm_recipient,
         }
-        .try_to_vec()?, //.unwrap(),
+        .try_to_vec()?,
         wormhole::Finality::Finalized,
     )?;
 

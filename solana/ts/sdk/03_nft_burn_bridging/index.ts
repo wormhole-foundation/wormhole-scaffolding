@@ -44,7 +44,7 @@ export class NftBurnBridging {
       throw Error("Collection mint can't be zero address");
     //we don't pass a cluster argument but let metaplex figure it out from the connection
     this.metaplex = new Metaplex(connection);
-    this.program = new Program<NftBurnBridgingTypes>(IDL as any, this.programId, {connection});
+    this.program = new Program<NftBurnBridgingTypes>(IDL as any, {connection});
 
     const metaplexClusterToWormholeNetwork = (cluster: Cluster) => {
       if (cluster === 'mainnet-beta')
@@ -127,7 +127,7 @@ export class NftBurnBridging {
 
     const collectionNft = await this.metaplex.nfts().findByMint({mintAddress: this.collectionMint});
 
-    return this.program.methods.initialize(whitelistSize).accounts({
+    return this.program.methods.initialize(whitelistSize).accountsStrict({
       instance: instance.address,
       payer,
       updateAuthority: collectionNft.updateAuthorityAddress,
@@ -142,7 +142,7 @@ export class NftBurnBridging {
     delegate: PublicKey | null,
   ): Promise<TransactionInstruction> {
     const instance = await this.getInstance();
-    return this.program.methods.setDelegate(delegate).accounts({
+    return this.program.methods.setDelegate(delegate).accountsStrict({
       instance: instance.address,
       updateAuthority: instance.updateAuthority!,
     }).instruction();
@@ -156,7 +156,7 @@ export class NftBurnBridging {
     if (instance.isPaused === pause)
       throw Error(`NftBurnBridging already ${pause ? "paused" : "unpaused"}`);
     
-    return this.program.methods.setPaused(pause).accounts({
+    return this.program.methods.setPaused(pause).accountsStrict({
       instance: instance.address,
       authority,
     }).instruction();
@@ -196,7 +196,7 @@ export class NftBurnBridging {
         return byteValue;
       });
 
-      return this.program.methods.whitelistBulk(chunk*whitelistBytes, Buffer.from(bytes)).accounts({
+      return this.program.methods.whitelistBulk(chunk*whitelistBytes, Buffer.from(bytes)).accountsStrict({
         instance: instance.address,
         authority,
       }).instruction();
@@ -211,7 +211,7 @@ export class NftBurnBridging {
     const tokenIdsArray = Array.isArray(tokenIds) ? tokenIds : [tokenIds];
     if (tokenIdsArray.some(id => id < 0 || id >= instance.whitelistSize!))
       throw Error("Invalid token ID");
-    return this.program.methods.whitelist(tokenIdsArray).accounts({
+    return this.program.methods.whitelist(tokenIdsArray).accountsStrict({
       instance: instance.address,
       authority,
     }).instruction();
@@ -238,7 +238,7 @@ export class NftBurnBridging {
         throw Error(`NFT with tokenId ${tokenId} not yet whitelisted`);
     }
     
-    const evmRecipientArrayified = ethers.utils.zeroPad(evmRecipient, 20);
+    const evmRecipientArrayified = Array.from(ethers.utils.zeroPad(evmRecipient, 20));
     //For normal NFTs, we can pass in an arbitrary mutable account for the token record account
     // since it will be ignored by the NftBurnBridging program anyway and it will substitute it with
     // the metadata program id which is the canonical solution according to the documentation - see
@@ -270,7 +270,7 @@ export class NftBurnBridging {
       };
     };
       
-    return this.program.methods.burnAndSend(evmRecipientArrayified).accounts({
+    return this.program.methods.burnAndSend(evmRecipientArrayified).accountsStrict({
       instance: instance.address,
       payer,
       nftOwner: nft.token.ownerAddress,
