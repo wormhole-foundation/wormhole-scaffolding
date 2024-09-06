@@ -20,7 +20,6 @@ import {
   PAYER_KEYPAIR,
   CORE_BRIDGE_PID,
   range,
-  programIdFromEnvVar,
   boilerPlateReduction,
 } from "./helpers";
 

@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use wormhole_anchor_sdk::wormhole;
+use wormhole_anchor_sdk::wormhole::{self, program::Wormhole};
 
 use crate::{
     error::HelloWorldError,
@@ -33,13 +33,13 @@ pub struct Initialize<'info> {
     pub config: Account<'info, Config>,
 
     /// Wormhole program.
-    pub wormhole_program: Program<'info, wormhole::program::Wormhole>,
+    pub wormhole_program: Program<'info, Wormhole>,
 
     #[account(
         mut,
         seeds = [wormhole::BridgeData::SEED_PREFIX],
         bump,
-        seeds::program = wormhole_program,
+        seeds::program = wormhole_program.key,
     )]
     /// Wormhole bridge data account (a.k.a. its config).
     /// [`wormhole::post_message`] requires this account be mutable.
@@ -49,7 +49,7 @@ pub struct Initialize<'info> {
         mut,
         seeds = [wormhole::FeeCollector::SEED_PREFIX],
         bump,
-        seeds::program = wormhole_program
+        seeds::program = wormhole_program.key
     )]
     /// Wormhole fee collector account, which requires lamports before the
     /// program can post a message (if there is a fee).
@@ -75,7 +75,7 @@ pub struct Initialize<'info> {
             wormhole_emitter.key().as_ref()
         ],
         bump,
-        seeds::program = wormhole_program
+        seeds::program = wormhole_program.key
     )]
     /// CHECK: Emitter's sequence account. This is not created until the first
     /// message is posted, so it needs to be an [UncheckedAccount] for the
@@ -157,7 +157,7 @@ pub struct SendMessage<'info> {
     pub config: Account<'info, Config>,
 
     /// Wormhole program.
-    pub wormhole_program: Program<'info, wormhole::program::Wormhole>,
+    pub wormhole_program: Program<'info, Wormhole>,
 
     #[account(
         mut,
@@ -212,6 +212,8 @@ pub struct SendMessage<'info> {
     pub rent: Sysvar<'info, Rent>,
 }
 
+type HelloWorldVaa = wormhole::PostedVaa<HelloWorldMessage>;
+
 #[derive(Accounts)]
 #[instruction(vaa_hash: [u8; 32])]
 pub struct ReceiveMessage<'info> {
@@ -228,7 +230,7 @@ pub struct ReceiveMessage<'info> {
     pub config: Account<'info, Config>,
 
     // Wormhole program.
-    pub wormhole_program: Program<'info, wormhole::program::Wormhole>,
+    pub wormhole_program: Program<'info, Wormhole>,
 
     #[account(
         seeds = [
@@ -236,11 +238,11 @@ pub struct ReceiveMessage<'info> {
             &vaa_hash
         ],
         bump,
-        seeds::program = wormhole_program
+        seeds::program = wormhole_program.key
     )]
     /// Verified Wormhole message account. The Wormhole program verified
     /// signatures and posted the account data here. Read-only.
-    pub posted: Account<'info, wormhole::PostedVaa<HelloWorldMessage>>,
+    pub posted: Account<'info, HelloWorldVaa>,
 
     #[account(
         seeds = [

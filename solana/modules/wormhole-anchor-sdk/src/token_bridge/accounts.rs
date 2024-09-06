@@ -6,7 +6,7 @@ use wormhole_io::{Readable, Writeable, WriteableBytes};
 use crate::token_bridge::{message::TransferHeader, program::ID};
 use crate::wormhole::{PostedVaa, CHAIN_ID_SOLANA};
 
-#[derive(Debug, Default, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Default, AnchorDeserialize, Clone, PartialEq, Eq)]
 /// Token Bridge config data.
 pub struct Config {
     pub wormhole_bridge: Pubkey,
@@ -64,7 +64,7 @@ impl Deref for WrappedMint {
     }
 }
 
-#[derive(Debug, Default, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Default, AnchorDeserialize, Clone, PartialEq, Eq)]
 /// Token Bridge wrapped metadata (for native token data).
 pub struct WrappedMeta {
     pub chain: u16,
@@ -91,7 +91,7 @@ impl Owner for WrappedMeta {
     }
 }
 
-#[derive(Debug, Default, AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq)]
+#[derive(Debug, Default, AnchorDeserialize, Clone, PartialEq, Eq)]
 /// Token Bridge foreign endpoint registration data.
 pub struct EndpointRegistration {
     pub emitter_chain: u16,
@@ -336,6 +336,38 @@ pub type PostedTransferWithPayload = PostedVaa<TransferWithPayload>;
 /// Posted VAA (verified Wormhole message) of a Token Bridge transfer with
 /// generic payload type `P`.
 pub type PostedTransferWith<P> = PostedVaa<TransferWith<P>>;
+
+#[cfg(feature = "idl-build")]
+impl Discriminator for Config {
+    const DISCRIMINATOR: &'static [u8] = &[];
+}
+
+#[cfg(feature = "idl-build")]
+impl Discriminator for EndpointRegistration {
+    const DISCRIMINATOR: &'static [u8] = &[];
+}
+
+#[cfg(feature = "idl-build")]
+impl Discriminator for WrappedMint {
+    const DISCRIMINATOR: &'static [u8] = &[];
+}
+
+#[cfg(feature = "idl-build")]
+impl Discriminator for WrappedMeta {
+    const DISCRIMINATOR: &'static [u8] = &[];
+}
+
+#[cfg(feature = "idl-build")]
+impl IdlBuild for Config {}
+
+#[cfg(feature = "idl-build")]
+impl IdlBuild for EndpointRegistration {}
+
+#[cfg(feature = "idl-build")]
+impl IdlBuild for WrappedMint {}
+
+#[cfg(feature = "idl-build")]
+impl IdlBuild for WrappedMeta {}
 
 #[test]
 fn transfer_with_payload_roundtrip_serialization() {

@@ -42,7 +42,7 @@ impl AnchorDeserialize for HelloTokenMessage {
 pub type PostedHelloTokenMessage = token_bridge::PostedTransferWith<HelloTokenMessage>;
 
 #[cfg(test)]
-pub mod test {
+mod test {
     use super::*;
     use anchor_lang::prelude::{Pubkey, Result};
     use std::mem::size_of;

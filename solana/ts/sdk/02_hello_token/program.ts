@@ -15,7 +15,6 @@ export function createHelloTokenProgramInterface(
   };
   return new Program<HelloToken>(
     IDL as any,
-    new PublicKey(programId),
     provider
   );
 }

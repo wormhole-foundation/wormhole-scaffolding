@@ -48,7 +48,7 @@ impl Config {
 }
 
 #[cfg(test)]
-pub mod test {
+mod test {
     use super::*;
     use std::mem::size_of;
 

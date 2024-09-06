@@ -15,7 +15,6 @@ export function createHelloWorldProgramInterface(
   };
   return new Program<HelloWorld>(
     IDL as any,
-    new PublicKey(programId),
     provider
   );
 }

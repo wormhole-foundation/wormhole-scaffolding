@@ -4,12 +4,12 @@
     "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check"
   },
   "dependencies": {
-     "@certusone/wormhole-sdk": "^0.9.14",
-     "@metaplex-foundation/js": "^0.18.3",
-     "@metaplex-foundation/mpl-token-metadata": "^2.9.0",
-     "@coral-xyz/anchor": "^0.28.0",
-     "@solana/spl-token": "^0.3.7",
-     "ethers": "^5.7.2"
+    "@certusone/wormhole-sdk": "^0.9.14",
+    "@metaplex-foundation/js": "^0.18.3",
+    "@metaplex-foundation/mpl-token-metadata": "^2.9.0",
+    "@coral-xyz/anchor": "^0.30.1",
+    "@solana/spl-token": "^0.3.7",
+    "ethers": "^5.7.2"
   },
   "devDependencies": {
     "@types/bn.js": "^5.1.0",
