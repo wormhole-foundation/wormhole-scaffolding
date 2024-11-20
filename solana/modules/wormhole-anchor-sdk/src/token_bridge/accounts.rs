@@ -3,6 +3,9 @@ use std::io::Write;
 use std::{io, ops::Deref};
 use wormhole_io::{Readable, Writeable, WriteableBytes};
 
+#[cfg(feature = "idl-build")]
+use anchor_lang::{Discriminator, IdlBuild};
+
 use crate::token_bridge::{message::TransferHeader, program::ID};
 use crate::wormhole::{PostedVaa, CHAIN_ID_SOLANA};
 
@@ -337,24 +340,26 @@ pub type PostedTransferWithPayload = PostedVaa<TransferWithPayload>;
 /// generic payload type `P`.
 pub type PostedTransferWith<P> = PostedVaa<TransferWith<P>>;
 
+// NOTE: These impls are non-standard and are only used for IDL generation.
+
 #[cfg(feature = "idl-build")]
 impl Discriminator for Config {
-    const DISCRIMINATOR: &'static [u8] = &[];
+    const DISCRIMINATOR: [u8; 8] = [0; 8];
 }
 
 #[cfg(feature = "idl-build")]
 impl Discriminator for EndpointRegistration {
-    const DISCRIMINATOR: &'static [u8] = &[];
+    const DISCRIMINATOR: [u8; 8] = [0; 8];
 }
 
 #[cfg(feature = "idl-build")]
 impl Discriminator for WrappedMint {
-    const DISCRIMINATOR: &'static [u8] = &[];
+    const DISCRIMINATOR: [u8; 8] = [0; 8];
 }
 
 #[cfg(feature = "idl-build")]
 impl Discriminator for WrappedMeta {
-    const DISCRIMINATOR: &'static [u8] = &[];
+    const DISCRIMINATOR: [u8; 8] = [0; 8];
 }
 
 #[cfg(feature = "idl-build")]
