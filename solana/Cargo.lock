@@ -2704,7 +2704,7 @@ dependencies = [
 
 [[package]]
 name = "wormhole-anchor-sdk"
-version = "0.30.1-alpha.2"
+version = "0.30.1-alpha.3"
 dependencies = [
  "anchor-lang",
  "anchor-spl",
