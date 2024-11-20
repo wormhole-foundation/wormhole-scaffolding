@@ -3,6 +3,9 @@ use std::io::Write;
 use std::{io, ops::Deref};
 use wormhole_io::{Readable, Writeable, WriteableBytes};
 
+#[cfg(feature = "idl-build")]
+use anchor_lang::{Discriminator, IdlBuild};
+
 use crate::token_bridge::{message::TransferHeader, program::ID};
 use crate::wormhole::{PostedVaa, CHAIN_ID_SOLANA};
 

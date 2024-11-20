@@ -1,5 +1,8 @@
 use anchor_lang::{prelude::*, solana_program};
 
+#[cfg(feature = "idl-build")]
+use anchor_lang::{Discriminator, IdlBuild};
+
 use crate::wormhole::{message::PostedVaaMeta, program::ID};
 
 #[derive(Debug, Default, AnchorDeserialize, Clone, PartialEq, Eq)]
