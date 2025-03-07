@@ -1,5 +1,8 @@
 use anchor_lang::{prelude::*, solana_program};
 
+#[cfg(feature = "idl-build")]
+use anchor_lang::{Discriminator, IdlBuild};
+
 use crate::wormhole::{message::PostedVaaMeta, program::ID};
 
 #[derive(Debug, Default, AnchorDeserialize, Clone, PartialEq, Eq)]
@@ -271,24 +274,26 @@ impl<D: AnchorDeserialize + AnchorSerialize> Owner for PostedVaa<D> {
     }
 }
 
+// NOTE: These impls are non-standard and are only used for IDL generation.
+
 #[cfg(feature = "idl-build")]
 impl Discriminator for BridgeData {
-    const DISCRIMINATOR: &'static [u8] = &[];
+    const DISCRIMINATOR: [u8; 8] = [0; 8];
 }
 
 #[cfg(feature = "idl-build")]
 impl Discriminator for FeeCollector {
-    const DISCRIMINATOR: &'static [u8] = &[];
+    const DISCRIMINATOR: [u8; 8] = [0; 8];
 }
 
 #[cfg(feature = "idl-build")]
 impl Discriminator for SequenceTracker {
-    const DISCRIMINATOR: &'static [u8] = &[];
+    const DISCRIMINATOR: [u8; 8] = [0; 8];
 }
 
 #[cfg(feature = "idl-build")]
 impl<T: AnchorSerialize + AnchorDeserialize> Discriminator for PostedVaa<T> {
-    const DISCRIMINATOR: &'static [u8] = &[];
+    const DISCRIMINATOR: [u8; 8] = [0; 8];
 }
 
 #[cfg(feature = "idl-build")]
