@@ -24,7 +24,7 @@ idl-build = [
 ]
 
 [dependencies]
-solana-program = "1.18.17"
+solana-program = "2.1.0"
 anchor-lang = { workspace = true }
 anchor-spl = { workspace = true }
 wormhole-anchor-sdk = { path = "../../modules/wormhole-anchor-sdk", default-features = false, features = [
