@@ -1,4 +1,4 @@
-use anchor_lang::{prelude::*, solana_program,};
+use anchor_lang::{prelude::*, solana_program};
 
 use crate::wormhole::{message::PostedVaaMeta, program::ID};
 
