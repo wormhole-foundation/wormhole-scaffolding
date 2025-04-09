@@ -1,48 +1,47 @@
-.DEFAULT_GOAL = build
-.PHONY: build test unit-test integration-test clean
+.DEFAULT_GOAL := build
+.PHONY: build test unit-test integration-test clean node_modules
+
+# -------------------------- Configuration --------------------------
 
 SUPPORTED_NETWORKS := mainnet testnet devnet
 
-ifndef NETWORK
-  NETWORK := $(shell cat default_network 2>/dev/null)
-  ifndef NETWORK
-    $(info No NETWORK specified, defaulting to local cluster (devnet))
-    NETWORK := devnet
-  else
-    $(info using NETWORK from default_network file: $(NETWORK))
-  endif
+NETWORK ?= $(shell cat default_network 2>/dev/null || echo "")
+ifeq ($(NETWORK),)
+  $(info No NETWORK specified, defaulting to local cluster (devnet))
+  NETWORK := devnet
+else
+  $(info Using NETWORK from default_network file: $(NETWORK))
 endif
 
-NETWORK := $(strip $(NETWORK))
-ifeq ($(strip $(filter $(SUPPORTED_NETWORKS),$(NETWORK))),)
-  $(error Invalid choice $(NETWORK) for NETWORK - must be one of $(SUPPORTED_NETWORKS))
+ifeq ($(filter $(NETWORK),$(SUPPORTED_NETWORKS)),)
+  $(error Invalid choice "$(NETWORK)" for NETWORK - must be one of: $(SUPPORTED_NETWORKS))
 endif
+
+# Save the chosen network to a file
 $(shell echo $(NETWORK) > default_network)
 
-# ----------------------------------------- IMPLEMENTATION -----------------------------------------
+# --------------------------- Targets -------------------------------
+
+build:
+	@echo "> Building programs for $(NETWORK)"
+	@anchor build --arch sbf -- --features $(NETWORK)
 
 test: unit-test integration-test
 
 unit-test:
-	cargo clippy --all-features -- --allow clippy::result_large_err
-	cargo test --all-features
+	@echo "> Running unit tests"
+	@cargo clippy --all-features -- --allow clippy::result_large_err
+	@cargo test --all-features
 
 integration-test: node_modules
-	anchor test --arch sbf
-
-
-#WARNING regarding naming conflicts between Solana clusters and Wormhole networks!
-#testnet actually refers to Solana's devnet cluster (Solana also has a cluster called testnet but
-# that is meant for trying out new version/releases of the protocol and not for smart contract devs)
-#devnet refers to Wormhole's tilt devnet i.e. it's a local cluster
-build:
-	@echo "> Building programs for $(NETWORK)"
-	anchor build --arch sbf -- --features $(NETWORK)
+	@echo "> Running integration tests"
+	@anchor test --arch sbf
 
 clean:
-	rm -rf node_modules target .anchor
+	@echo "> Cleaning build artifacts"
+	@rm -rf node_modules target .anchor
 
 node_modules: package.json package-lock.json
-	@echo "> Updating node modules"
-	npm ci
-	touch node_modules
+	@echo "> Installing node modules"
+	@npm ci
+	@touch node_modules
