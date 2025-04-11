@@ -8,7 +8,6 @@ Read the design documents for each example project:
 
 1. [HelloWorld](../docs/01_hello_world.md)
 2. [HelloToken](../docs/02_hello_token.md)
-3. [NftBurnBridging](../docs/03_nft_burn_bridging.md)
 
 ## Prerequisites
 
