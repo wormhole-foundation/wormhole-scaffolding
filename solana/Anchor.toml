@@ -6,13 +6,11 @@ skip-lint = false
 members = [
     "programs/01_hello_world",
     "programs/02_hello_token",
-    "programs/03_nft_burn_bridging",
 ]
 
 [programs.localnet]
 hello_world = "Scaffo1dingHe11oWor1d1111111111111111111111"
 hello_token = "Scaffo1dingHe11oToken1111111111111111111111"
-nft_burn_bridging = "Scaffo1dingNftBurnBridging11111111111111111"
 
 [registry]
 url = "https://api.apr.dev"
