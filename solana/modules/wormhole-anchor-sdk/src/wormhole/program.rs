@@ -7,6 +7,8 @@ cfg_if! {
         declare_id!("3u8hJUVTA4jH1wYAyUur7FFZVQ8H635K3tSHHF4ssjQ5");
     } else if #[cfg(feature = "tilt-devnet")]{
         declare_id!("Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o");
+    } else if #[cfg(feature = "fogo-devnet")] {
+        declare_id!("BhnQyKoQQgpuRTRo6D8Emz93PvXCYfVgHhnrR4T3qhw4");
     }
 }
 
