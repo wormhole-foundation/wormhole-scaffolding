@@ -3,7 +3,9 @@ use std::io::Write;
 use std::{io, ops::Deref};
 use wormhole_io::{Readable, Writeable, WriteableBytes};
 
-use crate::token_bridge::{message::TransferHeader, program::ID};
+use crate::token_bridge::message::TransferHeader;
+
+use super::program::TokenBridge;
 use crate::wormhole::{PostedVaa, CHAIN_ID_SOLANA};
 
 #[derive(Debug, Default, AnchorDeserialize, Clone, PartialEq, Eq)]
@@ -27,7 +29,7 @@ impl AccountSerialize for Config {}
 
 impl Owner for Config {
     fn owner() -> Pubkey {
-        ID
+        TokenBridge::id()
     }
 }
 
@@ -87,7 +89,7 @@ impl AccountSerialize for WrappedMeta {}
 
 impl Owner for WrappedMeta {
     fn owner() -> Pubkey {
-        ID
+        TokenBridge::id()
     }
 }
 
@@ -108,7 +110,7 @@ impl AccountSerialize for EndpointRegistration {}
 
 impl Owner for EndpointRegistration {
     fn owner() -> Pubkey {
-        ID
+        TokenBridge::id()
     }
 }
 
