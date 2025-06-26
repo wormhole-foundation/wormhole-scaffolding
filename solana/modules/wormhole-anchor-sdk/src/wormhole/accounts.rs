@@ -1,6 +1,8 @@
 use anchor_lang::{prelude::*, solana_program};
 
-use crate::wormhole::{message::PostedVaaMeta, program::ID};
+use crate::wormhole::message::PostedVaaMeta;
+
+use super::program::Wormhole;
 
 #[derive(Debug, Default, AnchorDeserialize, Clone, PartialEq, Eq)]
 pub struct BridgeData {
@@ -47,7 +49,7 @@ impl AccountSerialize for BridgeData {}
 
 impl Owner for BridgeData {
     fn owner() -> Pubkey {
-        ID
+        Wormhole::id()
     }
 }
 
@@ -99,7 +101,7 @@ impl AccountSerialize for SequenceTracker {}
 
 impl Owner for SequenceTracker {
     fn owner() -> Pubkey {
-        ID
+        Wormhole::id()
     }
 }
 
@@ -125,7 +127,7 @@ impl AccountSerialize for SignatureSetData {}
 
 impl Owner for SignatureSetData {
     fn owner() -> Pubkey {
-        ID
+        Wormhole::id()
     }
 }
 
@@ -185,7 +187,7 @@ impl AccountSerialize for PostedVaaData {}
 
 impl Owner for PostedVaaData {
     fn owner() -> Pubkey {
-        ID
+        Wormhole::id()
     }
 }
 
@@ -267,7 +269,7 @@ impl<D: AnchorDeserialize + AnchorSerialize> AccountSerialize for PostedVaa<D> {
 
 impl<D: AnchorDeserialize + AnchorSerialize> Owner for PostedVaa<D> {
     fn owner() -> Pubkey {
-        ID
+        Wormhole::id()
     }
 }
 
