@@ -13,6 +13,8 @@ impl Id for Wormhole {
                 let pubkey = "3u8hJUVTA4jH1wYAyUur7FFZVQ8H635K3tSHHF4ssjQ5";
             } else if #[cfg(feature = "tilt-devnet")]{
                 let pubkey = "Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o";
+            } else if #[cfg(feature = "fogo-devnet")] {
+                let pubkey = "BhnQyKoQQgpuRTRo6D8Emz93PvXCYfVgHhnrR4T3qhw4";
             } else if #[cfg(feature = "bridge-address-from-env")]{
                 let pubkey = env!("BRIDGE_ADDRESS");
             } else {

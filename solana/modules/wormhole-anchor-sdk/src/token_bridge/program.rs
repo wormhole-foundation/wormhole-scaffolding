@@ -13,6 +13,8 @@ impl Id for TokenBridge {
                 let pubkey = "DZnkkTmCiFWfYTfT41X3Rd1kDgozqzxWaHqsw6W4x2oe";
             } else if #[cfg(feature = "tilt-devnet")] {
                 let pubkey = "B6RHG3mfcckmrYN1UhmJzyS1XX3fZKbkeUcpJe9Sy3FE";
+            } else if #[cfg(feature = "fogo-devnet")] {
+                let pubkey = "78HdStBqCMioGii9D8mF3zQaWDqDZBQWTUwjjpdmbJKX";
             } else if #[cfg(feature = "bridge-address-from-env")]{
                 let pubkey = env!("TOKEN_BRIDGE_ADDRESS");
             } else {
