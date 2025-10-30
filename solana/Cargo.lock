@@ -3084,7 +3084,7 @@ checksum = "b021a14ea7bcef9517ed9f81d4466c4a663dd90e726c5724707a976fa83ad8f3"
 [[package]]
 name = "wormhole-svm-definitions"
 version = "1.0.0"
-source = "git+https://github.com/wormhole-foundation/wormhole?rev=d8f6acc2c533000c955a1a86d0690271ad6733d9#d8f6acc2c533000c955a1a86d0690271ad6733d9"
+source = "git+https://github.com/wormhole-foundation/wormhole?rev=325cca4b628f17536f54b079eeb82b41247bfbef#325cca4b628f17536f54b079eeb82b41247bfbef"
 dependencies = [
  "cfg-if",
  "const-crypto",

@@ -9,11 +9,12 @@ homepage = "https://github.com/wormhole-foundation/wormhole-scaffolding"
 repository = "https://github.com/wormhole-foundation/wormhole-scaffolding"
 
 [features]
-default = []
+default = ["chain-id"]
 mainnet = ["wormhole-svm-definitions/solana"]
 solana-devnet = ["wormhole-svm-definitions/solana", "wormhole-svm-definitions/testnet"]
 tilt-devnet = ["wormhole-svm-definitions/solana", "wormhole-svm-definitions/localnet"]
 from-env = ["wormhole-svm-definitions/from-env"]
+chain-id = ["wormhole-svm-definitions/chain-id"]
 token-bridge = ["wormhole-svm-definitions/token-bridge"]
 idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
 
@@ -24,7 +25,8 @@ no-custom-discriminator = []
 [dependencies]
 anchor-lang = { version = "0" }
 anchor-spl = { version = "0" }
-wormhole-svm-definitions = { git = "https://github.com/wormhole-foundation/wormhole", rev = "d8f6acc2c533000c955a1a86d0690271ad6733d9" } # TODO: update once https://github.com/wormhole-foundation/wormhole/pull/4559 is merged
+# NOTE: this is the `main` commit at the time of writing.
+wormhole-svm-definitions = { git = "https://github.com/wormhole-foundation/wormhole", rev = "325cca4b628f17536f54b079eeb82b41247bfbef" }
 cfg-if = "1.0.0"
 wormhole-io = { workspace = true }
 
