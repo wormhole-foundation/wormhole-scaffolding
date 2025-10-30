@@ -1,6 +1,6 @@
 [package]
 name = "wormhole-anchor-sdk"
-version = "0.31.0"
+version = "1.0.0"
 description = "SDK using Anchor interfaces to interact with Wormhole Solana Programs"
 edition = "2021"
 authors = ["W7"]
@@ -9,18 +9,22 @@ homepage = "https://github.com/wormhole-foundation/wormhole-scaffolding"
 repository = "https://github.com/wormhole-foundation/wormhole-scaffolding"
 
 [features]
-default = ["mainnet"]
-mainnet = []
-solana-devnet = []
-tilt-devnet = []
-fogo-testnet = []
-bridge-address-from-env = []
-token-bridge = []
+default = []
+mainnet = ["wormhole-svm-definitions/solana"]
+solana-devnet = ["wormhole-svm-definitions/solana", "wormhole-svm-definitions/testnet"]
+tilt-devnet = ["wormhole-svm-definitions/solana", "wormhole-svm-definitions/localnet"]
+from-env = ["wormhole-svm-definitions/from-env"]
+token-bridge = ["wormhole-svm-definitions/token-bridge"]
 idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
 
+# for older anchors that don't support the custom discriminator. the IDL will
+# not be correct then, but at least it builds
+no-custom-discriminator = []
+
 [dependencies]
-anchor-lang = { workspace = true }
-anchor-spl = { workspace = true }
+anchor-lang = { version = "0" }
+anchor-spl = { version = "0" }
+wormhole-svm-definitions = { git = "https://github.com/wormhole-foundation/wormhole", rev = "d8f6acc2c533000c955a1a86d0690271ad6733d9" } # TODO: update once https://github.com/wormhole-foundation/wormhole/pull/4559 is merged
 cfg-if = "1.0.0"
 wormhole-io = { workspace = true }
 
