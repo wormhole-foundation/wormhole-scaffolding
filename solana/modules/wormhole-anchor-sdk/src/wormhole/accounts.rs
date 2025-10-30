@@ -273,22 +273,22 @@ impl<D: AnchorDeserialize + AnchorSerialize> Owner for PostedVaa<D> {
     }
 }
 
-#[cfg(feature = "idl-build")]
+#[cfg(all(feature = "idl-build", not(feature = "no-custom-discriminator")))]
 impl Discriminator for BridgeData {
     const DISCRIMINATOR: &'static [u8] = &[];
 }
 
-#[cfg(feature = "idl-build")]
+#[cfg(all(feature = "idl-build", not(feature = "no-custom-discriminator")))]
 impl Discriminator for FeeCollector {
     const DISCRIMINATOR: &'static [u8] = &[];
 }
 
-#[cfg(feature = "idl-build")]
+#[cfg(all(feature = "idl-build", not(feature = "no-custom-discriminator")))]
 impl Discriminator for SequenceTracker {
     const DISCRIMINATOR: &'static [u8] = &[];
 }
 
-#[cfg(feature = "idl-build")]
+#[cfg(all(feature = "idl-build", not(feature = "no-custom-discriminator")))]
 impl<T: AnchorSerialize + AnchorDeserialize> Discriminator for PostedVaa<T> {
     const DISCRIMINATOR: &'static [u8] = &[];
 }
