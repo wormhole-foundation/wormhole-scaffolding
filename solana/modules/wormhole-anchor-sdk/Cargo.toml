@@ -13,6 +13,8 @@ default = ["chain-id"]
 mainnet = ["wormhole-svm-definitions/solana"]
 solana-devnet = ["wormhole-svm-definitions/solana", "wormhole-svm-definitions/testnet"]
 tilt-devnet = ["wormhole-svm-definitions/solana", "wormhole-svm-definitions/localnet"]
+fogo-mainnet = ["wormhole-svm-definitions/fogo"]
+fogo-testnet = ["wormhole-svm-definitions/fogo", "wormhole-svm-definitions/testnet"]
 from-env = ["wormhole-svm-definitions/from-env"]
 chain-id = ["wormhole-svm-definitions/chain-id"]
 token-bridge = ["wormhole-svm-definitions/token-bridge"]
@@ -26,6 +28,8 @@ no-custom-discriminator = []
 anchor-lang = { version = "0" }
 anchor-spl = { version = "0" }
 # NOTE: this is the `main` commit at the time of writing.
+# TODO(fogo): after wormhole-svm-definitions with `fogo` support is merged/released,
+# update this `rev` (or switch to a release tag) before publishing scaffolding changes.
 wormhole-svm-definitions = { git = "https://github.com/wormhole-foundation/wormhole", rev = "325cca4b628f17536f54b079eeb82b41247bfbef" }
 cfg-if = "1.0.0"
 wormhole-io = { workspace = true }
